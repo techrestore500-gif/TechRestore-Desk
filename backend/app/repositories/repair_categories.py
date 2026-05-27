@@ -1,4 +1,5 @@
 """Repository for repair category reference data management."""
+from __future__ import annotations
 from app.database import (
     create_repair_category,
     list_repair_categories_for_management,

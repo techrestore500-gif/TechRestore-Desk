@@ -1,4 +1,5 @@
 """Repository for technician hours data access."""
+from __future__ import annotations
 from app.database import (
     clock_in_technician,
     clock_out_technician,

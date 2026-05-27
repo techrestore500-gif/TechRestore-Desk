@@ -1,4 +1,5 @@
 """Repository for loaner phone and checkout data access."""
+from __future__ import annotations
 from app.database import (
     ensure_customer_exists,
     checkout_loaner,
