@@ -63,3 +63,28 @@ def test_settings_validation_requires_s3_fields(monkeypatch):
     settings = get_settings()
     validate_settings(settings)
     assert settings.attachments_provider == "s3"
+
+
+def test_frontend_origin_is_included_in_cors_origins(monkeypatch):
+    monkeypatch.setenv("FRONTEND_ORIGIN", "https://desk.example.com")
+    settings = get_settings()
+    assert "https://desk.example.com" in settings.cors_origins
+
+
+def test_cors_allowed_origins_alias_is_supported(monkeypatch):
+    monkeypatch.delenv("TECH_RESTORE_CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://desk.example.com,https://desk2.example.com")
+    settings = get_settings()
+    assert "https://desk.example.com" in settings.cors_origins
+    assert "https://desk2.example.com" in settings.cors_origins
+
+
+def test_secret_key_alias_is_supported(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.delenv("TECH_RESTORE_JWT_SECRET", raising=False)
+    monkeypatch.delenv("TECH_RESTORE_SIGNED_URL_SECRET", raising=False)
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+
+    settings = get_settings()
+    assert settings.jwt_secret == "prod-secret-key"
+    assert settings.signed_url_secret == "prod-secret-key"

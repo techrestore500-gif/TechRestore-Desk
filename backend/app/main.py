@@ -23,6 +23,7 @@ from app.routes.queue import router as queue_router
 from app.routes.reports import router as reports_router
 from app.routes.system import router as system_router
 from app.routes.twilio import router as twilio_router
+from app.routes.twilio_public import router as twilio_public_router
 from app.routes.status_workflow import router as status_workflow_router
 from app.routes.supported_models import router as supported_model_router
 from app.routes.tickets import router as ticket_router
@@ -66,6 +67,7 @@ app.include_router(hours_router, prefix="/api")
 app.include_router(inventory_router)
 app.include_router(reports_router)
 app.include_router(system_router)
+app.include_router(twilio_public_router)
 app.include_router(twilio_router)
 app.include_router(status_workflow_router)
 app.include_router(attachment_router)

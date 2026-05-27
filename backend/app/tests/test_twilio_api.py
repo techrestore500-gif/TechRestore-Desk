@@ -227,6 +227,20 @@ class TestTwilioWebhooks:
         assert payload["recording_callback_route_active"] is True
         assert payload["last_voicemail"]["recording_sid"] == "RE888"
 
+    def test_setup_status_uses_environment_webhook_base_and_credentials(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_FROM_ENV")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "env-secret")
+        monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+15550000001")
+        monkeypatch.setenv("PUBLIC_BASE_URL", "https://api.example.com")
+
+        response = client.get("/api/settings/twilio/setup-status")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["twilio_credentials_configured"] is True
+        assert payload["public_webhook_base_url_configured"] is True
+        assert payload["voice_webhook_url"] == "https://api.example.com/api/twilio/voice"
+        assert payload["recording_callback_url"] == "https://api.example.com/api/twilio/recording"
+
     def test_voicemail_audio_proxy_returns_audio_bytes(self, client, monkeypatch):
         def fake_fetch(_: int):
             return b"audio-bytes", "audio/mpeg"

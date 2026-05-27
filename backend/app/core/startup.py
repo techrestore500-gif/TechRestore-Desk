@@ -1,14 +1,65 @@
 """Application startup helpers."""
+import logging
+import os
+
 from app.core.monitoring import initialize_monitoring
 from app.core.settings import get_settings
 from app.database import initialize_database
 from app.events.subscribers import register_event_subscribers
 from app.jobs.registry import register_job_handlers
 
+logger = logging.getLogger(__name__)
+
+
+def _is_set(name: str) -> bool:
+    value = os.getenv(name)
+    return value is not None and bool(value.strip())
+
+
+def _log_production_env_warnings() -> None:
+    required_any = {
+        "SECRET_KEY": ["SECRET_KEY", "TECH_RESTORE_JWT_SECRET"],
+        "DATABASE_URL": ["DATABASE_URL"],
+        "PUBLIC_BASE_URL": ["PUBLIC_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL"],
+        "CORS_ALLOWED_ORIGINS": ["CORS_ALLOWED_ORIGINS", "TECH_RESTORE_CORS_ORIGINS", "FRONTEND_ORIGIN"],
+    }
+    optional_voice_mail = {
+        "TWILIO_ACCOUNT_SID": ["TWILIO_ACCOUNT_SID"],
+        "TWILIO_AUTH_TOKEN": ["TWILIO_AUTH_TOKEN"],
+        "TWILIO_PHONE_NUMBER": ["TWILIO_PHONE_NUMBER"],
+    }
+
+    missing_required = [label for label, names in required_any.items() if not any(_is_set(name) for name in names)]
+    missing_optional = [label for label, names in optional_voice_mail.items() if not any(_is_set(name) for name in names)]
+
+    auth_enabled_value = os.getenv("REPAIR_DESK_AUTH_ENABLED")
+    if auth_enabled_value is None:
+        missing_required.append("REPAIR_DESK_AUTH_ENABLED")
+
+    if missing_required:
+        logger.warning(
+            "Production environment variables missing",
+            extra={
+                "action": "startup_env_validation",
+                "missing_required": sorted(set(missing_required)),
+            },
+        )
+
+    if missing_optional:
+        logger.warning(
+            "Optional Twilio voicemail environment variables missing",
+            extra={
+                "action": "startup_env_validation",
+                "missing_optional": sorted(set(missing_optional)),
+            },
+        )
+
 
 def initialize_app() -> None:
     """Initialize application state before serving requests."""
     settings = get_settings()
+    if settings.app_env.lower() in {"production", "staging"}:
+        _log_production_env_warnings()
     initialize_monitoring(settings)
     initialize_database()
     register_job_handlers()

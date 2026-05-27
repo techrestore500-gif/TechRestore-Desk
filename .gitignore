@@ -1,20 +1,50 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+!*.env.example
+!**/.env.example
+!**/*.env.example
+
+# python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
-.env
-.env.local
-backend/.env
-frontend/.env
+backend/.venv/
+
+# node
 node_modules/
 dist/
-data/*.sqlite
-data/*.sqlite-wal
-data/*.sqlite-shm
-data/attachments/
-backups/
-frontend/node_modules/
+build/
+
+# local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# local uploaded media / voicemail recordings
+recordings/
+uploads/
+media/
+
+# logs
+*.log
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+
+# frontend build artifacts
 frontend/dist/
-backend/.venv/
+
+# backend runtime data
+backend/data/
+data/
+
+# additional local runtime caches
+backups/
 backend/__pycache__/
 backend/**/*.pyc
 backend/**/__pycache__/

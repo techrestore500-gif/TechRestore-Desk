@@ -1,4 +1,4 @@
-import { getJson } from "./client";
+import { apiFetch, getJson } from "./client";
 export { fetchVoicemails, updateVoicemail, type VoicemailRecord } from "./system";
 
 export type SupportedModel = {
@@ -316,7 +316,7 @@ export type IntakeFormPayload = {
 };
 
 async function postJson<TResponse>(path: string, body: unknown): Promise<TResponse> {
-    const response = await fetch(path, {
+    const response = await apiFetch(path, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -501,7 +501,7 @@ export async function updateTicketStatus(ticketId: number, newStatus: string, ch
 }
 
 async function patchJson<TResponse>(path: string, body: unknown): Promise<TResponse> {
-    const response = await fetch(path, {
+    const response = await apiFetch(path, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json",
@@ -1017,7 +1017,7 @@ export type InventoryReconciliation = {
 };
 
 async function deleteRequest(path: string): Promise<void> {
-    const response = await fetch(path, { method: "DELETE" });
+    const response = await apiFetch(path, { method: "DELETE" });
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);

@@ -38,6 +38,29 @@ def _to_list(value: str | None, default: list[str]) -> list[str]:
     return [item for item in items if item]
 
 
+def _first_non_empty(*names: str) -> str | None:
+    for name in names:
+        value = os.getenv(name)
+        if value is None:
+            continue
+        trimmed = value.strip()
+        if trimmed:
+            return trimmed
+    return None
+
+
+def _merge_unique(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for item in items:
+        normalized = item.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        merged.append(normalized)
+    return merged
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str
@@ -71,23 +94,30 @@ DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES = [
 
 
 def get_settings() -> Settings:
-    app_env = os.getenv("TECH_RESTORE_APP_ENV", "development")
+    app_env = _first_non_empty("TECH_RESTORE_APP_ENV", "APP_ENV") or (
+        "production" if (os.getenv("RENDER") or "").strip().lower() == "true" else "development"
+    )
     local_root = os.getenv("TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT")
     default_local_root = APP_ROOT / "data" / "attachments"
+
+    cors_origins = _to_list(
+        _first_non_empty("TECH_RESTORE_CORS_ORIGINS", "CORS_ALLOWED_ORIGINS"),
+        [
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "http://127.0.0.1:6173",
+            "http://localhost:6173",
+        ],
+    )
+    frontend_origin = os.getenv("FRONTEND_ORIGIN")
+    if frontend_origin:
+        cors_origins = _merge_unique([frontend_origin, *cors_origins])
 
     settings = Settings(
         app_env=app_env,
         log_level=os.getenv("TECH_RESTORE_LOG_LEVEL", "INFO").upper(),
         log_json=_to_bool(os.getenv("TECH_RESTORE_LOG_JSON"), default=True),
-        cors_origins=_to_list(
-            os.getenv("TECH_RESTORE_CORS_ORIGINS"),
-            [
-                "http://127.0.0.1:5173",
-                "http://localhost:5173",
-                "http://127.0.0.1:6173",
-                "http://localhost:6173",
-            ],
-        ),
+        cors_origins=cors_origins,
         sentry_dsn=os.getenv("TECH_RESTORE_SENTRY_DSN"),
         sentry_traces_sample_rate=_to_float(os.getenv("TECH_RESTORE_SENTRY_TRACES_SAMPLE_RATE"), 0.0),
         attachments_provider=os.getenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "local").strip().lower(),
@@ -109,8 +139,9 @@ def get_settings() -> Settings:
             os.getenv("TECH_RESTORE_ATTACHMENTS_ALLOWED_MIME_TYPES"),
             DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES,
         ),
-        jwt_secret=os.getenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me"),
-        signed_url_secret=os.getenv("TECH_RESTORE_SIGNED_URL_SECRET", os.getenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me")),
+        jwt_secret=_first_non_empty("TECH_RESTORE_JWT_SECRET", "SECRET_KEY") or "dev-insecure-secret-change-me",
+        signed_url_secret=_first_non_empty("TECH_RESTORE_SIGNED_URL_SECRET", "SECRET_KEY", "TECH_RESTORE_JWT_SECRET")
+        or "dev-insecure-secret-change-me",
     )
 
     validate_settings(settings)

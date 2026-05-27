@@ -16,6 +16,11 @@ _bearer = HTTPBearer(auto_error=False)
 
 
 def _auth_bypass_enabled() -> bool:
+    auth_enabled = os.getenv("REPAIR_DESK_AUTH_ENABLED")
+    if auth_enabled is not None:
+        is_enabled = auth_enabled.strip().lower() in {"1", "true", "yes", "on"}
+        return not is_enabled
+
     # Migration-safe rollout: auth bypass is enabled by default in development.
     # Set TECH_RESTORE_AUTH_BYPASS=0 to enforce token auth.
     return os.getenv("TECH_RESTORE_AUTH_BYPASS", "1") == "1"

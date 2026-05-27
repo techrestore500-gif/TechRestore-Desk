@@ -1,3 +1,5 @@
+import { apiFetch } from './client';
+
 export type BackupResult = {
     file_name: string;
     backup_path: string;
@@ -83,7 +85,7 @@ export type TwilioSetupStatus = {
 };
 
 export async function createDatabaseBackup(): Promise<BackupResult> {
-    const response = await fetch('/api/system/backup', { method: 'POST' });
+    const response = await apiFetch('/api/system/backup', { method: 'POST' });
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -92,7 +94,7 @@ export async function createDatabaseBackup(): Promise<BackupResult> {
 }
 
 export async function fetchSystemActivityHistory(): Promise<SystemActivity[]> {
-    const response = await fetch('/api/system/history');
+    const response = await apiFetch('/api/system/history');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -101,7 +103,7 @@ export async function fetchSystemActivityHistory(): Promise<SystemActivity[]> {
 }
 
 export async function exportDataSnapshot(): Promise<{ fileName: string; blob: Blob }> {
-    const response = await fetch('/api/system/export');
+    const response = await apiFetch('/api/system/export');
     if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
     }
@@ -116,7 +118,7 @@ export async function exportDataSnapshot(): Promise<{ fileName: string; blob: Bl
 }
 
 export async function fetchLoanerAgreementDefaults(): Promise<LoanerAgreementDefaults> {
-    const response = await fetch('/api/system/loaner-agreement-defaults');
+    const response = await apiFetch('/api/system/loaner-agreement-defaults');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -125,7 +127,7 @@ export async function fetchLoanerAgreementDefaults(): Promise<LoanerAgreementDef
 }
 
 export async function updateLoanerAgreementDefaults(payload: Partial<LoanerAgreementDefaults>): Promise<LoanerAgreementDefaults> {
-    const response = await fetch('/api/system/loaner-agreement-defaults', {
+    const response = await apiFetch('/api/system/loaner-agreement-defaults', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -138,7 +140,7 @@ export async function updateLoanerAgreementDefaults(payload: Partial<LoanerAgree
 }
 
 export async function fetchNotificationTemplates(): Promise<NotificationTemplate[]> {
-    const response = await fetch('/api/system/notification-templates');
+    const response = await apiFetch('/api/system/notification-templates');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -147,7 +149,7 @@ export async function fetchNotificationTemplates(): Promise<NotificationTemplate
 }
 
 export async function updateNotificationTemplates(payload: Record<string, { template_text: string }>): Promise<NotificationTemplate[]> {
-    const response = await fetch('/api/system/notification-templates', {
+    const response = await apiFetch('/api/system/notification-templates', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -160,7 +162,7 @@ export async function updateNotificationTemplates(payload: Record<string, { temp
 }
 
 export async function fetchTwilioSettings(): Promise<TwilioSettings> {
-    const response = await fetch('/api/settings/twilio');
+    const response = await apiFetch('/api/settings/twilio');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -169,7 +171,7 @@ export async function fetchTwilioSettings(): Promise<TwilioSettings> {
 }
 
 export async function fetchTwilioSetupStatus(): Promise<TwilioSetupStatus> {
-    const response = await fetch('/api/settings/twilio/setup-status');
+    const response = await apiFetch('/api/settings/twilio/setup-status');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -178,7 +180,7 @@ export async function fetchTwilioSetupStatus(): Promise<TwilioSetupStatus> {
 }
 
 export async function updateTwilioSettings(payload: TwilioSettingsUpdate): Promise<TwilioSettings> {
-    const response = await fetch('/api/settings/twilio', {
+    const response = await apiFetch('/api/settings/twilio', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -191,7 +193,7 @@ export async function updateTwilioSettings(payload: TwilioSettingsUpdate): Promi
 }
 
 export async function clearTwilioSettings(): Promise<TwilioSettings> {
-    const response = await fetch('/api/settings/twilio', { method: 'DELETE' });
+    const response = await apiFetch('/api/settings/twilio', { method: 'DELETE' });
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -200,7 +202,7 @@ export async function clearTwilioSettings(): Promise<TwilioSettings> {
 }
 
 export async function fetchVoicemails(): Promise<VoicemailRecord[]> {
-    const response = await fetch('/api/voicemails');
+    const response = await apiFetch('/api/voicemails');
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
@@ -209,7 +211,7 @@ export async function fetchVoicemails(): Promise<VoicemailRecord[]> {
 }
 
 export async function updateVoicemail(voicemailId: number, payload: Partial<Pick<VoicemailRecord, 'status' | 'customer_id' | 'ticket_id'>> & { note?: string }): Promise<VoicemailRecord> {
-    const response = await fetch(`/api/voicemails/${voicemailId}`, {
+    const response = await apiFetch(`/api/voicemails/${voicemailId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -222,7 +224,7 @@ export async function updateVoicemail(voicemailId: number, payload: Partial<Pick
 }
 
 export async function deleteVoicemail(voicemailId: number): Promise<void> {
-    const response = await fetch(`/api/voicemails/${voicemailId}`, {
+    const response = await apiFetch(`/api/voicemails/${voicemailId}`, {
         method: 'DELETE',
     });
     if (!response.ok) {

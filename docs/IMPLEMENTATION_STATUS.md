@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-05-27 Production hosting prep complete: frontend API base URL is environment-driven, backend supports `PORT`/`FRONTEND_ORIGIN`/`DATABASE_URL`, Twilio env credentials are server-side only, and Twilio public webhook routes are separated from private Twilio settings/inbox routes
 - 2026-05-27 Settings page control-center overhaul complete: new quick-jump navigation, live settings status tiles, clearer section grouping for Business/Communications/Workflow/System, and roadmap visibility while preserving all existing API-backed settings workflows and validation behavior
 - 2026-05-27 Twilio voice quality refinement complete: voicemail greeting now uses a natural Polly voice with paced conversational chunks, and TwiML is now compatible with future Play-based custom greeting audio URLs
 - 2026-05-26 Twilio playback bugfix complete: voicemail audio proxy now handles Twilio fetch failures safely, maps playback errors to actionable API responses, and includes SSL-certificate fallback for local Windows environments

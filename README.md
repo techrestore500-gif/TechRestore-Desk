@@ -106,6 +106,8 @@ http://127.0.0.1:5173
 
 The Vite dev server proxies `/api` requests to the local FastAPI backend.
 
+For production builds, set `VITE_API_BASE_URL` (for example `https://api.example.com`).
+
 ## Docker quick start
 
 From `tech-restore-desk/`:
@@ -135,4 +137,5 @@ Services:
 - Soldering-required repair categories remain flagged as unsupported for standard v1 workflow.
 - App-level implementation notes live in `tech-restore-desk/docs/`.
 - Visual consistency guidelines live in `tech-restore-desk/docs/UI_SYSTEM_GUIDE.md`.
+- Production hosting runbook lives in `tech-restore-desk/docs/PRODUCTION_DEPLOYMENT.md`.
 

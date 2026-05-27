@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from xml.sax.saxutils import escape
 
@@ -40,15 +41,33 @@ class TwilioAudioFetchError(Exception):
 class TwilioService:
     @staticmethod
     def get_settings() -> dict:
-        return get_twilio_settings()
+        settings = get_twilio_settings()
+        env_account_sid = TwilioService._clean_env("TWILIO_ACCOUNT_SID")
+        env_phone_number = TwilioService._clean_env("TWILIO_PHONE_NUMBER")
+        env_public_base_url = TwilioService._clean_env("PUBLIC_WEBHOOK_BASE_URL") or TwilioService._clean_env("PUBLIC_BASE_URL")
+        env_auth_token = TwilioService._clean_env("TWILIO_AUTH_TOKEN")
+
+        if env_account_sid:
+            settings["account_sid"] = env_account_sid
+        if env_phone_number:
+            settings["phone_number"] = env_phone_number
+        if env_public_base_url:
+            settings["public_webhook_base_url"] = env_public_base_url
+        if env_auth_token:
+            settings["twilio_auth_token_set"] = True
+
+        settings["configured"] = bool(settings.get("account_sid") and settings.get("twilio_auth_token_set"))
+        return settings
 
     @staticmethod
     def update_settings(payload: dict) -> dict:
-        return update_twilio_settings(payload)
+        update_twilio_settings(payload)
+        return TwilioService.get_settings()
 
     @staticmethod
     def clear_settings() -> dict:
-        return clear_twilio_settings()
+        clear_twilio_settings()
+        return TwilioService.get_settings()
 
     @staticmethod
     def list_voicemails() -> list[dict]:
@@ -72,7 +91,7 @@ class TwilioService:
 
     @staticmethod
     def get_setup_status() -> dict:
-        settings = get_twilio_settings()
+        settings = TwilioService.get_settings()
         public_base = settings.get("public_webhook_base_url")
         voice_webhook_url = TwilioService._build_callback_url(public_base, "/api/twilio/voice")
         recording_callback_url = TwilioService._build_callback_url(public_base, "/api/twilio/recording")
@@ -89,7 +108,7 @@ class TwilioService:
 
     @staticmethod
     def build_voice_twiml(*, from_number: str | None, to_number: str | None) -> str:
-        settings = get_twilio_settings()
+        settings = TwilioService.get_settings()
         greeting = settings.get("voicemail_greeting") or DEFAULT_VOICEMAIL_GREETING
         greeting_audio_url = settings.get("voicemail_greeting_audio_url")
         recording_callback_url = TwilioService._build_callback_url(settings.get("public_webhook_base_url"), "/api/twilio/recording")
@@ -209,6 +228,14 @@ class TwilioService:
     @staticmethod
     def _get_credentials() -> tuple[str | None, str | None]:
         settings = get_twilio_settings()
-        account_sid = settings.get("account_sid")
-        auth_token = get_decrypted_twilio_auth_token()
+        account_sid = TwilioService._clean_env("TWILIO_ACCOUNT_SID") or settings.get("account_sid")
+        auth_token = TwilioService._clean_env("TWILIO_AUTH_TOKEN") or get_decrypted_twilio_auth_token()
         return account_sid, auth_token
+
+    @staticmethod
+    def _clean_env(name: str) -> str | None:
+        value = os.getenv(name)
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None

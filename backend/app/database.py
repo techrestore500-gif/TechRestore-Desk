@@ -21,8 +21,26 @@ DATA_DIR = APP_ROOT / "data"
 BACKUPS_DIR = APP_ROOT / "backups"
 SYSTEM_ACTIVITY_LOG_PATH = DATA_DIR / "system_activity_log.json"
 LEGACY_DB_PATH = DATA_DIR / "repairdesk.sqlite"
+
+
+def _resolve_db_path_from_env() -> Path | None:
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        return None
+
+    if database_url.startswith("sqlite:///"):
+        raw_path = database_url[len("sqlite:///") :]
+        if raw_path.startswith("/") and len(raw_path) > 2 and raw_path[2] == ":":
+            # Normalize sqlite URLs like sqlite:////C:/path/to/db.sqlite used on Windows.
+            raw_path = raw_path[1:]
+        return Path(raw_path).expanduser().resolve()
+
+    return Path(database_url).expanduser().resolve()
+
+
 DEFAULT_DB_PATH = DATA_DIR / "tech_restore_desk.sqlite"
-DB_PATH = DEFAULT_DB_PATH if DEFAULT_DB_PATH.exists() or not LEGACY_DB_PATH.exists() else LEGACY_DB_PATH
+ENV_DB_PATH = _resolve_db_path_from_env()
+DB_PATH = ENV_DB_PATH or (DEFAULT_DB_PATH if DEFAULT_DB_PATH.exists() or not LEGACY_DB_PATH.exists() else LEGACY_DB_PATH)
 SLOW_QUERY_THRESHOLD_MS = float(os.getenv("TECH_RESTORE_SLOW_QUERY_MS", "120"))
 logger = logging.getLogger(__name__)
 
@@ -73,6 +91,7 @@ class InstrumentedConnection(sqlite3.Connection):
 
 def get_connection() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, factory=InstrumentedConnection)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
