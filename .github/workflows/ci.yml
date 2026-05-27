@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Lint with flake8
+        run: |
+          cd backend
+          flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Check formatting with black
+        run: |
+          cd backend
+          black --check app --diff || true
+      - name: Check import sorting with isort
+        run: |
+          cd backend
+          isort --check-only app --diff || true
+      - name: Frontend type-lint check
+        run: |
+          cd frontend
+          npx tsc --noEmit
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Run backend tests
+        run: |
+          cd backend
+          pytest app/tests --cov=app --cov-report=xml --cov-report=term-missing
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm test -- --run
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Build backend image
+        run: docker build -t tech-restore-backend:ci ./backend
+      - name: Build frontend image
+        run: docker build -t tech-restore-frontend:ci ./frontend
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deployment safeguard checks
+        run: |
+          test -n "${{ secrets.DEPLOY_TARGET }}"
+          test -n "${{ secrets.DEPLOY_TOKEN }}"
+      - name: Trigger deployment (placeholder)
+        run: |
+          echo "Deploy target: ${{ secrets.DEPLOY_TARGET }}"
+          echo "Trigger provider-specific deployment command here"

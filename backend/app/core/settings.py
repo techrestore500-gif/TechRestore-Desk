@@ -1,0 +1,146 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from app.database import APP_ROOT
+
+
+def _to_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _to_int(value: str | None, default: int) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _to_float(value: str | None, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def _to_list(value: str | None, default: list[str]) -> list[str]:
+    if value is None:
+        return default
+    items = [item.strip() for item in value.split(",")]
+    return [item for item in items if item]
+
+
+@dataclass(frozen=True)
+class Settings:
+    app_env: str
+    log_level: str
+    log_json: bool
+    cors_origins: list[str]
+    sentry_dsn: str | None
+    sentry_traces_sample_rate: float
+
+    attachments_provider: str
+    attachments_local_root: Path
+    attachments_bucket: str | None
+    attachments_region: str | None
+    attachments_endpoint_url: str | None
+    attachments_access_key_id: str | None
+    attachments_secret_access_key: str | None
+    attachments_signed_url_ttl_seconds: int
+    attachments_max_file_size_bytes: int
+    attachments_allowed_mime_types: list[str]
+
+    jwt_secret: str
+    signed_url_secret: str
+
+
+DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+]
+
+
+def get_settings() -> Settings:
+    app_env = os.getenv("TECH_RESTORE_APP_ENV", "development")
+    local_root = os.getenv("TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT")
+    default_local_root = APP_ROOT / "data" / "attachments"
+
+    settings = Settings(
+        app_env=app_env,
+        log_level=os.getenv("TECH_RESTORE_LOG_LEVEL", "INFO").upper(),
+        log_json=_to_bool(os.getenv("TECH_RESTORE_LOG_JSON"), default=True),
+        cors_origins=_to_list(
+            os.getenv("TECH_RESTORE_CORS_ORIGINS"),
+            [
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:6173",
+                "http://localhost:6173",
+            ],
+        ),
+        sentry_dsn=os.getenv("TECH_RESTORE_SENTRY_DSN"),
+        sentry_traces_sample_rate=_to_float(os.getenv("TECH_RESTORE_SENTRY_TRACES_SAMPLE_RATE"), 0.0),
+        attachments_provider=os.getenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "local").strip().lower(),
+        attachments_local_root=Path(local_root).resolve() if local_root else default_local_root,
+        attachments_bucket=os.getenv("TECH_RESTORE_ATTACHMENTS_BUCKET"),
+        attachments_region=os.getenv("TECH_RESTORE_ATTACHMENTS_REGION"),
+        attachments_endpoint_url=os.getenv("TECH_RESTORE_ATTACHMENTS_ENDPOINT_URL"),
+        attachments_access_key_id=os.getenv("TECH_RESTORE_ATTACHMENTS_ACCESS_KEY_ID"),
+        attachments_secret_access_key=os.getenv("TECH_RESTORE_ATTACHMENTS_SECRET_ACCESS_KEY"),
+        attachments_signed_url_ttl_seconds=max(
+            60,
+            _to_int(os.getenv("TECH_RESTORE_ATTACHMENTS_SIGNED_URL_TTL_SECONDS"), 900),
+        ),
+        attachments_max_file_size_bytes=max(
+            1024,
+            _to_int(os.getenv("TECH_RESTORE_ATTACHMENTS_MAX_FILE_SIZE_BYTES"), 10 * 1024 * 1024),
+        ),
+        attachments_allowed_mime_types=_to_list(
+            os.getenv("TECH_RESTORE_ATTACHMENTS_ALLOWED_MIME_TYPES"),
+            DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES,
+        ),
+        jwt_secret=os.getenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me"),
+        signed_url_secret=os.getenv("TECH_RESTORE_SIGNED_URL_SECRET", os.getenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me")),
+    )
+
+    validate_settings(settings)
+    return settings
+
+
+def validate_settings(settings: Settings) -> None:
+    if settings.attachments_provider not in {"local", "s3"}:
+        raise ValueError("TECH_RESTORE_ATTACHMENTS_PROVIDER must be one of: local, s3")
+
+    if settings.attachments_provider == "s3":
+        missing = [
+            key
+            for key, value in {
+                "TECH_RESTORE_ATTACHMENTS_BUCKET": settings.attachments_bucket,
+                "TECH_RESTORE_ATTACHMENTS_REGION": settings.attachments_region,
+                "TECH_RESTORE_ATTACHMENTS_ACCESS_KEY_ID": settings.attachments_access_key_id,
+                "TECH_RESTORE_ATTACHMENTS_SECRET_ACCESS_KEY": settings.attachments_secret_access_key,
+            }.items()
+            if not value
+        ]
+        if missing:
+            joined = ", ".join(missing)
+            raise ValueError(f"Missing required S3 attachment settings: {joined}")
+
+    if settings.app_env.lower() in {"production", "staging"}:
+        if settings.jwt_secret == "dev-insecure-secret-change-me":
+            raise ValueError("TECH_RESTORE_JWT_SECRET must be set in production/staging")
+        if settings.signed_url_secret == "dev-insecure-secret-change-me":
+            raise ValueError("TECH_RESTORE_SIGNED_URL_SECRET must be set in production/staging")
+
+    if not settings.attachments_allowed_mime_types:
+        raise ValueError("TECH_RESTORE_ATTACHMENTS_ALLOWED_MIME_TYPES cannot be empty")

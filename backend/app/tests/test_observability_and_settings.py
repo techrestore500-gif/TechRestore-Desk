@@ -1,0 +1,65 @@
+import pytest
+from fastapi.testclient import TestClient
+
+import app.database as database
+from app.core.settings import get_settings, validate_settings
+from app.main import app
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    test_db_path = tmp_path / "tech_restore_desk_test.sqlite"
+    test_backups_dir = tmp_path / "backups"
+    test_backups_dir.mkdir()
+    test_activity_log_path = tmp_path / "system_activity_log.json"
+
+    monkeypatch.setattr(database, "DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "LEGACY_DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "BACKUPS_DIR", test_backups_dir)
+    monkeypatch.setattr(database, "SYSTEM_ACTIVITY_LOG_PATH", test_activity_log_path)
+
+    database.initialize_database()
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def test_validation_error_includes_standardized_error_envelope(client: TestClient):
+    response = client.post(
+        "/api/customers",
+        json={"full_name": "No Phone"},
+    )
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "validation_error"
+    assert payload["detail"] == "Request validation failed"
+    assert payload.get("request_id")
+
+
+def test_settings_validation_requires_non_default_secrets_in_production(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me")
+    monkeypatch.delenv("TECH_RESTORE_SIGNED_URL_SECRET", raising=False)
+
+    with pytest.raises(ValueError):
+        get_settings()
+
+
+def test_settings_validation_requires_s3_fields(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "s3")
+    monkeypatch.delenv("TECH_RESTORE_ATTACHMENTS_BUCKET", raising=False)
+    monkeypatch.delenv("TECH_RESTORE_ATTACHMENTS_REGION", raising=False)
+    monkeypatch.delenv("TECH_RESTORE_ATTACHMENTS_ACCESS_KEY_ID", raising=False)
+    monkeypatch.delenv("TECH_RESTORE_ATTACHMENTS_SECRET_ACCESS_KEY", raising=False)
+
+    with pytest.raises(ValueError):
+        get_settings()
+
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_BUCKET", "tech-restore-private")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_REGION", "auto")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_ACCESS_KEY_ID", "x")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_SECRET_ACCESS_KEY", "y")
+    settings = get_settings()
+    validate_settings(settings)
+    assert settings.attachments_provider == "s3"

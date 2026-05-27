@@ -1,0 +1,32 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+}
+
+body {
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
+}
+
+input,
+select,
+textarea,
+button {
+    font: inherit;
+}
+
+input,
+select,
+textarea {
+    min-width: 0;
+    max-width: 100%;
+}
