@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from datetime import UTC, datetime
+
 from app.repositories.auth import AuthRepository
 from app.events.audit_events import admin_action
 from app.services.audit import AuditService
@@ -34,6 +37,26 @@ class AuthService:
 
     @staticmethod
     def login(username: str, password: str) -> tuple[dict, str, object]:
+        shared_password = os.getenv("REPAIR_DESK_PASSWORD", "").strip()
+        shared_auth_enabled = os.getenv("REPAIR_DESK_AUTH_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+        if shared_auth_enabled and shared_password:
+            if password != shared_password:
+                raise ValueError("Invalid credentials")
+
+            subject = username.strip() or "shared-password-admin"
+            token, expires_at = create_access_token(subject=subject, role="admin", user_id=0)
+            now = datetime.now(UTC).isoformat()
+            user = {
+                "id": 0,
+                "username": subject,
+                "role": "admin",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now,
+            }
+            return user, token, expires_at
+
         user = AuthRepository.get_user_by_username(username)
         if user is None or not user.get("is_active"):
             raise ValueError("Invalid credentials")

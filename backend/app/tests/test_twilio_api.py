@@ -18,6 +18,16 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(database, "LEGACY_DB_PATH", test_db_path)
     monkeypatch.setattr(database, "BACKUPS_DIR", test_backups_dir)
     monkeypatch.setattr(database, "SYSTEM_ACTIVITY_LOG_PATH", test_activity_log_path)
+    monkeypatch.delenv("REPAIR_DESK_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("REPAIR_DESK_PASSWORD", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("TECH_RESTORE_APP_ENV", raising=False)
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
+    monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
+    monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
 
     database.initialize_database()
 

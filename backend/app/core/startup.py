@@ -37,20 +37,24 @@ def _log_production_env_warnings() -> None:
         missing_required.append("REPAIR_DESK_AUTH_ENABLED")
 
     if missing_required:
+        missing_required_sorted = sorted(set(missing_required))
         logger.warning(
-            "Production environment variables missing",
+            "Production environment variables missing: %s",
+            ", ".join(missing_required_sorted),
             extra={
                 "action": "startup_env_validation",
-                "missing_required": sorted(set(missing_required)),
+                "missing_required": missing_required_sorted,
             },
         )
 
     if missing_optional:
+        missing_optional_sorted = sorted(set(missing_optional))
         logger.warning(
-            "Optional Twilio voicemail environment variables missing",
+            "Optional Twilio voicemail environment variables missing: %s",
+            ", ".join(missing_optional_sorted),
             extra={
                 "action": "startup_env_validation",
-                "missing_optional": sorted(set(missing_optional)),
+                "missing_optional": missing_optional_sorted,
             },
         )
 

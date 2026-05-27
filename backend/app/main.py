@@ -8,6 +8,7 @@ from app.core.logging import configure_logging
 from app.core.settings import get_settings
 from app.core.startup import initialize_app
 from app.middleware.access_log import AccessLogMiddleware
+from app.middleware.auth_gate import AuthGateMiddleware
 from app.middleware.request_context import RequestContextMiddleware
 from app.routes.attachments import router as attachment_router
 from app.routes.auth import router as auth_router
@@ -41,6 +42,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Tech Restore Desk", lifespan=lifespan)
 
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(AuthGateMiddleware)
 app.add_middleware(AccessLogMiddleware)
 
 app.add_middleware(
