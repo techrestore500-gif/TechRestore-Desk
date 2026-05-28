@@ -67,6 +67,6 @@ def initialize_app() -> None:
         _log_production_env_warnings()
     initialize_monitoring(settings)
     initialize_database()
-    AuthService.ensure_bootstrap_admin_from_env()
+    AuthService.ensure_bootstrap_admin_invite_from_env()
     register_job_handlers()
     register_event_subscribers()

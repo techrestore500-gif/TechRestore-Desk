@@ -2,6 +2,7 @@ import { apiFetch } from './client';
 
 export type AuthRole = 'owner' | 'admin' | 'technician' | 'front_desk' | 'viewer';
 export type AuthStatus = 'pending' | 'active' | 'denied' | 'disabled';
+export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 
 export type AuthUser = {
     id: number;
@@ -24,13 +25,19 @@ export type LoginResponse = {
     user: AuthUser;
 };
 
-export type AccessRequest = {
+export type AuthInvite = {
     id: number;
-    name: string;
+    name: string | null;
     email: string;
-    username: string;
-    status: AuthStatus;
+    role: AuthRole;
+    status: InviteStatus;
+    expires_at: string;
     created_at: string;
+    created_by: number | null;
+    accepted_at: string | null;
+    accepted_user_id: number | null;
+    revoked_at: string | null;
+    invite_link?: string | null;
 };
 
 export type AuthDecisionResponse = {
@@ -38,11 +45,18 @@ export type AuthDecisionResponse = {
     user: AuthUser;
 };
 
-export async function login(identifier: string, password: string): Promise<LoginResponse> {
+export type InviteResolveResponse = {
+    email: string;
+    name: string | null;
+    role: AuthRole;
+    expires_at: string;
+};
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
     const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -51,21 +65,6 @@ export async function login(identifier: string, password: string): Promise<Login
     }
 
     return response.json() as Promise<LoginResponse>;
-}
-
-export async function signupRequest(name: string, email: string, password: string): Promise<{ message: string }> {
-    const response = await apiFetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-    });
-
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Could not submit access request');
-    }
-
-    return response.json() as Promise<{ message: string }>;
 }
 
 export async function fetchCurrentUser(accessToken: string): Promise<AuthUser> {
@@ -83,35 +82,59 @@ export async function fetchCurrentUser(accessToken: string): Promise<AuthUser> {
     return response.json() as Promise<AuthUser>;
 }
 
-export async function fetchAccessRequests(): Promise<AccessRequest[]> {
-    const response = await apiFetch('/api/auth/access-requests');
+export async function fetchInvites(): Promise<AuthInvite[]> {
+    const response = await apiFetch('/api/auth/invites');
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to load access requests');
+        throw new Error(payload.detail ?? 'Unable to load invites');
     }
-    return response.json() as Promise<AccessRequest[]>;
+    return response.json() as Promise<AuthInvite[]>;
 }
 
-export async function approveAccessRequest(userId: number, role: AuthRole): Promise<AuthDecisionResponse> {
-    const response = await apiFetch(`/api/auth/access-requests/${userId}/approve`, {
+export async function createInvite(email: string, role: AuthRole, name?: string): Promise<AuthInvite> {
+    const response = await apiFetch('/api/auth/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ email, role, name: name?.trim() ? name.trim() : undefined }),
     });
+
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to approve request');
+        throw new Error(payload.detail ?? 'Unable to create invite');
     }
-    return response.json() as Promise<AuthDecisionResponse>;
+
+    return response.json() as Promise<AuthInvite>;
 }
 
-export async function denyAccessRequest(userId: number): Promise<AuthDecisionResponse> {
-    const response = await apiFetch(`/api/auth/access-requests/${userId}/deny`, {
+export async function revokeInvite(inviteId: number): Promise<AuthInvite> {
+    const response = await apiFetch(`/api/auth/invites/${inviteId}/revoke`, {
         method: 'POST',
     });
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to deny request');
+        throw new Error(payload.detail ?? 'Unable to revoke invite');
+    }
+    return response.json() as Promise<AuthInvite>;
+}
+
+export async function resolveInvite(token: string): Promise<InviteResolveResponse> {
+    const response = await apiFetch(`/api/auth/invites/${token}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail ?? 'Invite is invalid');
+    }
+    return response.json() as Promise<InviteResolveResponse>;
+}
+
+export async function acceptInvite(token: string, password: string): Promise<AuthDecisionResponse> {
+    const response = await apiFetch(`/api/auth/invites/${token}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail ?? 'Unable to accept invite');
     }
     return response.json() as Promise<AuthDecisionResponse>;
 }

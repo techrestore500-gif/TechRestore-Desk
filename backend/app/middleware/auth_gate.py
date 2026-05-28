@@ -11,7 +11,7 @@ from app.auth.dependencies import auth_enforcement_enabled, authenticate_bearer_
 PUBLIC_API_PATHS = {
     "/api/health",
     "/api/auth/login",
-    "/api/auth/signup",
+    "/api/auth/bootstrap/invite-link",
     "/api/twilio/voice",
     "/api/twilio/recording",
 }
@@ -26,7 +26,11 @@ class AuthGateMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if not path.startswith("/api") or path in PUBLIC_API_PATHS:
+        is_public_invite_route = path.startswith("/api/auth/invites/") and (
+            path.endswith("/accept") or path.count("/") == 4
+        )
+
+        if not path.startswith("/api") or path in PUBLIC_API_PATHS or is_public_invite_route:
             return await call_next(request)
 
         authorization = request.headers.get("authorization", "")

@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.auth.dependencies import get_current_user, require_role
 from app.schemas.auth import (
-    AuthAccessRequestResponse,
-    AuthApproveRequest,
+    AuthBootstrapInviteResponse,
     AuthCreateUserRequest,
     AuthDecisionResponse,
+    AuthInviteAcceptRequest,
+    AuthInviteCreateRequest,
+    AuthInviteResolveResponse,
+    AuthInviteResponse,
     AuthLoginRequest,
     AuthLoginResponse,
-    AuthSignupRequest,
-    AuthSignupResponse,
     AuthUpdateUserRoleRequest,
     AuthUserResponse,
 )
@@ -21,9 +24,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=AuthLoginResponse)
 def post_login(payload: AuthLoginRequest) -> AuthLoginResponse:
-    identifier = (payload.identifier or payload.username or "").strip()
     try:
-        user, token, expires_at = AuthService.login(identifier, payload.password)
+        user, token, expires_at = AuthService.login(payload.email, payload.password)
     except ValueError as error:
         raise HTTPException(status_code=401, detail=str(error)) from error
 
@@ -35,14 +37,41 @@ def post_login(payload: AuthLoginRequest) -> AuthLoginResponse:
     )
 
 
-@router.post("/signup", response_model=AuthSignupResponse, status_code=201)
-def post_signup(payload: AuthSignupRequest) -> AuthSignupResponse:
+@router.get("/invites/{token}", response_model=AuthInviteResolveResponse)
+def get_invite_by_token(token: str) -> AuthInviteResolveResponse:
     try:
-        AuthService.signup_request(payload.name, payload.email, payload.password)
+        invite = AuthService.resolve_invite(token)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return AuthInviteResolveResponse.model_validate(invite)
+
+
+@router.post("/invites/{token}/accept", response_model=AuthDecisionResponse)
+def post_accept_invite(token: str, payload: AuthInviteAcceptRequest) -> AuthDecisionResponse:
+    try:
+        user = AuthService.accept_invite(token, payload.password)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return AuthDecisionResponse(
+        message="Invite accepted. Your account is active.",
+        user=AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"}),
+    )
+
+
+@router.post("/bootstrap/invite-link", response_model=AuthBootstrapInviteResponse)
+def post_bootstrap_invite_link(x_bootstrap_key: str | None = Header(default=None, alias="X-Bootstrap-Key")) -> AuthBootstrapInviteResponse:
+    expected_key = os.getenv("ADMIN_INVITE_BOOTSTRAP_KEY", "").strip()
+    if not expected_key:
+        raise HTTPException(status_code=404, detail="Bootstrap endpoint disabled")
+    if x_bootstrap_key != expected_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        invite_link, expires_at, email = AuthService.issue_bootstrap_invite_link()
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
-    return AuthSignupResponse(message="Your access request was submitted. Tech Restore will review it.")
+    return AuthBootstrapInviteResponse(invite_link=invite_link, expires_at=expires_at, email=email)
 
 
 @router.post("/users", response_model=AuthUserResponse, status_code=201)
@@ -86,42 +115,35 @@ def get_me(user: dict = Depends(get_current_user)) -> AuthUserResponse:
     return AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"})
 
 
-@router.get("/access-requests", response_model=list[AuthAccessRequestResponse])
-def get_access_requests(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthAccessRequestResponse]:
-    requests = AuthService.list_pending_access_requests()
-    return [AuthAccessRequestResponse.model_validate(item) for item in requests]
+@router.get("/invites", response_model=list[AuthInviteResponse])
+def get_invites(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthInviteResponse]:
+    invites = AuthService.list_invites()
+    return [AuthInviteResponse.model_validate(item) for item in invites]
 
 
-@router.post("/access-requests/{user_id}/approve", response_model=AuthDecisionResponse)
-def post_approve_access_request(
-    user_id: int,
-    payload: AuthApproveRequest,
-    approver: dict = Depends(require_role("owner", "admin")),
-) -> AuthDecisionResponse:
+@router.post("/invites", response_model=AuthInviteResponse, status_code=201)
+def post_invite(
+    payload: AuthInviteCreateRequest,
+    requester: dict = Depends(require_role("owner", "admin")),
+) -> AuthInviteResponse:
     try:
-        updated = AuthService.approve_access_request(user_id=user_id, role=payload.role, approver_user_id=int(approver["id"]))
+        invite, token = AuthService.create_invite(
+            email=payload.email,
+            name=payload.name,
+            role=payload.role,
+            created_by=int(requester["id"]),
+        )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
+    desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+    invite["invite_link"] = f"{desk_base}/invite/{token}"
+    return AuthInviteResponse.model_validate(invite)
+
+
+@router.post("/invites/{invite_id}/revoke", response_model=AuthInviteResponse)
+def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
+    updated = AuthService.revoke_invite(invite_id)
     if updated is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return AuthDecisionResponse(
-        message="Access request approved",
-        user=AuthUserResponse.model_validate({k: v for k, v in updated.items() if k != "password_hash"}),
-    )
-
-
-@router.post("/access-requests/{user_id}/deny", response_model=AuthDecisionResponse)
-def post_deny_access_request(
-    user_id: int,
-    approver: dict = Depends(require_role("owner", "admin")),
-) -> AuthDecisionResponse:
-    updated = AuthService.deny_access_request(user_id=user_id, approver_user_id=int(approver["id"]))
-    if updated is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return AuthDecisionResponse(
-        message="Access request denied",
-        user=AuthUserResponse.model_validate({k: v for k, v in updated.items() if k != "password_hash"}),
-    )
+        raise HTTPException(status_code=404, detail="Invite not found or already finalized")
+    return AuthInviteResponse.model_validate(updated)

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import re
+import secrets
+import hashlib
 
 from app.repositories.auth import AuthRepository
 from app.events.audit_events import admin_action
@@ -13,6 +15,45 @@ from app.utils.passwords import hash_password, verify_password
 ALLOWED_ROLES = {"owner", "admin", "technician", "front_desk", "viewer"}
 ALLOWED_STATUSES = {"pending", "active", "denied", "disabled"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+INVITE_TOKEN_BYTES = 32
+INVITE_EXPIRY_HOURS = int(os.getenv("TECH_RESTORE_INVITE_EXPIRY_HOURS", "72"))
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _hash_invite_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _invite_is_expired(expires_at: str) -> bool:
+    try:
+        parsed = datetime.fromisoformat(expires_at)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed <= _utc_now()
+    except ValueError:
+        return True
+
+
+def _to_public_invite(invite: dict) -> dict:
+    status = invite.get("status")
+    if status == "pending" and _invite_is_expired(str(invite.get("expires_at") or "")):
+        status = "expired"
+    return {
+        "id": invite["id"],
+        "email": invite["email"],
+        "name": invite.get("name"),
+        "role": invite["role"],
+        "status": status,
+        "expires_at": invite["expires_at"],
+        "created_at": invite["created_at"],
+        "created_by": invite.get("created_by"),
+        "accepted_at": invite.get("accepted_at"),
+        "accepted_user_id": invite.get("accepted_user_id"),
+        "revoked_at": invite.get("revoked_at"),
+    }
 
 
 def _normalize_status(user: dict) -> str:
@@ -89,7 +130,8 @@ class AuthService:
         return user
 
     @staticmethod
-    def login(identifier: str, password: str) -> tuple[dict, str, object]:
+    def login(email: str, password: str) -> tuple[dict, str, object]:
+        normalized_email = _validate_email(email)
         shared_password = os.getenv("REPAIR_DESK_PASSWORD", "").strip()
         shared_auth_enabled = os.getenv("REPAIR_DESK_AUTH_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -97,13 +139,13 @@ class AuthService:
             if password != shared_password:
                 raise ValueError("Invalid credentials")
 
-            subject = identifier.strip() or "shared-password-admin"
+            subject = normalized_email.strip() or "shared-password-admin"
             token, expires_at = create_access_token(subject=subject, role="admin", user_id=0)
-            now = datetime.now(UTC).isoformat()
+            now = _utc_now().isoformat()
             user = {
                 "id": 0,
                 "name": "Shared Password Admin",
-                "email": "shared-password-admin@local.techrestore",
+                "email": normalized_email,
                 "username": subject,
                 "role": "admin",
                 "status": "active",
@@ -115,7 +157,7 @@ class AuthService:
             }
             return user, token, expires_at
 
-        user = AuthRepository.get_user_by_identifier(identifier)
+        user = AuthRepository.get_user_by_email(normalized_email)
         if user is None:
             raise ValueError("Invalid credentials")
 
@@ -138,98 +180,144 @@ class AuthService:
         return user, token, expires_at
 
     @staticmethod
-    def signup_request(name: str, email: str, password: str) -> dict:
-        clean_email = _validate_email(email)
-        existing = AuthRepository.get_user_by_email(clean_email)
-        if existing is not None and _normalize_status(existing) in {"pending", "active"}:
-            raise ValueError("An account request already exists for this email")
+    def create_invite(*, email: str, role: str, created_by: int, name: str | None = None) -> tuple[dict, str]:
+        if role not in ALLOWED_ROLES:
+            raise ValueError("Invalid role")
 
-        username = _generate_unique_username(name=name, email=clean_email)
-        password_hash = hash_password(password)
-        user = AuthRepository.create_user(
-            name=name.strip(),
+        clean_email = _validate_email(email)
+        AuthRepository.revoke_pending_invites_for_email(clean_email)
+
+        token = secrets.token_urlsafe(INVITE_TOKEN_BYTES)
+        token_hash = _hash_invite_token(token)
+        expires_at = (_utc_now().replace(microsecond=0) + timedelta(hours=INVITE_EXPIRY_HOURS)).isoformat()
+        invite = AuthRepository.create_invite(
             email=clean_email,
-            username=username,
-            password_hash=password_hash,
-            role=None,
-            status="pending",
-            approved_by=None,
+            name=name.strip() if isinstance(name, str) and name.strip() else None,
+            role=role,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            created_by=created_by,
         )
+
         AuditService.log_event(
             admin_action(
-                entity_type="user",
-                entity_id=user["id"],
-                action="auth_signup_requested",
+                entity_type="auth_invite",
+                entity_id=invite["id"],
+                action="admin_invite_created",
                 old_value=None,
                 new_value={
-                    "name": user["name"],
-                    "email": user["email"],
-                    "username": user["username"],
-                    "status": user["status"],
+                    "email": invite["email"],
+                    "role": invite["role"],
+                    "expires_at": invite["expires_at"],
+                },
+            )
+        )
+        return _to_public_invite(invite), token
+
+    @staticmethod
+    def list_invites() -> list[dict]:
+        invites = AuthRepository.list_invites()
+        return [_to_public_invite(item) for item in invites]
+
+    @staticmethod
+    def revoke_invite(invite_id: int) -> dict | None:
+        updated = AuthRepository.revoke_invite(invite_id)
+        if updated is not None:
+            AuditService.log_event(
+                admin_action(
+                    entity_type="auth_invite",
+                    entity_id=invite_id,
+                    action="admin_invite_revoked",
+                    old_value=None,
+                    new_value={"status": updated["status"]},
+                )
+            )
+            return _to_public_invite(updated)
+        return None
+
+    @staticmethod
+    def resolve_invite(token: str) -> dict:
+        token_hash = _hash_invite_token(token)
+        invite = AuthRepository.get_invite_by_token_hash(token_hash)
+        if invite is None:
+            raise ValueError("Invite not found")
+        public_invite = _to_public_invite(invite)
+        if public_invite["status"] != "pending":
+            raise ValueError("Invite is not available")
+        return {
+            "email": public_invite["email"],
+            "name": public_invite["name"],
+            "role": public_invite["role"],
+            "expires_at": public_invite["expires_at"],
+        }
+
+    @staticmethod
+    def accept_invite(token: str, password: str) -> dict:
+        token_hash = _hash_invite_token(token)
+        invite = AuthRepository.get_invite_by_token_hash(token_hash)
+        if invite is None:
+            raise ValueError("Invite not found")
+
+        public_invite = _to_public_invite(invite)
+        if public_invite["status"] == "expired":
+            raise ValueError("Invite has expired")
+        if public_invite["status"] != "pending":
+            raise ValueError("Invite is not available")
+
+        password_digest = hash_password(password)
+        existing_user = AuthRepository.get_user_by_email(invite["email"])
+        if existing_user is None:
+            user = AuthRepository.create_user(
+                name=(invite.get("name") or invite["email"].split("@", 1)[0]).strip(),
+                email=invite["email"],
+                username=_generate_unique_username(invite.get("name") or invite["email"], invite["email"]),
+                password_hash=password_digest,
+                role=invite["role"],
+                status="active",
+                approved_by=invite.get("created_by"),
+            )
+        else:
+            user = AuthRepository.update_user_from_invite(
+                user_id=int(existing_user["id"]),
+                name=(invite.get("name") or existing_user.get("name") or invite["email"]).strip(),
+                role=invite["role"],
+                password_hash=password_digest,
+                approved_by=invite.get("created_by"),
+            )
+            if user is None:
+                raise ValueError("Could not activate user")
+
+        accepted = AuthRepository.mark_invite_as_accepted(int(invite["id"]), int(user["id"]))
+        if accepted is None:
+            raise ValueError("Invite is not available")
+
+        AuditService.log_event(
+            admin_action(
+                entity_type="auth_invite",
+                entity_id=invite["id"],
+                action="auth_invite_accepted",
+                old_value=None,
+                new_value={
+                    "email": invite["email"],
+                    "role": invite["role"],
+                    "accepted_user_id": user["id"],
                 },
             )
         )
         return user
 
     @staticmethod
-    def list_pending_access_requests() -> list[dict]:
-        return AuthRepository.list_pending_requests()
+    def ensure_bootstrap_admin_invite_from_env() -> dict | None:
+        bootstrap_enabled = os.getenv("ADMIN_INVITE_BOOTSTRAP", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if not bootstrap_enabled:
+            return None
 
-    @staticmethod
-    def approve_access_request(user_id: int, role: str, approver_user_id: int) -> dict | None:
-        if role not in ALLOWED_ROLES:
-            raise ValueError("Invalid role")
-        updated = AuthRepository.set_user_status(
-            user_id=user_id,
-            status="active",
-            role=role,
-            approved_by=approver_user_id,
-        )
-        if updated is not None:
-            AuditService.log_event(
-                admin_action(
-                    entity_type="user",
-                    entity_id=user_id,
-                    action="admin_access_request_approved",
-                    old_value={"status": "pending"},
-                    new_value={
-                        "status": updated["status"],
-                        "role": updated["role"],
-                        "approved_by": updated.get("approved_by"),
-                    },
-                )
-            )
-        return updated
-
-    @staticmethod
-    def deny_access_request(user_id: int, approver_user_id: int) -> dict | None:
-        updated = AuthRepository.set_user_status(
-            user_id=user_id,
-            status="denied",
-            role=None,
-            approved_by=approver_user_id,
-        )
-        if updated is not None:
-            AuditService.log_event(
-                admin_action(
-                    entity_type="user",
-                    entity_id=user_id,
-                    action="admin_access_request_denied",
-                    old_value={"status": "pending"},
-                    new_value={"status": updated["status"]},
-                )
-            )
-        return updated
-
-    @staticmethod
-    def ensure_bootstrap_admin_from_env() -> dict | None:
-        if AuthRepository.count_users() > 0:
+        if AuthRepository.count_users() > 0 or AuthRepository.count_active_admins() > 0:
             return None
 
         admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
-        admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Owner"
-        admin_password = os.getenv("ADMIN_PASSWORD", "")
-        if not admin_email_raw or not admin_password.strip():
+        admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
+        if not admin_email_raw:
             return None
 
         try:
@@ -237,36 +325,44 @@ class AuthService:
         except ValueError:
             return None
 
-        admin_username = _build_username_seed(admin_name, admin_email)
-        if AuthRepository.get_user_by_identifier(admin_username) is not None:
-            admin_username = _generate_unique_username(admin_name, admin_email)
+        pending = [invite for invite in AuthService.list_invites() if invite["email"].lower() == admin_email and invite["status"] == "pending"]
+        if pending:
+            return pending[0]
 
-        password_hash = hash_password(admin_password)
-        user = AuthRepository.create_user(
-            name=admin_name,
-            email=admin_email,
-            username=admin_username,
-            password_hash=password_hash,
-            role="owner",
-            status="active",
-            approved_by=None,
-        )
+        invite, token = AuthService.create_invite(email=admin_email, name=admin_name, role="owner", created_by=0)
+
+        should_log_token = os.getenv("ADMIN_INVITE_DEV_LOG_TOKEN", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if should_log_token:
+            desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+            print(f"BOOTSTRAP_INVITE_LINK={desk_base}/invite/{token}")
+
         AuditService.log_event(
             admin_action(
-                entity_type="user",
-                entity_id=user["id"],
-                action="startup_bootstrap_owner_created",
+                entity_type="auth_invite",
+                entity_id=invite["id"],
+                action="startup_bootstrap_owner_invite_created",
                 old_value=None,
                 new_value={
-                    "name": user["name"],
-                    "email": user["email"],
-                    "username": user["username"],
-                    "role": user["role"],
-                    "status": user["status"],
+                    "email": invite["email"],
+                    "role": invite["role"],
+                    "expires_at": invite["expires_at"],
                 },
             )
         )
-        return user
+        return invite
+
+    @staticmethod
+    def issue_bootstrap_invite_link() -> tuple[str, str, str]:
+        admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
+        if not admin_email_raw:
+            raise ValueError("ADMIN_EMAIL is not configured")
+
+        admin_email = _validate_email(admin_email_raw)
+        admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
+        AuthRepository.revoke_pending_invites_for_email(admin_email)
+        invite, token = AuthService.create_invite(email=admin_email, name=admin_name, role="owner", created_by=0)
+        desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+        return f"{desk_base}/invite/{token}", invite["expires_at"], admin_email
 
     @staticmethod
     def get_user(user_id: int) -> dict | None:

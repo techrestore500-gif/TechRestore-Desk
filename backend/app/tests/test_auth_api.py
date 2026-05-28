@@ -40,11 +40,17 @@ class TestAuthApi:
     def _create_user(*, name: str, email: str, username: str, role: str, password: str = "pass12345") -> dict:
         return AuthService.create_user(name=name, email=email, username=username, password=password, role=role)
 
+    @staticmethod
+    def _login(client: TestClient, email: str, password: str = "pass12345") -> dict:
+        response = client.post("/api/auth/login", json={"email": email, "password": password})
+        assert response.status_code == 200
+        return response.json()
+
     def test_shared_password_login_without_existing_user(self, client, monkeypatch):
         monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
         monkeypatch.setenv("REPAIR_DESK_PASSWORD", "unit-test-shared-password")
 
-        response = client.post("/api/auth/login", json={"identifier": "desk", "password": "unit-test-shared-password"})
+        response = client.post("/api/auth/login", json={"email": "desk@example.com", "password": "unit-test-shared-password"})
         assert response.status_code == 200
         payload = response.json()
         assert payload["token_type"] == "bearer"
@@ -55,7 +61,7 @@ class TestAuthApi:
         monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
         monkeypatch.setenv("REPAIR_DESK_PASSWORD", "unit-test-shared-password")
 
-        response = client.post("/api/auth/login", json={"identifier": "desk", "password": "wrongpass"})
+        response = client.post("/api/auth/login", json={"email": "desk@example.com", "password": "wrongpass"})
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
 
@@ -73,7 +79,7 @@ class TestAuthApi:
         monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
         monkeypatch.setenv("REPAIR_DESK_PASSWORD", "unit-test-shared-password")
 
-        login_resp = client.post("/api/auth/login", json={"identifier": "desk", "password": "unit-test-shared-password"})
+        login_resp = client.post("/api/auth/login", json={"email": "desk@example.com", "password": "unit-test-shared-password"})
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
 
@@ -89,130 +95,182 @@ class TestAuthApi:
         )
         assert pricing_rules_resp.status_code == 200
 
-    def test_login_success_with_username_or_email(self, client, monkeypatch):
+    def test_login_success_with_email(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Admin One", email="admin1@example.com", username="admin1", role="admin")
 
-        response = client.post("/api/auth/login", json={"identifier": "admin1", "password": "pass12345"})
+        response = client.post("/api/auth/login", json={"email": "admin1@example.com", "password": "pass12345"})
         assert response.status_code == 200
         payload = response.json()
         assert payload["token_type"] == "bearer"
-        assert payload["user"]["username"] == "admin1"
-
-        email_response = client.post("/api/auth/login", json={"identifier": "admin1@example.com", "password": "pass12345"})
-        assert email_response.status_code == 200
-        assert email_response.json()["user"]["email"] == "admin1@example.com"
+        assert payload["user"]["email"] == "admin1@example.com"
 
     def test_login_invalid_credentials(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
 
-        response = client.post("/api/auth/login", json={"identifier": "missing", "password": "nope1234"})
+        response = client.post("/api/auth/login", json={"email": "missing@example.com", "password": "nope12345"})
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
 
-    def test_signup_creates_pending_request_and_prevents_login(self, client, monkeypatch):
-        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-
-        signup = client.post(
-            "/api/auth/signup",
-            json={"name": "Pending User", "email": "pending@example.com", "password": "pending-pass-123"},
-        )
-        assert signup.status_code == 201
-        assert "submitted" in signup.json()["message"].lower()
-
-        login = client.post(
-            "/api/auth/login",
-            json={"identifier": "pending@example.com", "password": "pending-pass-123"},
-        )
-        assert login.status_code == 401
-        assert "pending approval" in login.json()["detail"].lower()
-
-    def test_signup_rejects_duplicate_pending_or_active_email(self, client, monkeypatch):
-        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-
-        first = client.post(
-            "/api/auth/signup",
-            json={"name": "Pending User", "email": "dupe@example.com", "password": "pending-pass-123"},
-        )
-        assert first.status_code == 201
-
-        duplicate_pending = client.post(
-            "/api/auth/signup",
-            json={"name": "Pending User 2", "email": "dupe@example.com", "password": "pending-pass-123"},
-        )
-        assert duplicate_pending.status_code == 400
-
-        self._create_user(name="Active User", email="active@example.com", username="active1", role="admin")
-        duplicate_active = client.post(
-            "/api/auth/signup",
-            json={"name": "Active User 2", "email": "active@example.com", "password": "pending-pass-123"},
-        )
-        assert duplicate_active.status_code == 400
-
-    def test_admin_can_approve_pending_and_assign_role(self, client, monkeypatch):
+    def test_admin_can_create_pending_invite(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        admin_token = self._login(client, "owner@example.com")["access_token"]
 
-        login_admin = client.post("/api/auth/login", json={"identifier": "owner1", "password": "pass12345"})
-        admin_token = login_admin.json()["access_token"]
-
-        signup = client.post(
-            "/api/auth/signup",
-            json={"name": "Request User", "email": "request@example.com", "password": "request-pass-123"},
-        )
-        assert signup.status_code == 201
-
-        pending = client.get("/api/auth/access-requests", headers={"Authorization": f"Bearer {admin_token}"})
-        assert pending.status_code == 200
-        request_user = next(item for item in pending.json() if item["email"] == "request@example.com")
-
-        approve = client.post(
-            f"/api/auth/access-requests/{request_user['id']}/approve",
-            json={"role": "technician"},
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Pending User", "email": "pending@example.com", "role": "technician"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert approve.status_code == 200
-        assert approve.json()["user"]["status"] == "active"
-        assert approve.json()["user"]["role"] == "technician"
+        assert invite_response.status_code == 201
+        payload = invite_response.json()
+        assert payload["email"] == "pending@example.com"
+        assert payload["role"] == "technician"
+        assert payload["status"] == "pending"
+        assert payload["invite_link"].endswith("/invite/" + payload["invite_link"].split("/invite/")[-1])
 
-        login_approved = client.post(
-            "/api/auth/login",
-            json={"identifier": "request@example.com", "password": "request-pass-123"},
+    def test_non_admin_cannot_create_invites(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Front Desk", email="desk@example.com", username="desk1", role="front_desk")
+        front_desk_token = self._login(client, "desk@example.com")["access_token"]
+
+        response = client.post(
+            "/api/auth/invites",
+            json={"name": "New User", "email": "newuser@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {front_desk_token}"},
         )
-        assert login_approved.status_code == 200
+        assert response.status_code == 403
 
-    def test_admin_can_deny_pending_and_login_stays_blocked(self, client, monkeypatch):
+    def test_invite_acceptance_activates_user_and_allows_login(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
-        admin_token = client.post("/api/auth/login", json={"identifier": "admin1", "password": "pass12345"}).json()["access_token"]
+        admin_token = self._login(client, "admin@example.com")["access_token"]
 
-        signup = client.post(
-            "/api/auth/signup",
-            json={"name": "Denied User", "email": "denied@example.com", "password": "denied-pass-123"},
-        )
-        assert signup.status_code == 201
-
-        pending = client.get("/api/auth/access-requests", headers={"Authorization": f"Bearer {admin_token}"})
-        request_user = next(item for item in pending.json() if item["email"] == "denied@example.com")
-
-        deny = client.post(
-            f"/api/auth/access-requests/{request_user['id']}/deny",
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Tech User", "email": "techuser@example.com", "role": "technician"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert deny.status_code == 200
-        assert deny.json()["user"]["status"] == "denied"
+        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+
+        resolve_response = client.get(f"/api/auth/invites/{token}")
+        assert resolve_response.status_code == 200
+        assert resolve_response.json()["email"] == "techuser@example.com"
+
+        accept_response = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "tech-pass-123"},
+        )
+        assert accept_response.status_code == 200
+        assert accept_response.json()["user"]["status"] == "active"
+        assert accept_response.json()["user"]["role"] == "technician"
 
         login = client.post(
             "/api/auth/login",
-            json={"identifier": "denied@example.com", "password": "denied-pass-123"},
+            json={"email": "techuser@example.com", "password": "tech-pass-123"},
         )
-        assert login.status_code == 401
-        assert "denied" in login.json()["detail"].lower()
+        assert login.status_code == 200
+
+    def test_invite_token_is_single_use(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        owner_token = self._login(client, "owner@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Single Use", "email": "single@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+
+        first_accept = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "single-pass-123"},
+        )
+        assert first_accept.status_code == 200
+
+        second_accept = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "single-pass-123"},
+        )
+        assert second_accept.status_code == 400
+
+    def test_revoked_invite_cannot_be_accepted(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        owner_token = self._login(client, "owner@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Revoked User", "email": "revoked@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        invite = invite_response.json()
+        token = invite["invite_link"].split("/invite/")[-1]
+
+        revoke_response = client.post(
+            f"/api/auth/invites/{invite['id']}/revoke",
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        assert revoke_response.status_code == 200
+        assert revoke_response.json()["status"] == "revoked"
+
+        accept_response = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "revoked-pass-123"},
+        )
+        assert accept_response.status_code == 400
+        assert "not available" in accept_response.json()["detail"].lower()
+
+    def test_expired_invite_cannot_be_resolved_or_accepted(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        admin_token = self._login(client, "admin@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Expired User", "email": "expired@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+
+        invite_id = invite_response.json()["id"]
+        with database.get_connection() as connection:
+            connection.execute(
+                "UPDATE auth_invites SET expires_at = datetime('now', '-1 day') WHERE id = ?",
+                (invite_id,),
+            )
+            connection.commit()
+
+        resolve_response = client.get(f"/api/auth/invites/{token}")
+        assert resolve_response.status_code == 400
+        assert "not available" in resolve_response.json()["detail"].lower()
+
+        accept_response = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "expired-pass-123"},
+        )
+        assert accept_response.status_code == 400
+        assert "expired" in accept_response.json()["detail"].lower()
+
+    def test_bootstrap_invite_link_endpoint_requires_key(self, client, monkeypatch):
+        monkeypatch.setenv("ADMIN_EMAIL", "techrestore500@gmail.com")
+        monkeypatch.setenv("ADMIN_NAME", "Tech Restore Owner")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP_KEY", "bootstrap-secret")
+
+        without_key = client.post("/api/auth/bootstrap/invite-link")
+        assert without_key.status_code == 403
+
+        with_key = client.post("/api/auth/bootstrap/invite-link", headers={"X-Bootstrap-Key": "bootstrap-secret"})
+        assert with_key.status_code == 200
+        payload = with_key.json()
+        assert payload["email"] == "techrestore500@gmail.com"
+        assert "/invite/" in payload["invite_link"]
 
     def test_disabled_user_cannot_login(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
-        owner_token = client.post("/api/auth/login", json={"identifier": "owner1", "password": "pass12345"}).json()["access_token"]
+        owner_token = self._login(client, "owner@example.com")["access_token"]
         self._create_user(name="Viewer", email="viewer@example.com", username="viewer1", role="viewer")
 
         users = client.get("/api/auth/users", headers={"Authorization": f"Bearer {owner_token}"}).json()
@@ -222,22 +280,9 @@ class TestAuthApi:
             connection.execute("UPDATE users SET status = 'disabled', is_active = 0 WHERE id = ?", (viewer["id"],))
             connection.commit()
 
-        login = client.post("/api/auth/login", json={"identifier": "viewer1", "password": "pass12345"})
+        login = client.post("/api/auth/login", json={"email": "viewer@example.com", "password": "pass12345"})
         assert login.status_code == 401
         assert "disabled" in login.json()["detail"].lower()
-
-    def test_non_admin_cannot_approve_requests(self, client, monkeypatch):
-        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-        self._create_user(name="Front Desk", email="desk@example.com", username="desk1", role="front_desk")
-        front_desk_token = client.post("/api/auth/login", json={"identifier": "desk1", "password": "pass12345"}).json()["access_token"]
-
-        client.post(
-            "/api/auth/signup",
-            json={"name": "Request User", "email": "request2@example.com", "password": "request-pass-123"},
-        )
-
-        list_resp = client.get("/api/auth/access-requests", headers={"Authorization": f"Bearer {front_desk_token}"})
-        assert list_resp.status_code == 403
 
     def test_protected_route_requires_token(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
@@ -249,7 +294,7 @@ class TestAuthApi:
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Tech One", email="tech1@example.com", username="tech1", role="technician")
 
-        login_resp = client.post("/api/auth/login", json={"identifier": "tech1", "password": "pass12345"})
+        login_resp = client.post("/api/auth/login", json={"email": "tech1@example.com", "password": "pass12345"})
         token = login_resp.json()["access_token"]
 
         response = client.patch(
@@ -263,7 +308,7 @@ class TestAuthApi:
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._create_user(name="Admin Two", email="admin2@example.com", username="admin2", role="admin")
 
-        login_resp = client.post("/api/auth/login", json={"identifier": "admin2", "password": "pass12345"})
+        login_resp = client.post("/api/auth/login", json={"email": "admin2@example.com", "password": "pass12345"})
         token = login_resp.json()["access_token"]
 
         response = client.patch(

@@ -12,10 +12,9 @@ vi.mock("./config", () => ({
 
 vi.mock("../api/auth", () => ({
     login: vi.fn(),
-    signupRequest: vi.fn(),
 }));
 
-import { login, signupRequest } from "../api/auth";
+import { login } from "../api/auth";
 
 const STORAGE_KEY = "techRestore.auth.session";
 
@@ -65,11 +64,11 @@ describe("AuthGate", () => {
     it("shows login screen before authentication", async () => {
         renderGate();
 
-        expect(await screen.findByText("Sign in with your Tech Restore account.")).toBeInTheDocument();
+        expect(await screen.findByText("Sign in with your invited Tech Restore account.")).toBeInTheDocument();
         expect(screen.queryByText("Protected desk")).not.toBeInTheDocument();
     });
 
-    it("authenticates with username or email and renders protected app", async () => {
+    it("authenticates with email and renders protected app", async () => {
         vi.mocked(login).mockResolvedValue({
             access_token: "shared-token",
             token_type: "bearer",
@@ -91,7 +90,7 @@ describe("AuthGate", () => {
 
         renderGate();
 
-        fireEvent.change(await screen.findByLabelText("Username or Email"), { target: { value: "desk@example.com" } });
+        fireEvent.change(await screen.findByLabelText("Email"), { target: { value: "desk@example.com" } });
         fireEvent.change(await screen.findByLabelText("Password"), { target: { value: "super-secret-password" } });
         fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -99,22 +98,10 @@ describe("AuthGate", () => {
         expect(login).toHaveBeenCalledWith("desk@example.com", "super-secret-password");
     });
 
-    it("submits signup request and returns to login with success message", async () => {
-        vi.mocked(signupRequest).mockResolvedValue({
-            message: "Your access request was submitted. Tech Restore will review it.",
-        });
-
+    it("does not show public signup actions", async () => {
         renderGate();
-
-        fireEvent.click(await screen.findByRole("button", { name: "Request access / Sign up" }));
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Pending User" } });
-        fireEvent.change(screen.getByLabelText("Email"), { target: { value: "pending@example.com" } });
-        fireEvent.change(screen.getByLabelText("Password"), { target: { value: "pending-pass-123" } });
-        fireEvent.change(screen.getByLabelText("Confirm Password"), { target: { value: "pending-pass-123" } });
-        fireEvent.click(screen.getByRole("button", { name: "Submit access request" }));
-
-        expect(await screen.findByText("Your access request was submitted. Tech Restore will review it.")).toBeInTheDocument();
-        expect(signupRequest).toHaveBeenCalledWith("Pending User", "pending@example.com", "pending-pass-123");
+        await screen.findByText("Sign in with your invited Tech Restore account.");
+        expect(screen.queryByText("Request access / Sign up")).not.toBeInTheDocument();
     });
 
     it("returns to login screen when a request gets 401", async () => {
@@ -149,7 +136,7 @@ describe("AuthGate", () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText("Sign in with your Tech Restore account.")).toBeInTheDocument();
+            expect(screen.getByText("Sign in with your invited Tech Restore account.")).toBeInTheDocument();
         });
         expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });

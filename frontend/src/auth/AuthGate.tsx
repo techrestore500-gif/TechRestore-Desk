@@ -1,21 +1,21 @@
 import { FormEvent, ReactNode, useState } from "react";
 
-import { signupRequest } from "../api/auth";
 import { useAuth } from "./AuthProvider";
 
 export function AuthGate({ children }: { children: ReactNode }) {
     const { authEnabled, isAuthenticated, isBootstrapping, loginWithCredentials } = useAuth();
-    const [mode, setMode] = useState<"login" | "signup">("login");
-    const [identifier, setIdentifier] = useState("");
-    const [password, setPassword] = useState("");
-    const [name, setName] = useState("");
+    const isInvitePath = typeof window !== "undefined" && window.location.pathname.startsWith("/invite/");
     const [email, setEmail] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
 
     if (!authEnabled) {
+        return <>{children}</>;
+    }
+
+    if (isInvitePath) {
         return <>{children}</>;
     }
 
@@ -33,8 +33,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (!isAuthenticated) {
         async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
             event.preventDefault();
-            if (!identifier.trim()) {
-                setError("Enter your username or email.");
+            if (!email.trim()) {
+                setError("Enter your email.");
                 return;
             }
             if (!password.trim()) {
@@ -44,51 +44,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
             setSubmitting(true);
             setError(null);
-            setNotice(null);
             try {
-                await loginWithCredentials(identifier, password);
-                setIdentifier("");
+                await loginWithCredentials(email, password);
+                setEmail("");
                 setPassword("");
             } catch (requestError) {
                 const message = requestError instanceof Error ? requestError.message : "Login failed";
-                setError(message);
-            } finally {
-                setSubmitting(false);
-            }
-        }
-
-        async function handleSignupSubmit(event: FormEvent<HTMLFormElement>) {
-            event.preventDefault();
-            if (!name.trim()) {
-                setError("Name is required.");
-                return;
-            }
-            if (!email.trim()) {
-                setError("Email is required.");
-                return;
-            }
-            if (!password.trim()) {
-                setError("Password is required.");
-                return;
-            }
-            if (password !== confirmPassword) {
-                setError("Passwords do not match.");
-                return;
-            }
-
-            setSubmitting(true);
-            setError(null);
-            setNotice(null);
-            try {
-                const response = await signupRequest(name, email, password);
-                setNotice(response.message);
-                setName("");
-                setEmail("");
-                setPassword("");
-                setConfirmPassword("");
-                setMode("login");
-            } catch (requestError) {
-                const message = requestError instanceof Error ? requestError.message : "Could not submit access request";
                 setError(message);
             } finally {
                 setSubmitting(false);
@@ -99,114 +60,47 @@ export function AuthGate({ children }: { children: ReactNode }) {
             <main style={S.page}>
                 <section style={S.card}>
                     <h1 style={S.title}>Tech Restore Desk</h1>
-                    {mode === "login" ? (
-                        <>
-                            <p style={S.copy}>Sign in with your Tech Restore account.</p>
-                            <form style={S.form} onSubmit={handleLoginSubmit}>
-                                <label style={S.label} htmlFor="identifier">Username or Email</label>
-                                <input
-                                    id="identifier"
-                                    type="text"
-                                    autoComplete="username"
-                                    value={identifier}
-                                    onChange={(event) => setIdentifier(event.target.value)}
-                                    style={S.input}
-                                    placeholder="you@techrestoredesk.com"
-                                    disabled={submitting}
-                                />
-                                <label style={S.label} htmlFor="password">Password</label>
-                                <input
-                                    id="password"
-                                    type="password"
-                                    autoComplete="current-password"
-                                    value={password}
-                                    onChange={(event) => setPassword(event.target.value)}
-                                    style={S.input}
-                                    placeholder="Enter your password"
-                                    disabled={submitting}
-                                />
-                                {error ? <p style={S.error}>{error}</p> : null}
-                                {notice ? <p style={S.success}>{notice}</p> : null}
-                                <button type="submit" style={S.button} disabled={submitting}>
-                                    {submitting ? "Signing in..." : "Sign in"}
-                                </button>
-                            </form>
+                    <p style={S.copy}>Sign in with your invited Tech Restore account.</p>
+                    <form style={S.form} onSubmit={handleLoginSubmit}>
+                        <label style={S.label} htmlFor="email">Email</label>
+                        <input
+                            id="email"
+                            type="email"
+                            autoComplete="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            style={S.input}
+                            placeholder="you@techrestoredesk.com"
+                            disabled={submitting}
+                        />
+                        <label style={S.label} htmlFor="password">Password</label>
+                        <div style={S.passwordWrap}>
+                            <input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                style={S.passwordInput}
+                                placeholder="Enter your password"
+                                disabled={submitting}
+                            />
                             <button
                                 type="button"
-                                style={S.linkButton}
-                                onClick={() => {
-                                    setMode("signup");
-                                    setError(null);
-                                }}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                title={showPassword ? "Hide password" : "Show password"}
+                                style={S.eyeButton}
+                                onClick={() => setShowPassword((current) => !current)}
+                                disabled={submitting}
                             >
-                                Request access / Sign up
+                                <EyeIcon hidden={showPassword} />
                             </button>
-                        </>
-                    ) : (
-                        <>
-                            <p style={S.copy}>Submit an access request. Tech Restore will review and approve your role.</p>
-                            <form style={S.form} onSubmit={handleSignupSubmit}>
-                                <label style={S.label} htmlFor="signup-name">Name</label>
-                                <input
-                                    id="signup-name"
-                                    type="text"
-                                    autoComplete="name"
-                                    value={name}
-                                    onChange={(event) => setName(event.target.value)}
-                                    style={S.input}
-                                    placeholder="Your full name"
-                                    disabled={submitting}
-                                />
-                                <label style={S.label} htmlFor="signup-email">Email</label>
-                                <input
-                                    id="signup-email"
-                                    type="email"
-                                    autoComplete="email"
-                                    value={email}
-                                    onChange={(event) => setEmail(event.target.value)}
-                                    style={S.input}
-                                    placeholder="you@techrestoredesk.com"
-                                    disabled={submitting}
-                                />
-                                <label style={S.label} htmlFor="signup-password">Password</label>
-                                <input
-                                    id="signup-password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={password}
-                                    onChange={(event) => setPassword(event.target.value)}
-                                    style={S.input}
-                                    placeholder="Choose a password"
-                                    disabled={submitting}
-                                />
-                                <label style={S.label} htmlFor="signup-confirm-password">Confirm Password</label>
-                                <input
-                                    id="signup-confirm-password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={confirmPassword}
-                                    onChange={(event) => setConfirmPassword(event.target.value)}
-                                    style={S.input}
-                                    placeholder="Re-enter your password"
-                                    disabled={submitting}
-                                />
-                                {error ? <p style={S.error}>{error}</p> : null}
-                                <button type="submit" style={S.button} disabled={submitting}>
-                                    {submitting ? "Submitting..." : "Submit access request"}
-                                </button>
-                            </form>
-                            <button
-                                type="button"
-                                style={S.linkButton}
-                                onClick={() => {
-                                    setMode("login");
-                                    setError(null);
-                                }}
-                            >
-                                Back to login
-                            </button>
-                        </>
-                    )}
+                        </div>
+                        {error ? <p style={S.error}>{error}</p> : null}
+                        <button type="submit" style={S.button} disabled={submitting}>
+                            {submitting ? "Signing in..." : "Sign in"}
+                        </button>
+                    </form>
                 </section>
             </main>
         );
@@ -261,6 +155,30 @@ const S = {
         fontSize: "1rem",
         background: "#ffffff",
     },
+    passwordWrap: {
+        position: "relative" as const,
+        display: "flex",
+        alignItems: "center",
+    },
+    passwordInput: {
+        border: "1px solid #9fb2ac",
+        borderRadius: "10px",
+        padding: "10px 40px 10px 12px",
+        fontSize: "1rem",
+        background: "#ffffff",
+        width: "100%",
+    },
+    eyeButton: {
+        position: "absolute" as const,
+        right: "8px",
+        border: "none",
+        background: "transparent",
+        padding: "4px",
+        margin: 0,
+        color: "#35574f",
+        cursor: "pointer",
+        lineHeight: 0,
+    },
     button: {
         border: "none",
         borderRadius: "10px",
@@ -276,20 +194,45 @@ const S = {
         color: "#922f1f",
         fontSize: "0.9rem",
     },
-    success: {
-        margin: 0,
-        color: "#065f46",
-        fontSize: "0.9rem",
-    },
-    linkButton: {
-        marginTop: "4px",
-        border: "none",
-        background: "transparent",
-        padding: 0,
-        color: "#174d43",
-        textAlign: "left" as const,
-        fontWeight: 700,
-        cursor: "pointer",
-        textDecoration: "underline",
-    },
 };
+
+function EyeIcon({ hidden }: { hidden: boolean }) {
+    if (hidden) {
+        return (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 3L21 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path
+                    d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                />
+                <path
+                    d="M9.88 5.09C10.56 4.9 11.27 4.8 12 4.8C16.8 4.8 20.74 8.41 22 12C21.48 13.48 20.58 14.8 19.4 15.84"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                />
+                <path
+                    d="M14.12 18.91C13.44 19.1 12.73 19.2 12 19.2C7.2 19.2 3.26 15.59 2 12C2.52 10.52 3.42 9.2 4.6 8.16"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                />
+            </svg>
+        );
+    }
+
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path
+                d="M2 12C3.26 8.41 7.2 4.8 12 4.8C16.8 4.8 20.74 8.41 22 12C20.74 15.59 16.8 19.2 12 19.2C7.2 19.2 3.26 15.59 2 12Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+    );
+}

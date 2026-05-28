@@ -1,23 +1,17 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 RoleName = Literal["owner", "admin", "technician", "front_desk", "viewer"]
 UserStatus = Literal["pending", "active", "denied", "disabled"]
+InviteStatus = Literal["pending", "accepted", "revoked", "expired"]
 
 
 class AuthLoginRequest(BaseModel):
-    identifier: str | None = Field(default=None, min_length=3)
-    username: str | None = Field(default=None, min_length=3)
+    email: str = Field(min_length=3)
     password: str = Field(min_length=8)
-
-    @model_validator(mode="after")
-    def _ensure_identifier(self) -> "AuthLoginRequest":
-        if not (self.identifier or self.username):
-            raise ValueError("identifier is required")
-        return self
 
 
 class AuthUserResponse(BaseModel):
@@ -53,27 +47,42 @@ class AuthUpdateUserRoleRequest(BaseModel):
     role: RoleName
 
 
-class AuthSignupRequest(BaseModel):
-    name: str = Field(min_length=2)
+class AuthInviteCreateRequest(BaseModel):
     email: str = Field(min_length=3)
+    name: str | None = None
+    role: RoleName
+
+
+class AuthInviteResponse(BaseModel):
+    id: int
+    email: str = Field(min_length=3)
+    name: str | None
+    role: RoleName
+    status: InviteStatus
+    expires_at: str
+    created_at: str
+    created_by: int | None
+    accepted_at: str | None
+    accepted_user_id: int | None
+    revoked_at: str | None
+    invite_link: str | None = None
+
+
+class AuthInviteResolveResponse(BaseModel):
+    email: str = Field(min_length=3)
+    name: str | None
+    role: RoleName
+    expires_at: str
+
+
+class AuthInviteAcceptRequest(BaseModel):
     password: str = Field(min_length=8)
 
 
-class AuthSignupResponse(BaseModel):
-    message: str
-
-
-class AuthAccessRequestResponse(BaseModel):
-    id: int
-    name: str
-    email: str = Field(min_length=3)
-    username: str
-    status: UserStatus
-    created_at: str
-
-
-class AuthApproveRequest(BaseModel):
-    role: RoleName
+class AuthBootstrapInviteResponse(BaseModel):
+    invite_link: str
+    expires_at: str
+    email: str
 
 
 class AuthDecisionResponse(BaseModel):

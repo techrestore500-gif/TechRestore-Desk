@@ -12,6 +12,7 @@ import InvoicePrintPage from "../pages/InvoicePrintPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
 import LoanersPage from "../pages/LoanersPage";
+import InviteAcceptPage from "../pages/InviteAcceptPage";
 import { QueuePage } from "../pages/QueuePage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
@@ -20,6 +21,10 @@ import TicketsPage from "../pages/TicketsPage";
 import VoicemailPage from "../pages/VoicemailPage";
 
 export const router = createBrowserRouter([
+    {
+        path: "/invite/:token",
+        element: <InviteAcceptPage />,
+    },
     {
         path: "/",
         element: <AppShell />,
@@ -85,7 +90,7 @@ export const router = createBrowserRouter([
                 element: <SettingsPage />,
             },
             {
-                path: "access-requests",
+                path: "users-invites",
                 element: <AccessRequestsPage />,
             },
             {

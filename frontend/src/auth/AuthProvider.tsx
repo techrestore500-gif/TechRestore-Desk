@@ -11,7 +11,7 @@ type AuthContextValue = {
     isAuthenticated: boolean;
     isBootstrapping: boolean;
     user: AuthUser | null;
-    loginWithCredentials: (identifier: string, password: string) => Promise<void>;
+    loginWithCredentials: (email: string, password: string) => Promise<void>;
     logout: () => void;
 };
 
@@ -43,17 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, [accessToken]);
 
-    async function loginWithCredentials(identifier: string, password: string) {
-        const nextIdentifier = identifier.trim();
+    async function loginWithCredentials(email: string, password: string) {
+        const nextEmail = email.trim();
         const nextPassword = password.trim();
-        if (!nextIdentifier) {
-            throw new Error("Username or email is required.");
+        if (!nextEmail) {
+            throw new Error("Email is required.");
         }
         if (!nextPassword) {
             throw new Error("Password is required.");
         }
 
-        const response = await login(nextIdentifier, nextPassword);
+        const response = await login(nextEmail, nextPassword);
         const nextToken = response.access_token;
         const nextUser = response.user;
 

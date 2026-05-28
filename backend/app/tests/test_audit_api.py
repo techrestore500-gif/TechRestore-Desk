@@ -58,7 +58,7 @@ class TestAuditApi:
 
         login_resp = client.post(
             "/api/auth/login",
-            json={"identifier": "auditadmin", "password": "pass12345"},
+            json={"email": "auditadmin@example.com", "password": "pass12345"},
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
@@ -136,7 +136,7 @@ class TestAuditApi:
 
         login_resp = client.post(
             "/api/auth/login",
-            json={"identifier": "superadmin", "password": "pass12345"},
+            json={"email": "superadmin@example.com", "password": "pass12345"},
         )
         token = login_resp.json()["access_token"]
 
