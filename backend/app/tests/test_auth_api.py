@@ -26,6 +26,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
     monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
+    monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
+    monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
 
@@ -114,6 +116,8 @@ class TestAuthApi:
 
     def test_admin_can_create_pending_invite(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        monkeypatch.setenv("FRONTEND_BASE_URL", "https://desk.example.com")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
         admin_token = self._login(client, "owner@example.com")["access_token"]
 
@@ -127,6 +131,7 @@ class TestAuthApi:
         assert payload["email"] == "pending@example.com"
         assert payload["role"] == "technician"
         assert payload["status"] == "pending"
+        assert payload["invite_link"].startswith("https://desk.example.com/invite/")
         assert payload["invite_link"].endswith("/invite/" + payload["invite_link"].split("/invite/")[-1])
 
     def test_non_admin_cannot_create_invites(self, client, monkeypatch):

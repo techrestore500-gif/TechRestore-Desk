@@ -56,6 +56,14 @@ def _to_public_invite(invite: dict) -> dict:
     }
 
 
+def _desk_base_url() -> str:
+    return (
+        os.getenv("FRONTEND_BASE_URL", "").strip()
+        or os.getenv("PUBLIC_BASE_URL", "").strip()
+        or "https://desk.techrestoredesk.com"
+    ).rstrip("/")
+
+
 def _normalize_status(user: dict) -> str:
     status = str(user.get("status") or "").strip().lower()
     if status in ALLOWED_STATUSES:
@@ -333,7 +341,7 @@ class AuthService:
 
         should_log_token = os.getenv("ADMIN_INVITE_DEV_LOG_TOKEN", "false").strip().lower() in {"1", "true", "yes", "on"}
         if should_log_token:
-            desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+            desk_base = _desk_base_url()
             print(f"BOOTSTRAP_INVITE_LINK={desk_base}/invite/{token}")
 
         AuditService.log_event(
@@ -361,7 +369,7 @@ class AuthService:
         admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
         AuthRepository.revoke_pending_invites_for_email(admin_email)
         invite, token = AuthService.create_invite(email=admin_email, name=admin_name, role="owner", created_by=0)
-        desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+        desk_base = _desk_base_url()
         return f"{desk_base}/invite/{token}", invite["expires_at"], admin_email
 
     @staticmethod

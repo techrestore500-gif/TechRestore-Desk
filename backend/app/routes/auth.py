@@ -22,6 +22,14 @@ from app.services.auth import AuthService
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def _desk_base_url() -> str:
+    return (
+        os.getenv("FRONTEND_BASE_URL", "").strip()
+        or os.getenv("PUBLIC_BASE_URL", "").strip()
+        or "https://desk.techrestoredesk.com"
+    ).rstrip("/")
+
+
 @router.post("/login", response_model=AuthLoginResponse)
 def post_login(payload: AuthLoginRequest) -> AuthLoginResponse:
     try:
@@ -136,7 +144,7 @@ def post_invite(
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
-    desk_base = os.getenv("PUBLIC_BASE_URL", "https://desk.techrestoredesk.com").rstrip("/")
+    desk_base = _desk_base_url()
     invite["invite_link"] = f"{desk_base}/invite/{token}"
     return AuthInviteResponse.model_validate(invite)
 

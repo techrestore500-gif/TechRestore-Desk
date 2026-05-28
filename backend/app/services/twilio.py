@@ -40,11 +40,19 @@ class TwilioAudioFetchError(Exception):
 
 class TwilioService:
     @staticmethod
+    def _public_webhook_base_from_env() -> str | None:
+        return (
+            TwilioService._clean_env("PUBLIC_WEBHOOK_BASE_URL")
+            or TwilioService._clean_env("PUBLIC_API_BASE_URL")
+            or TwilioService._clean_env("PUBLIC_BASE_URL")
+        )
+
+    @staticmethod
     def get_settings() -> dict:
         settings = get_twilio_settings()
         env_account_sid = TwilioService._clean_env("TWILIO_ACCOUNT_SID")
         env_phone_number = TwilioService._clean_env("TWILIO_PHONE_NUMBER")
-        env_public_base_url = TwilioService._clean_env("PUBLIC_WEBHOOK_BASE_URL") or TwilioService._clean_env("PUBLIC_BASE_URL")
+        env_public_base_url = TwilioService._public_webhook_base_from_env()
         env_auth_token = TwilioService._clean_env("TWILIO_AUTH_TOKEN")
 
         if env_account_sid:

@@ -26,6 +26,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
     monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
+    monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
+    monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
 
@@ -241,7 +243,7 @@ class TestTwilioWebhooks:
         monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_FROM_ENV")
         monkeypatch.setenv("TWILIO_AUTH_TOKEN", "env-secret")
         monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+15550000001")
-        monkeypatch.setenv("PUBLIC_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
 
         response = client.get("/api/settings/twilio/setup-status")
         assert response.status_code == 200

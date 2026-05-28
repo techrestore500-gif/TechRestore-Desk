@@ -21,7 +21,8 @@ def _log_production_env_warnings() -> None:
     required_any = {
         "SECRET_KEY": ["SECRET_KEY", "TECH_RESTORE_JWT_SECRET"],
         "DATABASE_URL": ["DATABASE_URL"],
-        "PUBLIC_BASE_URL": ["PUBLIC_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL"],
+        "FRONTEND_BASE_URL": ["FRONTEND_BASE_URL", "PUBLIC_BASE_URL"],
+        "PUBLIC_API_BASE_URL": ["PUBLIC_API_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL", "PUBLIC_BASE_URL"],
         "CORS_ALLOWED_ORIGINS": ["CORS_ALLOWED_ORIGINS", "TECH_RESTORE_CORS_ORIGINS", "FRONTEND_ORIGIN"],
     }
     optional_voice_mail = {

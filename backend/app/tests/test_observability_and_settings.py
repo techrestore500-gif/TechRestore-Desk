@@ -26,6 +26,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
     monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
+    monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
+    monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
 
