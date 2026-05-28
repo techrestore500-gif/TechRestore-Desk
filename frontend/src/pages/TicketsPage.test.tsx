@@ -22,6 +22,7 @@ describe('TicketsPage', () => {
                 device_label: 'iPhone 11',
                 issue_category: 'Screen',
                 status: 'New Intake',
+                payment_status: 'unpaid',
                 intake_date: new Date().toISOString(),
                 estimated_price: null,
                 final_price: null,

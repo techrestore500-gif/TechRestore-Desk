@@ -42,6 +42,7 @@ describe("DashboardPage", () => {
                 device_label: "Pixel 7",
                 issue_category: "Charging Port",
                 status: "Needs Diagnosis",
+                payment_status: "unpaid",
                 intake_date: new Date().toISOString(),
                 estimated_price: null,
                 final_price: null,

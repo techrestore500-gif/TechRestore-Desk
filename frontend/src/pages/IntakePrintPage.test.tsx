@@ -38,6 +38,7 @@ describe('IntakePrintPage', () => {
             customer_prefers_replacement_if_high: false,
             estimated_price: 119,
             final_price: null,
+            payment_status: 'unpaid',
             diagnostic_fee: 35,
             status: 'New Intake',
             priority: 'normal',

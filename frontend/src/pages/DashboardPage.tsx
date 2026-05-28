@@ -35,10 +35,11 @@ export default function DashboardPage() {
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<"All" | (typeof QUICK_REPAIR_STATUSES)[number]>("All");
     const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+    const [reloadCounter, setReloadCounter] = useState(0);
     const [updatingTicketId, setUpdatingTicketId] = useState<number | null>(null);
     const [updateError, setUpdateError] = useState<string | null>(null);
 
-    const { data: tickets = [], error, refresh } = useAsyncData<TicketSummary[]>(() => fetchTickets(), []);
+    const { data: tickets = [], error } = useAsyncData<TicketSummary[]>(() => fetchTickets(), [reloadCounter]);
     const { data: statusRules } = useAsyncData<StatusWorkflowRules>(() => fetchStatusWorkflowRules(), []);
 
     const filteredTickets = useMemo(() => {
@@ -93,7 +94,7 @@ export default function DashboardPage() {
                 await updateTicketStatus(ticket.id, nextStatus, "", "");
             }
 
-            refresh();
+            setReloadCounter((value) => value + 1);
         } catch (requestError) {
             setUpdateError(requestError instanceof Error ? requestError.message : "Could not update ticket status");
         } finally {

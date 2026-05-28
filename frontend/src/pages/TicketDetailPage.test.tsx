@@ -42,6 +42,7 @@ describe("TicketDetailPage", () => {
             customer_prefers_replacement_if_high: false,
             estimated_price: 89,
             final_price: null,
+            payment_status: "unpaid",
             diagnostic_fee: 0,
             status: "Needs Diagnosis",
             priority: "normal",

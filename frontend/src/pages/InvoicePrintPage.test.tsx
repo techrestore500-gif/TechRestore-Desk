@@ -38,6 +38,7 @@ describe('InvoicePrintPage', () => {
             customer_prefers_replacement_if_high: false,
             estimated_price: 159,
             final_price: 179,
+            payment_status: 'unpaid',
             diagnostic_fee: 20,
             status: 'Picked Up / Closed',
             priority: 'normal',
