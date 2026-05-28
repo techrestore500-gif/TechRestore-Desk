@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { CommandPalette } from "./CommandPalette";
+import { useAuth } from "../auth/AuthProvider";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
 const navItems = [
@@ -66,6 +67,17 @@ const S = {
         fontSize: "0.75rem",
         color: "#4d6760",
         lineHeight: 1.4,
+    },
+    logoutBtn: {
+        marginTop: "10px",
+        border: "1px solid rgba(19, 49, 42, 0.24)",
+        borderRadius: "9px",
+        background: "rgba(255,255,255,0.76)",
+        color: "#23443d",
+        cursor: "pointer",
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        padding: "6px 10px",
     },
     nav: {
         display: "flex" as const,
@@ -133,6 +145,7 @@ const S = {
 
 export function AppShell() {
     useKeyboardShortcuts();
+    const { authEnabled, isAuthenticated, logout } = useAuth();
     const location = useLocation();
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960);
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 960);
@@ -192,6 +205,11 @@ export function AppShell() {
                     <div style={S.phase}>Phase 5 In Progress</div>
                     <div style={S.appName}>Tech Restore<br />Desk</div>
                     <div style={S.tagLine}>Local-first repair workflow</div>
+                    {authEnabled && isAuthenticated ? (
+                        <button type="button" style={S.logoutBtn} onClick={logout}>
+                            Logout
+                        </button>
+                    ) : null}
                 </div>
                 <nav style={S.nav}>
                     {navItems.map((item) => (

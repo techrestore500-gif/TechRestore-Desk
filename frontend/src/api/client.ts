@@ -1,5 +1,19 @@
 const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
 
+type AuthTokenProvider = () => string | null;
+type UnauthorizedHandler = () => void;
+
+let authTokenProvider: AuthTokenProvider | null = null;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setAuthTokenProvider(provider: AuthTokenProvider | null): void {
+    authTokenProvider = provider;
+}
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+    unauthorizedHandler = handler;
+}
+
 function inferRuntimeApiBaseUrl(): string {
     const configured = (runtimeEnv?.VITE_API_BASE_URL ?? "").trim();
     if (configured) {
@@ -47,7 +61,23 @@ export function apiUrl(path: string): string {
 }
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-    return fetch(apiUrl(path), init);
+    const headers = new Headers(init?.headers);
+    if (!headers.has("Authorization")) {
+        const token = authTokenProvider?.();
+        if (token) {
+            headers.set("Authorization", `Bearer ${token}`);
+        }
+    }
+
+    return fetch(apiUrl(path), {
+        ...init,
+        headers,
+    }).then((response) => {
+        if (response.status === 401 && unauthorizedHandler) {
+            unauthorizedHandler();
+        }
+        return response;
+    });
 }
 
 export async function getJson<T>(path: string): Promise<T> {

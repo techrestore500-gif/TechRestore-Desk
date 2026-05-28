@@ -1,7 +1,12 @@
 import { RouterProvider } from "react-router-dom";
 
+import { AuthGate } from "./auth/AuthGate";
 import { router } from "./routes/router";
 
 export default function App() {
-    return <RouterProvider router={router} />;
+    return (
+        <AuthGate>
+            <RouterProvider router={router} />
+        </AuthGate>
+    );
 }
