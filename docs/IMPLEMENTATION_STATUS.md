@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-05-28 Account-based authentication rollout complete: replaced temporary shared-password frontend gate with username/email + password login, added pending signup request flow, introduced admin/owner access-request approval with role assignment, and added startup bootstrap owner creation from environment variables when user table is empty
 - 2026-05-28 Frontend auth gate production fix complete: app now enforces shared-password login when `VITE_AUTH_ENABLED=true`, injects bearer token from centralized API client, and cleanly resets to login on `401` responses (including expired token handling)
 - 2026-05-27 Frontend production build stability fix complete: updated ticket summary/detail test fixtures to include required `payment_status`, aligned additional related fixtures surfaced by strict typing, and restored dashboard ticket list reload behavior for current async hook API
 - 2026-05-27 Production hosting prep complete: frontend API base URL is environment-driven, backend supports `PORT`/`FRONTEND_ORIGIN`/`DATABASE_URL`, Twilio env credentials are server-side only, and Twilio public webhook routes are separated from private Twilio settings/inbox routes

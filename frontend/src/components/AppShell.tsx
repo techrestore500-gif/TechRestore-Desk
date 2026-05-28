@@ -16,6 +16,7 @@ const navItems = [
     { to: "/donors", label: "Donors" },
     { to: "/loaners", label: "Loaners" },
     { to: "/voicemail", label: "Voicemail" },
+    { to: "/access-requests", label: "Access Requests" },
     { to: "/settings", label: "Settings" },
 ];
 

@@ -54,11 +54,11 @@ def _count_activity(action: str) -> int:
 class TestAuditApi:
     def test_pricing_update_audit_has_request_and_user(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-        admin = AuthService.create_user(username="auditadmin", password="pass12345", role="admin")
+        admin = AuthService.create_user(name="Audit Admin", email="auditadmin@example.com", username="auditadmin", password="pass12345", role="admin")
 
         login_resp = client.post(
             "/api/auth/login",
-            json={"username": "auditadmin", "password": "pass12345"},
+            json={"identifier": "auditadmin", "password": "pass12345"},
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
@@ -132,17 +132,17 @@ class TestAuditApi:
 
     def test_admin_user_create_action_is_audited(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-        AuthService.create_user(username="superadmin", password="pass12345", role="admin")
+        AuthService.create_user(name="Super Admin", email="superadmin@example.com", username="superadmin", password="pass12345", role="admin")
 
         login_resp = client.post(
             "/api/auth/login",
-            json={"username": "superadmin", "password": "pass12345"},
+            json={"identifier": "superadmin", "password": "pass12345"},
         )
         token = login_resp.json()["access_token"]
 
         create_resp = client.post(
             "/api/auth/users",
-            json={"username": "newops", "password": "pass12345", "role": "technician"},
+            json={"name": "New Ops", "email": "newops@example.com", "username": "newops", "password": "pass12345", "role": "technician"},
             headers={"Authorization": f"Bearer {token}"},
         )
         assert create_resp.status_code == 201

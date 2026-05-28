@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
+import AccessRequestsPage from "../pages/AccessRequestsPage";
 import DashboardPage from "../pages/DashboardPage";
 import { DonorsPage } from "../pages/DonorsPage";
 import { HoursPage } from "../pages/HoursPage";
@@ -82,6 +83,10 @@ export const router = createBrowserRouter([
             {
                 path: "settings",
                 element: <SettingsPage />,
+            },
+            {
+                path: "access-requests",
+                element: <AccessRequestsPage />,
             },
             {
                 path: "voicemail",

@@ -35,5 +35,8 @@ export function canAccessRole(user: AuthUser | null, allowedRoles: AuthRole[]): 
     if (!user) {
         return false;
     }
+    if (!user.role) {
+        return false;
+    }
     return allowedRoles.includes(user.role);
 }

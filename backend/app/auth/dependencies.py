@@ -11,7 +11,7 @@ from app.core.request_context import set_actor
 from app.services.auth import AuthService
 from app.utils.jwt import decode_access_token
 
-RoleName = Literal["admin", "technician", "front_desk"]
+RoleName = Literal["owner", "admin", "technician", "front_desk", "viewer"]
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -38,9 +38,14 @@ def _build_shared_user(subject: str = "shared-password-admin") -> dict:
     timestamp = datetime.now(UTC).isoformat()
     return {
         "id": 0,
+        "name": "Shared Password Admin",
+        "email": "shared-password-admin@local.techrestore",
         "username": subject,
         "role": "admin",
+        "status": "active",
         "is_active": True,
+        "approved_at": timestamp,
+        "approved_by": None,
         "created_at": timestamp,
         "updated_at": timestamp,
     }
@@ -80,6 +85,9 @@ def authenticate_bearer_token(token: str) -> dict:
         return user
 
     user = AuthService.get_user(uid)
+    status = str(user.get("status") or "").strip().lower()
+    if status in {"pending", "denied", "disabled"}:
+        raise HTTPException(status_code=401, detail="Invalid user")
     if user is None or not bool(user.get("is_active")):
         raise HTTPException(status_code=401, detail="Invalid user")
     set_actor(user)
@@ -102,7 +110,10 @@ def get_current_user(
 
 def require_role(*roles: RoleName):
     def _dep(user: dict = Depends(get_current_user)) -> dict:
-        if user.get("role") not in roles:
+        current_role = user.get("role")
+        if current_role == "owner" and "admin" in roles:
+            return user
+        if current_role not in roles:
             raise HTTPException(status_code=403, detail="Forbidden")
         return user
 

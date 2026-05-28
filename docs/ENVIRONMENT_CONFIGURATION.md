@@ -8,7 +8,10 @@ Backend local dev defaults work without setting most production variables.
 
 Typical local backend values:
 - APP_ENV=development
-- REPAIR_DESK_AUTH_ENABLED=false
+- REPAIR_DESK_AUTH_ENABLED=true
+- ADMIN_EMAIL=owner@example.com
+- ADMIN_NAME=Tech Restore Owner
+- ADMIN_PASSWORD=change-this-in-dev
 - DATABASE_URL=./data/tech_restore_desk.sqlite
 - CORS_ALLOWED_ORIGINS=http://127.0.0.1:6173,http://localhost:6173
 
@@ -33,6 +36,8 @@ Do not commit real .env files.
 Required:
 - PYTHON_VERSION
 - REPAIR_DESK_AUTH_ENABLED
+- ADMIN_EMAIL
+- ADMIN_PASSWORD
 - DATABASE_URL
 - SECRET_KEY
 - PUBLIC_BASE_URL
@@ -44,6 +49,7 @@ Required for Twilio voicemail:
 - TWILIO_PHONE_NUMBER
 
 Optional:
+- ADMIN_NAME
 - REPAIR_DESK_PASSWORD (reserved for external gate/passcode workflows)
 
 ### Frontend Variables
@@ -75,6 +81,8 @@ Render services defined:
 Backend required (core app):
 - PYTHON_VERSION
 - REPAIR_DESK_AUTH_ENABLED
+- ADMIN_EMAIL
+- ADMIN_PASSWORD
 - DATABASE_URL
 - SECRET_KEY
 - PUBLIC_BASE_URL
@@ -86,6 +94,7 @@ Backend required (voicemail):
 - TWILIO_PHONE_NUMBER
 
 Backend optional:
+- ADMIN_NAME
 - REPAIR_DESK_PASSWORD
 
 Frontend required:
@@ -93,3 +102,9 @@ Frontend required:
 
 Frontend conditionally required:
 - VITE_API_BASE_URL (recommended explicit value in production)
+
+## Authentication Notes
+
+- Main production auth model is account-based login (`/api/auth/login`) with pending signup requests (`/api/auth/signup`) and admin approval (`/api/auth/access-requests`).
+- `REPAIR_DESK_PASSWORD` remains as an optional fallback mode only. If enabled with `REPAIR_DESK_AUTH_ENABLED=true`, backend still accepts shared-password logins.
+- First admin/owner bootstrap runs at startup only when no users exist and both `ADMIN_EMAIL` + `ADMIN_PASSWORD` are set.

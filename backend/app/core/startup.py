@@ -7,6 +7,7 @@ from app.core.settings import get_settings
 from app.database import initialize_database
 from app.events.subscribers import register_event_subscribers
 from app.jobs.registry import register_job_handlers
+from app.services.auth import AuthService
 
 logger = logging.getLogger(__name__)
 
@@ -66,5 +67,6 @@ def initialize_app() -> None:
         _log_production_env_warnings()
     initialize_monitoring(settings)
     initialize_database()
+    AuthService.ensure_bootstrap_admin_from_env()
     register_job_handlers()
     register_event_subscribers()

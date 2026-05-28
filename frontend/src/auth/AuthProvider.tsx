@@ -11,8 +11,7 @@ type AuthContextValue = {
     isAuthenticated: boolean;
     isBootstrapping: boolean;
     user: AuthUser | null;
-    error: string | null;
-    loginWithPassword: (password: string) => Promise<void>;
+    loginWithCredentials: (identifier: string, password: string) => Promise<void>;
     logout: () => void;
 };
 
@@ -22,7 +21,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initialSession = useMemo(() => loadSession(), []);
     const [accessToken, setAccessToken] = useState<string | null>(initialSession.accessToken);
     const [user, setUser] = useState<AuthUser | null>(initialSession.user);
-    const [error, setError] = useState<string | null>(null);
     const [isBootstrapping] = useState(false);
 
     useEffect(() => {
@@ -32,7 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUnauthorizedHandler(() => {
                 setAccessToken(null);
                 setUser(null);
-                setError(null);
                 clearSession();
                 queryClient.clear();
             });
@@ -46,15 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, [accessToken]);
 
-    async function loginWithPassword(password: string) {
+    async function loginWithCredentials(identifier: string, password: string) {
+        const nextIdentifier = identifier.trim();
         const nextPassword = password.trim();
+        if (!nextIdentifier) {
+            throw new Error("Username or email is required.");
+        }
         if (!nextPassword) {
             throw new Error("Password is required.");
         }
 
-        setError(null);
-
-        const response = await login("desk", nextPassword);
+        const response = await login(nextIdentifier, nextPassword);
         const nextToken = response.access_token;
         const nextUser = response.user;
 
@@ -67,7 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function logout() {
         setAccessToken(null);
         setUser(null);
-        setError(null);
         clearSession();
         queryClient.clear();
     }
@@ -78,11 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: !AUTH_ENABLED || Boolean(accessToken),
             isBootstrapping,
             user,
-            error,
-            loginWithPassword,
+            loginWithCredentials,
             logout,
         }),
-        [accessToken, error, isBootstrapping, user]
+        [accessToken, isBootstrapping, user]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
