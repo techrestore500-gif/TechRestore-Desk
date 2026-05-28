@@ -24,6 +24,11 @@ def _log_production_env_warnings() -> None:
         "FRONTEND_BASE_URL": ["FRONTEND_BASE_URL", "PUBLIC_BASE_URL"],
         "PUBLIC_API_BASE_URL": ["PUBLIC_API_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL", "PUBLIC_BASE_URL"],
         "CORS_ALLOWED_ORIGINS": ["CORS_ALLOWED_ORIGINS", "TECH_RESTORE_CORS_ORIGINS", "FRONTEND_ORIGIN"],
+        "SMTP_HOST": ["SMTP_HOST"],
+        "SMTP_PORT": ["SMTP_PORT"],
+        "SMTP_USERNAME": ["SMTP_USERNAME"],
+        "SMTP_PASSWORD": ["SMTP_PASSWORD"],
+        "SMTP_FROM_EMAIL": ["SMTP_FROM_EMAIL"],
     }
     optional_voice_mail = {
         "TWILIO_ACCOUNT_SID": ["TWILIO_ACCOUNT_SID"],
@@ -68,6 +73,9 @@ def initialize_app() -> None:
         _log_production_env_warnings()
     initialize_monitoring(settings)
     initialize_database()
-    AuthService.ensure_bootstrap_admin_invite_from_env()
+    try:
+        AuthService.ensure_bootstrap_admin_invite_from_env()
+    except ValueError as error:
+        logger.warning("Bootstrap admin invite was not sent: %s", error)
     register_job_handlers()
     register_event_subscribers()

@@ -146,15 +146,17 @@ const S = {
 
 export function AppShell() {
     useKeyboardShortcuts();
-    const { authEnabled, isAuthenticated, logout } = useAuth();
+    const { authEnabled, isAuthenticated, user, logout } = useAuth();
     const location = useLocation();
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960);
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 960);
+    const canManageInvites = user?.role === "owner" || user?.role === "admin";
+    const visibleNavItems = navItems.filter((item) => item.to !== "/users-invites" || canManageInvites);
 
     // Derive current page label for mobile top bar
     const pageLabel = (() => {
         if (location.pathname === "/") return "Dashboard";
-        const match = navItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
+        const match = visibleNavItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
         return match ? match.label : "Tech Restore Desk";
     })();
 
@@ -213,7 +215,7 @@ export function AppShell() {
                     ) : null}
                 </div>
                 <nav style={S.nav}>
-                    {navItems.map((item) => (
+                    {visibleNavItems.map((item) => (
                         <NavLink
                             key={item.to}
                             to={item.to}

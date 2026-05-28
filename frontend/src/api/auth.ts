@@ -37,7 +37,6 @@ export type AuthInvite = {
     accepted_at: string | null;
     accepted_user_id: number | null;
     revoked_at: string | null;
-    invite_link?: string | null;
 };
 
 export type AuthDecisionResponse = {
@@ -113,6 +112,17 @@ export async function revokeInvite(inviteId: number): Promise<AuthInvite> {
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.detail ?? 'Unable to revoke invite');
+    }
+    return response.json() as Promise<AuthInvite>;
+}
+
+export async function resendInvite(inviteId: number): Promise<AuthInvite> {
+    const response = await apiFetch(`/api/auth/invites/${inviteId}/resend`, {
+        method: 'POST',
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail ?? 'Unable to resend invite');
     }
     return response.json() as Promise<AuthInvite>;
 }

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 
-import { createInvite, fetchInvites, revokeInvite, type AuthInvite, type AuthRole } from "../api/auth";
+import { createInvite, fetchInvites, resendInvite, revokeInvite, type AuthInvite, type AuthRole } from "../api/auth";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
@@ -18,14 +18,6 @@ export default function AccessRequestsPage() {
 
     const { data: invites = [], error } = useAsyncData<AuthInvite[]>(() => fetchInvites(), [refreshKey]);
 
-    function inviteLinkFor(invite: AuthInvite): string {
-        if (invite.invite_link) {
-            return invite.invite_link;
-        }
-        const base = window.location.origin.replace(/\/$/, "");
-        return `${base}/invite/unavailable`;
-    }
-
     async function handleCreateInvite(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!inviteEmail.trim()) {
@@ -38,9 +30,7 @@ export default function AccessRequestsPage() {
         setActionMessage(null);
         try {
             const invite = await createInvite(inviteEmail, inviteRole, inviteName || undefined);
-            const link = inviteLinkFor(invite);
-            await navigator.clipboard.writeText(link).catch(() => undefined);
-            setActionMessage(`Invite created for ${invite.email}. Invite link copied to clipboard.`);
+            setActionMessage(`Invite sent to ${invite.email}.`);
             setInviteEmail("");
             setInviteName("");
             setInviteRole("front_desk");
@@ -67,13 +57,18 @@ export default function AccessRequestsPage() {
         }
     }
 
-    async function handleCopyInvite(invite: AuthInvite) {
-        const link = inviteLinkFor(invite);
+    async function handleResend(invite: AuthInvite) {
+        setBusyInviteId(invite.id);
+        setActionError(null);
+        setActionMessage(null);
         try {
-            await navigator.clipboard.writeText(link);
-            setActionMessage(`Copied invite link for ${invite.email}.`);
-        } catch {
-            setActionError("Could not copy invite link. Copy it manually from the invite row.");
+            await resendInvite(invite.id);
+            setActionMessage(`Invite re-sent to ${invite.email}.`);
+            setRefreshKey((current) => current + 1);
+        } catch (requestError) {
+            setActionError(requestError instanceof Error ? requestError.message : "Could not resend invite");
+        } finally {
+            setBusyInviteId(null);
         }
     }
 
@@ -81,7 +76,7 @@ export default function AccessRequestsPage() {
         <section style={t.pageWrap}>
             <div>
                 <h2 style={{ margin: 0 }}>Users and Invites</h2>
-                <p style={{ ...t.copy, marginTop: "6px" }}>Create email invites and manage account onboarding.</p>
+                <p style={{ ...t.copy, marginTop: "6px" }}>Create and send one-time email invites and manage onboarding.</p>
             </div>
 
             <form style={{ ...t.panel, display: "grid", gap: "10px" }} onSubmit={handleCreateInvite}>
@@ -127,7 +122,7 @@ export default function AccessRequestsPage() {
                 </div>
                 <div style={t.formActionsRow}>
                     <button type="submit" style={t.primaryBtn} disabled={creatingInvite}>
-                        {creatingInvite ? "Creating invite..." : "Create invite"}
+                        {creatingInvite ? "Sending invite..." : "Send invite"}
                     </button>
                 </div>
             </form>
@@ -154,15 +149,15 @@ export default function AccessRequestsPage() {
                             <div style={t.meta}>Role: {invite.role}</div>
                             <div style={t.meta}>Status: {invite.status}</div>
                             <div style={t.meta}>Expires: {new Date(invite.expires_at).toLocaleString()}</div>
-                            {invite.status === "pending" ? <div style={t.meta}>Invite link: {inviteLinkFor(invite)}</div> : null}
+                            {invite.accepted_at ? <div style={t.meta}>Accepted: {new Date(invite.accepted_at).toLocaleString()}</div> : null}
                             <div style={{ ...t.formActionsRow, gap: "8px", flexWrap: "wrap" }}>
                                 <button
                                     type="button"
                                     style={t.secondaryBtn}
-                                    onClick={() => handleCopyInvite(invite)}
-                                    disabled={invite.status !== "pending"}
+                                    onClick={() => handleResend(invite)}
+                                    disabled={(invite.status !== "pending" && invite.status !== "expired") || busyInviteId === invite.id}
                                 >
-                                    Copy Link
+                                    {busyInviteId === invite.id ? "Sending..." : "Resend"}
                                 </button>
                                 <button
                                     type="button"

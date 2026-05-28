@@ -1,10 +1,7 @@
-import os
-
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.dependencies import get_current_user, require_role
 from app.schemas.auth import (
-    AuthBootstrapInviteResponse,
     AuthCreateUserRequest,
     AuthDecisionResponse,
     AuthInviteAcceptRequest,
@@ -20,14 +17,6 @@ from app.services.auth import AuthService
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-def _desk_base_url() -> str:
-    return (
-        os.getenv("FRONTEND_BASE_URL", "").strip()
-        or os.getenv("PUBLIC_BASE_URL", "").strip()
-        or "https://desk.techrestoredesk.com"
-    ).rstrip("/")
 
 
 @router.post("/login", response_model=AuthLoginResponse)
@@ -64,22 +53,6 @@ def post_accept_invite(token: str, payload: AuthInviteAcceptRequest) -> AuthDeci
         message="Invite accepted. Your account is active.",
         user=AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"}),
     )
-
-
-@router.post("/bootstrap/invite-link", response_model=AuthBootstrapInviteResponse)
-def post_bootstrap_invite_link(x_bootstrap_key: str | None = Header(default=None, alias="X-Bootstrap-Key")) -> AuthBootstrapInviteResponse:
-    expected_key = os.getenv("ADMIN_INVITE_BOOTSTRAP_KEY", "").strip()
-    if not expected_key:
-        raise HTTPException(status_code=404, detail="Bootstrap endpoint disabled")
-    if x_bootstrap_key != expected_key:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    try:
-        invite_link, expires_at, email = AuthService.issue_bootstrap_invite_link()
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-
-    return AuthBootstrapInviteResponse(invite_link=invite_link, expires_at=expires_at, email=email)
 
 
 @router.post("/users", response_model=AuthUserResponse, status_code=201)
@@ -135,7 +108,7 @@ def post_invite(
     requester: dict = Depends(require_role("owner", "admin")),
 ) -> AuthInviteResponse:
     try:
-        invite, token = AuthService.create_invite(
+        invite, _ = AuthService.create_invite(
             email=payload.email,
             name=payload.name,
             role=payload.role,
@@ -144,8 +117,6 @@ def post_invite(
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
-    desk_base = _desk_base_url()
-    invite["invite_link"] = f"{desk_base}/invite/{token}"
     return AuthInviteResponse.model_validate(invite)
 
 
@@ -154,4 +125,13 @@ def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "
     updated = AuthService.revoke_invite(invite_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="Invite not found or already finalized")
+    return AuthInviteResponse.model_validate(updated)
+
+
+@router.post("/invites/{invite_id}/resend", response_model=AuthInviteResponse)
+def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
+    try:
+        updated = AuthService.resend_invite(invite_id=invite_id, requested_by=int(requester["id"]))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     return AuthInviteResponse.model_validate(updated)

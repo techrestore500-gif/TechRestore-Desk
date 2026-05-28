@@ -6,16 +6,11 @@ import AccessRequestsPage from "./AccessRequestsPage";
 vi.mock("../api/auth", () => ({
     fetchInvites: vi.fn(),
     createInvite: vi.fn(),
+    resendInvite: vi.fn(),
     revokeInvite: vi.fn(),
 }));
 
-import { createInvite, fetchInvites, revokeInvite } from "../api/auth";
-
-Object.assign(navigator, {
-    clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-    },
-});
+import { createInvite, fetchInvites, resendInvite, revokeInvite } from "../api/auth";
 
 describe("AccessRequestsPage", () => {
     it("shows pending invites and allows revocation", async () => {
@@ -32,7 +27,6 @@ describe("AccessRequestsPage", () => {
                 accepted_at: null,
                 accepted_user_id: null,
                 revoked_at: null,
-                invite_link: "https://desk.example.com/invite/token-abc",
             },
         ]);
         vi.mocked(revokeInvite).mockResolvedValue({
@@ -59,6 +53,46 @@ describe("AccessRequestsPage", () => {
         });
     });
 
+    it("re-sends pending invites", async () => {
+        vi.mocked(fetchInvites).mockResolvedValue([
+            {
+                id: 12,
+                name: "Pending User",
+                email: "pending@example.com",
+                role: "admin",
+                status: "pending",
+                expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+                created_at: new Date().toISOString(),
+                created_by: 1,
+                accepted_at: null,
+                accepted_user_id: null,
+                revoked_at: null,
+            },
+        ]);
+        vi.mocked(resendInvite).mockResolvedValue({
+            id: 13,
+            name: "Pending User",
+            email: "pending@example.com",
+            role: "admin",
+            status: "pending",
+            expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+            created_at: new Date().toISOString(),
+            created_by: 1,
+            accepted_at: null,
+            accepted_user_id: null,
+            revoked_at: null,
+        });
+
+        render(<AccessRequestsPage />);
+
+        expect(await screen.findByText("pending@example.com")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Resend" }));
+
+        await waitFor(() => {
+            expect(resendInvite).toHaveBeenCalledWith(12);
+        });
+    });
+
     it("creates invite from form", async () => {
         vi.mocked(fetchInvites).mockResolvedValue([]);
         vi.mocked(createInvite).mockResolvedValue({
@@ -73,7 +107,6 @@ describe("AccessRequestsPage", () => {
             accepted_at: null,
             accepted_user_id: null,
             revoked_at: null,
-            invite_link: "https://desk.example.com/invite/token-new",
         });
 
         render(<AccessRequestsPage />);
@@ -81,7 +114,7 @@ describe("AccessRequestsPage", () => {
         fireEvent.change(await screen.findByLabelText("Name (optional)"), { target: { value: "New User" } });
         fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
         fireEvent.change(screen.getByLabelText("Role"), { target: { value: "viewer" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create invite" }));
+        fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
         await waitFor(() => {
             expect(createInvite).toHaveBeenCalledWith("new@example.com", "viewer", "New User");

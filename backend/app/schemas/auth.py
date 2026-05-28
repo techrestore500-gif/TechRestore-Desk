@@ -79,12 +79,6 @@ class AuthInviteAcceptRequest(BaseModel):
     password: str = Field(min_length=8)
 
 
-class AuthBootstrapInviteResponse(BaseModel):
-    invite_link: str
-    expires_at: str
-    email: str
-
-
 class AuthDecisionResponse(BaseModel):
     message: str
     user: AuthUserResponse

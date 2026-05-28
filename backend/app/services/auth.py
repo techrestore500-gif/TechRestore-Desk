@@ -9,6 +9,7 @@ import hashlib
 from app.repositories.auth import AuthRepository
 from app.events.audit_events import admin_action
 from app.services.audit import AuditService
+from app.services.emailer import EmailDeliveryError, EmailService
 from app.utils.jwt import create_access_token
 from app.utils.passwords import hash_password, verify_password
 
@@ -25,6 +26,10 @@ def _utc_now() -> datetime:
 
 def _hash_invite_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _generate_invite_token() -> str:
+    return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
 
 
 def _invite_is_expired(expires_at: str) -> bool:
@@ -62,6 +67,25 @@ def _desk_base_url() -> str:
         or os.getenv("PUBLIC_BASE_URL", "").strip()
         or "https://desk.techrestoredesk.com"
     ).rstrip("/")
+
+
+def _invite_expiry_hours() -> int:
+    raw = os.getenv("TECH_RESTORE_INVITE_EXPIRY_HOURS", str(INVITE_EXPIRY_HOURS)).strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = INVITE_EXPIRY_HOURS
+    return max(1, value)
+
+
+def _send_invite_email(*, email: str, name: str | None, token: str) -> None:
+    invite_link = f"{_desk_base_url()}/invite/{token}"
+    EmailService.send_invite_email(
+        recipient_email=email,
+        recipient_name=name,
+        invite_link=invite_link,
+        expires_in_hours=_invite_expiry_hours(),
+    )
 
 
 def _normalize_status(user: dict) -> str:
@@ -188,16 +212,16 @@ class AuthService:
         return user, token, expires_at
 
     @staticmethod
-    def create_invite(*, email: str, role: str, created_by: int, name: str | None = None) -> tuple[dict, str]:
+    def create_invite(*, email: str, role: str, created_by: int, name: str | None = None, send_email: bool = True) -> tuple[dict, str]:
         if role not in ALLOWED_ROLES:
             raise ValueError("Invalid role")
 
         clean_email = _validate_email(email)
         AuthRepository.revoke_pending_invites_for_email(clean_email)
 
-        token = secrets.token_urlsafe(INVITE_TOKEN_BYTES)
+        token = _generate_invite_token()
         token_hash = _hash_invite_token(token)
-        expires_at = (_utc_now().replace(microsecond=0) + timedelta(hours=INVITE_EXPIRY_HOURS)).isoformat()
+        expires_at = (_utc_now().replace(microsecond=0) + timedelta(hours=_invite_expiry_hours())).isoformat()
         invite = AuthRepository.create_invite(
             email=clean_email,
             name=name.strip() if isinstance(name, str) and name.strip() else None,
@@ -206,6 +230,13 @@ class AuthService:
             expires_at=expires_at,
             created_by=created_by,
         )
+
+        if send_email:
+            try:
+                _send_invite_email(email=invite["email"], name=invite.get("name"), token=token)
+            except EmailDeliveryError as error:
+                AuthRepository.revoke_invite(int(invite["id"]))
+                raise ValueError(str(error)) from error
 
         AuditService.log_event(
             admin_action(
@@ -221,6 +252,38 @@ class AuthService:
             )
         )
         return _to_public_invite(invite), token
+
+    @staticmethod
+    def resend_invite(*, invite_id: int, requested_by: int) -> dict:
+        invite = AuthRepository.get_invite_by_id(invite_id)
+        if invite is None:
+            raise ValueError("Invite not found")
+
+        public_invite = _to_public_invite(invite)
+        if public_invite["status"] in {"accepted", "revoked"}:
+            raise ValueError("Invite is not available")
+
+        replacement, _ = AuthService.create_invite(
+            email=invite["email"],
+            name=invite.get("name"),
+            role=invite["role"],
+            created_by=requested_by,
+            send_email=True,
+        )
+        AuditService.log_event(
+            admin_action(
+                entity_type="auth_invite",
+                entity_id=invite_id,
+                action="admin_invite_resent",
+                old_value={"status": public_invite["status"]},
+                new_value={
+                    "email": replacement["email"],
+                    "role": replacement["role"],
+                    "status": replacement["status"],
+                },
+            )
+        )
+        return replacement
 
     @staticmethod
     def list_invites() -> list[dict]:
@@ -325,8 +388,11 @@ class AuthService:
 
         admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
         admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
+        admin_role = os.getenv("ADMIN_INVITE_ROLE", "owner").strip().lower() or "owner"
         if not admin_email_raw:
             return None
+        if admin_role not in {"owner", "admin"}:
+            admin_role = "owner"
 
         try:
             admin_email = _validate_email(admin_email_raw)
@@ -337,12 +403,7 @@ class AuthService:
         if pending:
             return pending[0]
 
-        invite, token = AuthService.create_invite(email=admin_email, name=admin_name, role="owner", created_by=0)
-
-        should_log_token = os.getenv("ADMIN_INVITE_DEV_LOG_TOKEN", "false").strip().lower() in {"1", "true", "yes", "on"}
-        if should_log_token:
-            desk_base = _desk_base_url()
-            print(f"BOOTSTRAP_INVITE_LINK={desk_base}/invite/{token}")
+        invite, _ = AuthService.create_invite(email=admin_email, name=admin_name, role=admin_role, created_by=0, send_email=True)
 
         AuditService.log_event(
             admin_action(
@@ -358,19 +419,6 @@ class AuthService:
             )
         )
         return invite
-
-    @staticmethod
-    def issue_bootstrap_invite_link() -> tuple[str, str, str]:
-        admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
-        if not admin_email_raw:
-            raise ValueError("ADMIN_EMAIL is not configured")
-
-        admin_email = _validate_email(admin_email_raw)
-        admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
-        AuthRepository.revoke_pending_invites_for_email(admin_email)
-        invite, token = AuthService.create_invite(email=admin_email, name=admin_name, role="owner", created_by=0)
-        desk_base = _desk_base_url()
-        return f"{desk_base}/invite/{token}", invite["expires_at"], admin_email
 
     @staticmethod
     def get_user(user_id: int) -> dict | None:

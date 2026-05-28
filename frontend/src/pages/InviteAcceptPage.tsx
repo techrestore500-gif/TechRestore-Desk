@@ -208,7 +208,12 @@ export default function InviteAcceptPage() {
             <section style={S.card}>
                 <h1 style={S.title}>Accept Invite</h1>
                 <p style={S.copy}>Set your password to activate your Tech Restore Desk account.</p>
-                {inviteEmail ? <p style={S.copy}>Email: {inviteEmail}</p> : null}
+                {inviteEmail ? (
+                    <div style={{ display: "grid", gap: "6px" }}>
+                        <label htmlFor="invite-email" style={S.label}>Invited Email</label>
+                        <input id="invite-email" type="email" style={S.input} value={inviteEmail} readOnly disabled />
+                    </div>
+                ) : null}
                 {inviteRole ? <p style={S.copy}>Role: {inviteRole}</p> : null}
                 {inviteError ? <p style={S.error}>{inviteError}</p> : null}
                 {success ? <p style={S.success}>{success}</p> : null}

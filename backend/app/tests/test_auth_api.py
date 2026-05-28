@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 import pytest
+import re
 
 import app.database as database
 from app.main import app
 from app.services.auth import AuthService
+from app.services.emailer import EmailService
 
 
 @pytest.fixture
@@ -26,6 +28,16 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
     monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("TWILIO_PHONE_NUMBER", raising=False)
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_NAME", raising=False)
+    monkeypatch.delenv("ADMIN_INVITE_ROLE", raising=False)
+    monkeypatch.delenv("ADMIN_INVITE_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    monkeypatch.delenv("SMTP_PORT", raising=False)
+    monkeypatch.delenv("SMTP_USERNAME", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    monkeypatch.delenv("SMTP_FROM_EMAIL", raising=False)
+    monkeypatch.delenv("SMTP_FROM_NAME", raising=False)
     monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
@@ -47,6 +59,29 @@ class TestAuthApi:
         response = client.post("/api/auth/login", json={"email": email, "password": password})
         assert response.status_code == 200
         return response.json()
+
+    @staticmethod
+    def _token_from_link(link: str) -> str:
+        match = re.search(r"/invite/([^/?#]+)$", link)
+        assert match is not None
+        return match.group(1)
+
+    @staticmethod
+    def _capture_invite_emails(monkeypatch) -> list[dict]:
+        sent: list[dict] = []
+
+        def fake_send_invite_email(*, recipient_email: str, recipient_name: str | None, invite_link: str, expires_in_hours: int) -> None:
+            sent.append(
+                {
+                    "recipient_email": recipient_email,
+                    "recipient_name": recipient_name,
+                    "invite_link": invite_link,
+                    "expires_in_hours": expires_in_hours,
+                }
+            )
+
+        monkeypatch.setattr(EmailService, "send_invite_email", staticmethod(fake_send_invite_email))
+        return sent
 
     def test_shared_password_login_without_existing_user(self, client, monkeypatch):
         monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
@@ -118,6 +153,7 @@ class TestAuthApi:
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         monkeypatch.setenv("FRONTEND_BASE_URL", "https://desk.example.com")
         monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        sent = self._capture_invite_emails(monkeypatch)
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
         admin_token = self._login(client, "owner@example.com")["access_token"]
 
@@ -131,11 +167,13 @@ class TestAuthApi:
         assert payload["email"] == "pending@example.com"
         assert payload["role"] == "technician"
         assert payload["status"] == "pending"
-        assert payload["invite_link"].startswith("https://desk.example.com/invite/")
-        assert payload["invite_link"].endswith("/invite/" + payload["invite_link"].split("/invite/")[-1])
+        assert len(sent) == 1
+        assert sent[0]["recipient_email"] == "pending@example.com"
+        assert sent[0]["invite_link"].startswith("https://desk.example.com/invite/")
 
     def test_non_admin_cannot_create_invites(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._capture_invite_emails(monkeypatch)
         self._create_user(name="Front Desk", email="desk@example.com", username="desk1", role="front_desk")
         front_desk_token = self._login(client, "desk@example.com")["access_token"]
 
@@ -148,6 +186,7 @@ class TestAuthApi:
 
     def test_invite_acceptance_activates_user_and_allows_login(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
         self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
         admin_token = self._login(client, "admin@example.com")["access_token"]
 
@@ -156,7 +195,8 @@ class TestAuthApi:
             json={"name": "Tech User", "email": "techuser@example.com", "role": "technician"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
 
         resolve_response = client.get(f"/api/auth/invites/{token}")
         assert resolve_response.status_code == 200
@@ -178,6 +218,7 @@ class TestAuthApi:
 
     def test_invite_token_is_single_use(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
         owner_token = self._login(client, "owner@example.com")["access_token"]
 
@@ -186,7 +227,8 @@ class TestAuthApi:
             json={"name": "Single Use", "email": "single@example.com", "role": "viewer"},
             headers={"Authorization": f"Bearer {owner_token}"},
         )
-        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
 
         first_accept = client.post(
             f"/api/auth/invites/{token}/accept",
@@ -202,6 +244,7 @@ class TestAuthApi:
 
     def test_revoked_invite_cannot_be_accepted(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
         self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
         owner_token = self._login(client, "owner@example.com")["access_token"]
 
@@ -211,7 +254,7 @@ class TestAuthApi:
             headers={"Authorization": f"Bearer {owner_token}"},
         )
         invite = invite_response.json()
-        token = invite["invite_link"].split("/invite/")[-1]
+        token = self._token_from_link(sent[-1]["invite_link"])
 
         revoke_response = client.post(
             f"/api/auth/invites/{invite['id']}/revoke",
@@ -229,6 +272,7 @@ class TestAuthApi:
 
     def test_expired_invite_cannot_be_resolved_or_accepted(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
         self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
         admin_token = self._login(client, "admin@example.com")["access_token"]
 
@@ -237,7 +281,8 @@ class TestAuthApi:
             json={"name": "Expired User", "email": "expired@example.com", "role": "viewer"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        token = invite_response.json()["invite_link"].split("/invite/")[-1]
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
 
         invite_id = invite_response.json()["id"]
         with database.get_connection() as connection:
@@ -258,19 +303,61 @@ class TestAuthApi:
         assert accept_response.status_code == 400
         assert "expired" in accept_response.json()["detail"].lower()
 
-    def test_bootstrap_invite_link_endpoint_requires_key(self, client, monkeypatch):
-        monkeypatch.setenv("ADMIN_EMAIL", "techrestore500@gmail.com")
-        monkeypatch.setenv("ADMIN_NAME", "Tech Restore Owner")
-        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP_KEY", "bootstrap-secret")
+    def test_bootstrap_invite_is_emailed_once_without_spam(self, client, monkeypatch):
+        sent = self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
+        monkeypatch.setenv("ADMIN_NAME", "Mattis Klein")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP", "true")
+        monkeypatch.setenv("ADMIN_INVITE_ROLE", "owner")
 
-        without_key = client.post("/api/auth/bootstrap/invite-link")
-        assert without_key.status_code == 403
+        first = AuthService.ensure_bootstrap_admin_invite_from_env()
+        assert first is not None
+        assert first["email"] == "mattiskleinbh@gmail.com"
+        assert first["role"] == "owner"
+        assert len(sent) == 1
 
-        with_key = client.post("/api/auth/bootstrap/invite-link", headers={"X-Bootstrap-Key": "bootstrap-secret"})
-        assert with_key.status_code == 200
-        payload = with_key.json()
-        assert payload["email"] == "techrestore500@gmail.com"
-        assert "/invite/" in payload["invite_link"]
+        second = AuthService.ensure_bootstrap_admin_invite_from_env()
+        assert second is not None
+        assert second["status"] == "pending"
+        assert len(sent) == 1
+
+    def test_admin_can_resend_pending_or_expired_invite(self, client, monkeypatch):
+        sent = self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        owner_token = self._login(client, "owner@example.com")["access_token"]
+
+        create_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Resend User", "email": "resend@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        assert create_response.status_code == 201
+        original_id = create_response.json()["id"]
+        assert len(sent) == 1
+
+        resend_pending = client.post(
+            f"/api/auth/invites/{original_id}/resend",
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        assert resend_pending.status_code == 200
+        assert resend_pending.json()["status"] == "pending"
+        assert len(sent) == 2
+
+        with database.get_connection() as connection:
+            connection.execute(
+                "UPDATE auth_invites SET expires_at = datetime('now', '-1 day') WHERE id = ?",
+                (resend_pending.json()["id"],),
+            )
+            connection.commit()
+
+        resend_expired = client.post(
+            f"/api/auth/invites/{resend_pending.json()['id']}/resend",
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        assert resend_expired.status_code == 200
+        assert resend_expired.json()["status"] == "pending"
+        assert len(sent) == 3
 
     def test_disabled_user_cannot_login(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
