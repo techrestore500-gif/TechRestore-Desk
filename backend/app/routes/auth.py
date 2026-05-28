@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.auth.dependencies import get_current_user, require_role
 from app.schemas.auth import (
@@ -53,6 +55,21 @@ def post_accept_invite(token: str, payload: AuthInviteAcceptRequest) -> AuthDeci
         message="Invite accepted. Your account is active.",
         user=AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"}),
     )
+
+
+@router.post("/bootstrap/resend", response_model=AuthInviteResponse)
+def post_bootstrap_resend(x_bootstrap_key: str | None = Header(default=None, alias="X-Bootstrap-Key")) -> AuthInviteResponse:
+    expected_key = os.getenv("ADMIN_INVITE_BOOTSTRAP_KEY", "").strip()
+    if not expected_key:
+        raise HTTPException(status_code=404, detail="Bootstrap resend endpoint disabled")
+    if x_bootstrap_key != expected_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        invite = AuthService.resend_bootstrap_admin_invite_from_env()
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return AuthInviteResponse.model_validate(invite)
 
 
 @router.post("/users", response_model=AuthUserResponse, status_code=201)

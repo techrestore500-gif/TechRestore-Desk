@@ -11,6 +11,7 @@ from app.auth.dependencies import auth_enforcement_enabled, authenticate_bearer_
 PUBLIC_API_PATHS = {
     "/api/health",
     "/api/auth/login",
+    "/api/auth/bootstrap/resend",
     "/api/twilio/voice",
     "/api/twilio/recording",
 }

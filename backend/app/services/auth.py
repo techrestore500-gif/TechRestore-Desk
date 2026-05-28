@@ -88,6 +88,21 @@ def _send_invite_email(*, email: str, name: str | None, token: str) -> None:
     )
 
 
+def _bootstrap_admin_invite_details() -> tuple[str, str, str]:
+    admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
+    admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
+    admin_role = os.getenv("ADMIN_INVITE_ROLE", "owner").strip().lower() or "owner"
+
+    if not admin_email_raw:
+        raise ValueError("ADMIN_EMAIL is not configured")
+
+    admin_email = _validate_email(admin_email_raw)
+    if admin_role not in {"owner", "admin"}:
+        admin_role = "owner"
+
+    return admin_email, admin_name, admin_role
+
+
 def _normalize_status(user: dict) -> str:
     status = str(user.get("status") or "").strip().lower()
     if status in ALLOWED_STATUSES:
@@ -386,16 +401,8 @@ class AuthService:
         if AuthRepository.count_users() > 0 or AuthRepository.count_active_admins() > 0:
             return None
 
-        admin_email_raw = os.getenv("ADMIN_EMAIL", "").strip()
-        admin_name = os.getenv("ADMIN_NAME", "").strip() or "Tech Restore Admin"
-        admin_role = os.getenv("ADMIN_INVITE_ROLE", "owner").strip().lower() or "owner"
-        if not admin_email_raw:
-            return None
-        if admin_role not in {"owner", "admin"}:
-            admin_role = "owner"
-
         try:
-            admin_email = _validate_email(admin_email_raw)
+            admin_email, admin_name, admin_role = _bootstrap_admin_invite_details()
         except ValueError:
             return None
 
@@ -410,6 +417,39 @@ class AuthService:
                 entity_type="auth_invite",
                 entity_id=invite["id"],
                 action="startup_bootstrap_owner_invite_created",
+                old_value=None,
+                new_value={
+                    "email": invite["email"],
+                    "role": invite["role"],
+                    "expires_at": invite["expires_at"],
+                },
+            )
+        )
+        return invite
+
+    @staticmethod
+    def resend_bootstrap_admin_invite_from_env() -> dict:
+        bootstrap_enabled = os.getenv("ADMIN_INVITE_BOOTSTRAP", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if not bootstrap_enabled:
+            raise ValueError("Bootstrap invites are disabled")
+
+        if AuthRepository.count_users() > 0 or AuthRepository.count_active_admins() > 0:
+            raise ValueError("Bootstrap invite resend is unavailable after account setup")
+
+        admin_email, admin_name, admin_role = _bootstrap_admin_invite_details()
+        AuthRepository.revoke_pending_invites_for_email(admin_email)
+        invite, _ = AuthService.create_invite(
+            email=admin_email,
+            name=admin_name,
+            role=admin_role,
+            created_by=0,
+            send_email=True,
+        )
+        AuditService.log_event(
+            admin_action(
+                entity_type="auth_invite",
+                entity_id=invite["id"],
+                action="startup_bootstrap_owner_invite_resent",
                 old_value=None,
                 new_value={
                     "email": invite["email"],

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 import smtplib
 from email.message import EmailMessage
 from html import escape
+
+
+logger = logging.getLogger(__name__)
 
 
 class EmailDeliveryError(Exception):
@@ -11,6 +15,18 @@ class EmailDeliveryError(Exception):
 
 
 class EmailService:
+    @staticmethod
+    def _to_bool(name: str, default: bool) -> bool:
+        value = os.getenv(name)
+        if value is None:
+            return default
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        return default
+
     @staticmethod
     def _smtp_host() -> str:
         return os.getenv("SMTP_HOST", "").strip()
@@ -22,6 +38,22 @@ class EmailService:
             return int(raw)
         except ValueError as error:
             raise EmailDeliveryError("SMTP_PORT is invalid") from error
+
+    @staticmethod
+    def _smtp_timeout_seconds() -> float:
+        raw = os.getenv("SMTP_TIMEOUT_SECONDS", "20").strip()
+        try:
+            return max(3.0, float(raw))
+        except ValueError as error:
+            raise EmailDeliveryError("SMTP_TIMEOUT_SECONDS is invalid") from error
+
+    @staticmethod
+    def _use_ssl() -> bool:
+        return EmailService._to_bool("SMTP_USE_SSL", False)
+
+    @staticmethod
+    def _starttls_enabled() -> bool:
+        return EmailService._to_bool("SMTP_STARTTLS", True)
 
     @staticmethod
     def _smtp_username() -> str:
@@ -107,17 +139,42 @@ class EmailService:
 
         smtp_host = EmailService._smtp_host()
         smtp_port = EmailService._smtp_port()
+        smtp_timeout = EmailService._smtp_timeout_seconds()
+        use_ssl = EmailService._use_ssl()
+        use_starttls = EmailService._starttls_enabled() and not use_ssl
         smtp_username = EmailService._smtp_username()
         smtp_password = EmailService._smtp_password()
 
+        smtp_factory = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
         try:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
+            with smtp_factory(smtp_host, smtp_port, timeout=smtp_timeout) as smtp:
                 smtp.ehlo()
-                smtp.starttls()
-                smtp.ehlo()
+                if use_starttls:
+                    smtp.starttls()
+                    smtp.ehlo()
                 smtp.login(smtp_username, smtp_password)
                 smtp.send_message(message)
         except smtplib.SMTPException as error:
+            logger.warning(
+                "SMTP send failed (%s): %s [host=%s port=%s ssl=%s starttls=%s timeout=%ss]",
+                error.__class__.__name__,
+                str(error),
+                smtp_host,
+                smtp_port,
+                use_ssl,
+                use_starttls,
+                smtp_timeout,
+            )
             raise EmailDeliveryError("Failed to deliver invite email") from error
         except OSError as error:
+            logger.warning(
+                "SMTP connection failed (%s): %s [host=%s port=%s ssl=%s starttls=%s timeout=%ss]",
+                error.__class__.__name__,
+                str(error),
+                smtp_host,
+                smtp_port,
+                use_ssl,
+                use_starttls,
+                smtp_timeout,
+            )
             raise EmailDeliveryError("Could not connect to SMTP server") from error

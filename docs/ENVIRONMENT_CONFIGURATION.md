@@ -11,7 +11,9 @@ Typical local backend values:
 - REPAIR_DESK_AUTH_ENABLED=true
 - ADMIN_EMAIL=owner@example.com
 - ADMIN_NAME=Tech Restore Owner
-- ADMIN_PASSWORD=change-this-in-dev
+- ADMIN_INVITE_BOOTSTRAP=true
+- ADMIN_INVITE_ROLE=owner
+- ADMIN_INVITE_BOOTSTRAP_KEY=local-bootstrap-key
 - DATABASE_URL=./data/tech_restore_desk.sqlite
 - CORS_ALLOWED_ORIGINS=http://127.0.0.1:6173,http://localhost:6173
 
@@ -37,10 +39,11 @@ Required:
 - PYTHON_VERSION
 - REPAIR_DESK_AUTH_ENABLED
 - ADMIN_EMAIL
-- ADMIN_PASSWORD
+- ADMIN_INVITE_BOOTSTRAP
+- ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
 - SECRET_KEY
-- PUBLIC_BASE_URL
+- FRONTEND_BASE_URL
 - CORS_ALLOWED_ORIGINS
 
 Required for Twilio voicemail:
@@ -50,6 +53,8 @@ Required for Twilio voicemail:
 
 Optional:
 - ADMIN_NAME
+- ADMIN_INVITE_ROLE
+- SMTP_TIMEOUT_SECONDS
 - REPAIR_DESK_PASSWORD (reserved for external gate/passcode workflows)
 
 ### Frontend Variables
@@ -82,10 +87,11 @@ Backend required (core app):
 - PYTHON_VERSION
 - REPAIR_DESK_AUTH_ENABLED
 - ADMIN_EMAIL
-- ADMIN_PASSWORD
+- ADMIN_INVITE_BOOTSTRAP
+- ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
 - SECRET_KEY
-- PUBLIC_BASE_URL
+- FRONTEND_BASE_URL
 - CORS_ALLOWED_ORIGINS
 
 Backend required (voicemail):
@@ -95,6 +101,8 @@ Backend required (voicemail):
 
 Backend optional:
 - ADMIN_NAME
+- ADMIN_INVITE_ROLE
+- SMTP_TIMEOUT_SECONDS
 - REPAIR_DESK_PASSWORD
 
 Frontend required:
@@ -105,6 +113,33 @@ Frontend conditionally required:
 
 ## Authentication Notes
 
-- Main production auth model is account-based login (`/api/auth/login`) with pending signup requests (`/api/auth/signup`) and admin approval (`/api/auth/access-requests`).
+- Main production auth model is invite-only login (`/api/auth/login`) with admin/owner-controlled invite creation and acceptance (`/api/auth/invites/*`).
 - `REPAIR_DESK_PASSWORD` remains as an optional fallback mode only. If enabled with `REPAIR_DESK_AUTH_ENABLED=true`, backend still accepts shared-password logins.
-- First admin/owner bootstrap runs at startup only when no users exist and both `ADMIN_EMAIL` + `ADMIN_PASSWORD` are set.
+- First admin/owner bootstrap sends an emailed invite at startup when no users exist and `ADMIN_INVITE_BOOTSTRAP=true`.
+- Emergency bootstrap resend endpoint exists at `POST /api/auth/bootstrap/resend` and requires `X-Bootstrap-Key` matching `ADMIN_INVITE_BOOTSTRAP_KEY`.
+
+## SMTP Configuration (Render)
+
+Invite delivery uses environment-driven SMTP mode selection and supports both STARTTLS and SSL-on-connect.
+
+Recommended Gmail STARTTLS (port 587):
+- SMTP_HOST=smtp.gmail.com
+- SMTP_PORT=587
+- SMTP_USE_SSL=false
+- SMTP_STARTTLS=true
+- SMTP_TIMEOUT_SECONDS=20
+- SMTP_USERNAME=techrestore500@gmail.com
+- SMTP_PASSWORD=<gmail-app-password>
+- SMTP_FROM_EMAIL=techrestore500@gmail.com
+- SMTP_FROM_NAME=Tech Restore
+
+Gmail SSL fallback (port 465):
+- SMTP_HOST=smtp.gmail.com
+- SMTP_PORT=465
+- SMTP_USE_SSL=true
+- SMTP_STARTTLS=false
+- SMTP_TIMEOUT_SECONDS=20
+- SMTP_USERNAME=techrestore500@gmail.com
+- SMTP_PASSWORD=<gmail-app-password>
+- SMTP_FROM_EMAIL=techrestore500@gmail.com
+- SMTP_FROM_NAME=Tech Restore

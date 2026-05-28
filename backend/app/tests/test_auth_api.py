@@ -32,12 +32,16 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("ADMIN_NAME", raising=False)
     monkeypatch.delenv("ADMIN_INVITE_ROLE", raising=False)
     monkeypatch.delenv("ADMIN_INVITE_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("ADMIN_INVITE_BOOTSTRAP_KEY", raising=False)
     monkeypatch.delenv("SMTP_HOST", raising=False)
     monkeypatch.delenv("SMTP_PORT", raising=False)
     monkeypatch.delenv("SMTP_USERNAME", raising=False)
     monkeypatch.delenv("SMTP_PASSWORD", raising=False)
     monkeypatch.delenv("SMTP_FROM_EMAIL", raising=False)
     monkeypatch.delenv("SMTP_FROM_NAME", raising=False)
+    monkeypatch.delenv("SMTP_USE_SSL", raising=False)
+    monkeypatch.delenv("SMTP_STARTTLS", raising=False)
+    monkeypatch.delenv("SMTP_TIMEOUT_SECONDS", raising=False)
     monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
@@ -320,6 +324,59 @@ class TestAuthApi:
         assert second is not None
         assert second["status"] == "pending"
         assert len(sent) == 1
+
+    def test_bootstrap_resend_requires_valid_bootstrap_key(self, client, monkeypatch):
+        self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
+        monkeypatch.setenv("ADMIN_NAME", "Mattis Klein")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP", "true")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP_KEY", "bootstrap-secret")
+
+        forbidden = client.post("/api/auth/bootstrap/resend")
+        assert forbidden.status_code == 403
+
+        allowed = client.post("/api/auth/bootstrap/resend", headers={"X-Bootstrap-Key": "bootstrap-secret"})
+        assert allowed.status_code == 200
+        assert allowed.json()["status"] == "pending"
+        assert allowed.json()["email"] == "mattiskleinbh@gmail.com"
+
+    def test_bootstrap_resend_reissues_invite_without_db_reset(self, client, monkeypatch):
+        sent = self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
+        monkeypatch.setenv("ADMIN_NAME", "Mattis Klein")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP", "true")
+        monkeypatch.setenv("ADMIN_INVITE_ROLE", "owner")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP_KEY", "bootstrap-secret")
+
+        first = client.post("/api/auth/bootstrap/resend", headers={"X-Bootstrap-Key": "bootstrap-secret"})
+        assert first.status_code == 200
+        first_invite_id = first.json()["id"]
+
+        second = client.post("/api/auth/bootstrap/resend", headers={"X-Bootstrap-Key": "bootstrap-secret"})
+        assert second.status_code == 200
+        second_invite_id = second.json()["id"]
+        assert second_invite_id != first_invite_id
+        assert len(sent) == 2
+
+        with database.get_connection() as connection:
+            previous = connection.execute(
+                "SELECT status FROM auth_invites WHERE id = ?",
+                (first_invite_id,),
+            ).fetchone()
+            assert previous is not None
+            assert previous["status"] == "revoked"
+
+    def test_bootstrap_resend_blocked_after_admin_exists(self, client, monkeypatch):
+        self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP", "true")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP_KEY", "bootstrap-secret")
+
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+
+        response = client.post("/api/auth/bootstrap/resend", headers={"X-Bootstrap-Key": "bootstrap-secret"})
+        assert response.status_code == 400
+        assert "unavailable" in response.json()["detail"].lower()
 
     def test_admin_can_resend_pending_or_expired_invite(self, client, monkeypatch):
         sent = self._capture_invite_emails(monkeypatch)
