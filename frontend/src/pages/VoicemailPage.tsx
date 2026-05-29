@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { deleteVoicemail, fetchVoicemails, updateVoicemail, type VoicemailRecord } from "../api/system";
+import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, updateVoicemail, type VoicemailRecord } from "../api/system";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
@@ -12,10 +12,77 @@ export default function VoicemailPage() {
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
 
+    // Audio loading state — keyed by voicemail ID.
+    // The browser <audio> element cannot attach a Bearer token to its src request,
+    // so we fetch audio through apiFetch (which injects the Authorization header)
+    // and hand the element a local blob URL instead.
+    const [audioBlobUrls, setAudioBlobUrls] = useState<Record<number, string>>({});
+    const [audioLoadErrors, setAudioLoadErrors] = useState<Record<number, string>>({});
+    const [audioLoadingIds, setAudioLoadingIds] = useState<Record<number, boolean>>({});
+    // Tracks IDs already queued for loading to prevent duplicate fetches.
+    const queuedAudioIds = useRef<Set<number>>(new Set());
+
     const { data: voicemails = [], error } = useAsyncData<VoicemailRecord[]>(() => fetchVoicemails(), [refreshKey]);
+
+    // Revoke blob URLs when they are replaced to free browser memory.
+    const prevBlobUrls = useRef<Record<number, string>>({});
+    useEffect(() => {
+        const previous = prevBlobUrls.current;
+        for (const [id, url] of Object.entries(audioBlobUrls)) {
+            if (previous[Number(id)] && previous[Number(id)] !== url) {
+                URL.revokeObjectURL(previous[Number(id)]);
+            }
+        }
+        prevBlobUrls.current = audioBlobUrls;
+    }, [audioBlobUrls]);
+
+    // Revoke all remaining blob URLs when the component unmounts.
+    useEffect(() => {
+        return () => {
+            for (const url of Object.values(prevBlobUrls.current)) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, []);
+
+    // Auto-load audio for every voicemail that has a recording URL.
+    useEffect(() => {
+        for (const voicemail of voicemails) {
+            if (voicemail.recording_url && !queuedAudioIds.current.has(voicemail.id)) {
+                queuedAudioIds.current.add(voicemail.id);
+                void loadAudio(voicemail.id);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [voicemails]); // intentionally excludes audio state — checked synchronously via queuedAudioIds ref
 
     async function refresh() {
         setRefreshKey((current) => current + 1);
+    }
+
+    async function loadAudio(voicemailId: number) {
+        setAudioLoadingIds((current) => ({ ...current, [voicemailId]: true }));
+        setAudioLoadErrors((current) => {
+            const next = { ...current };
+            delete next[voicemailId];
+            return next;
+        });
+        try {
+            const { blob } = await fetchVoicemailAudio(voicemailId);
+            const blobUrl = URL.createObjectURL(blob);
+            setAudioBlobUrls((current) => ({ ...current, [voicemailId]: blobUrl }));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Could not load audio.";
+            setAudioLoadErrors((current) => ({ ...current, [voicemailId]: message }));
+        } finally {
+            setAudioLoadingIds((current) => ({ ...current, [voicemailId]: false }));
+        }
+    }
+
+    function retryAudio(voicemailId: number) {
+        // Allow the ID to be queued again so the auto-load effect or explicit retry both work.
+        queuedAudioIds.current.delete(voicemailId);
+        void loadAudio(voicemailId);
     }
 
     async function setStatus(voicemailId: number, status: "new" | "listened" | "archived") {
@@ -143,13 +210,29 @@ export default function VoicemailPage() {
                                 <div style={{ marginTop: "12px" }}>
                                     <div style={{ ...t.meta, marginTop: 0, marginBottom: "6px" }}>Playback</div>
                                     {voicemail.recording_url ? (
-                                        <audio
-                                            controls
-                                            style={{ width: "100%" }}
-                                            src={`/api/voicemails/${voicemail.id}/audio`}
-                                            onPlay={() => void markListenedFromPlayback(voicemail)}
-                                            onError={() => setActionError("Recording is not ready yet. Try again in a few seconds.")}
-                                        />
+                                        audioBlobUrls[voicemail.id] ? (
+                                            <audio
+                                                controls
+                                                style={{ width: "100%" }}
+                                                src={audioBlobUrls[voicemail.id]}
+                                                onPlay={() => void markListenedFromPlayback(voicemail)}
+                                            />
+                                        ) : audioLoadErrors[voicemail.id] ? (
+                                            <div>
+                                                <div style={t.warning}>{audioLoadErrors[voicemail.id]}</div>
+                                                <button
+                                                    type="button"
+                                                    style={{ ...t.secondaryBtn, marginTop: "6px" }}
+                                                    onClick={() => retryAudio(voicemail.id)}
+                                                >
+                                                    Retry
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ ...t.meta, color: "#6b7280" }}>
+                                                {audioLoadingIds[voicemail.id] ? "Loading audio…" : "Audio pending…"}
+                                            </div>
+                                        )
                                     ) : (
                                         <div style={t.warning}>Recording audio not available yet.</div>
                                     )}

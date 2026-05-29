@@ -210,6 +210,23 @@ export async function fetchVoicemails(): Promise<VoicemailRecord[]> {
     return (await response.json()) as VoicemailRecord[];
 }
 
+/**
+ * Fetch raw voicemail audio through the backend proxy so that the Twilio
+ * Basic-Auth credentials are never sent to or stored in the browser.
+ * The caller is responsible for revoking the returned blob URL via
+ * URL.revokeObjectURL() when it is no longer needed.
+ */
+export async function fetchVoicemailAudio(voicemailId: number): Promise<{ blob: Blob; contentType: string }> {
+    const response = await apiFetch(`/api/voicemails/${voicemailId}/audio`);
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.detail ?? `Could not load audio: ${response.status}`);
+    }
+    const contentType = response.headers.get('Content-Type') ?? 'audio/mpeg';
+    const blob = await response.blob();
+    return { blob, contentType };
+}
+
 export async function updateVoicemail(voicemailId: number, payload: Partial<Pick<VoicemailRecord, 'status' | 'customer_id' | 'ticket_id'>> & { note?: string }): Promise<VoicemailRecord> {
     const response = await apiFetch(`/api/voicemails/${voicemailId}`, {
         method: 'PATCH',

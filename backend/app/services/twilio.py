@@ -194,10 +194,24 @@ class TwilioService:
         response = TwilioService._request_recording_audio(recording_url, account_sid, auth_token)
 
         if response.status_code in (401, 403):
+            logger.warning(
+                "Twilio denied access to recording for voicemail %d (HTTP %d). Check Twilio credentials in Settings.",
+                voicemail_id,
+                response.status_code,
+            )
             raise TwilioAudioFetchError("Twilio denied access to the recording. Check Twilio credentials in Settings.", status_code=502)
         if response.status_code == 404:
+            logger.warning(
+                "Twilio returned 404 for voicemail %d recording — media may still be processing.",
+                voicemail_id,
+            )
             raise TwilioAudioFetchError("Recording is not ready yet. Try again in a few seconds.", status_code=503)
         if response.status_code >= 400:
+            logger.warning(
+                "Twilio returned unexpected HTTP %d for voicemail %d recording.",
+                response.status_code,
+                voicemail_id,
+            )
             raise TwilioAudioFetchError("Could not load voicemail audio from Twilio.", status_code=502)
 
         content_type = response.headers.get("content-type", "audio/mpeg")

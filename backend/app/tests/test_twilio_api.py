@@ -281,3 +281,61 @@ class TestTwilioWebhooks:
         response = client.get("/api/voicemails/1/audio")
         assert response.status_code == 503
         assert response.json()["detail"] == "Recording is not ready yet. Try again in a few seconds."
+
+    def test_recording_callback_appends_mp3_extension_to_url(self, client):
+        """RecordingUrl from Twilio arrives without file extension; backend must append .mp3 before saving."""
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550222",
+                "To": "+15555550100",
+                "CallSid": "CA222",
+                "RecordingSid": "RE222",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC222/Recordings/RE222",
+                "RecordingDuration": "15",
+            },
+        )
+        assert callback_resp.status_code == 200
+
+        inbox_resp = client.get("/api/voicemails")
+        assert inbox_resp.status_code == 200
+        saved = next((vm for vm in inbox_resp.json() if vm["recording_sid"] == "RE222"), None)
+        assert saved is not None
+        assert saved["recording_url"].endswith(".mp3"), (
+            "Recording URL must end with .mp3 so the backend can proxy the audio from Twilio"
+        )
+
+    def test_recording_callback_does_not_double_append_mp3(self, client):
+        """If Twilio ever sends a URL already ending in .mp3, do not double-append."""
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550333",
+                "To": "+15555550100",
+                "CallSid": "CA333",
+                "RecordingSid": "RE333",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC333/Recordings/RE333.mp3",
+                "RecordingDuration": "8",
+            },
+        )
+        assert callback_resp.status_code == 200
+        inbox_resp = client.get("/api/voicemails")
+        saved = next((vm for vm in inbox_resp.json() if vm["recording_sid"] == "RE333"), None)
+        assert saved is not None
+        assert saved["recording_url"] == "https://api.twilio.com/2010-04-01/Accounts/AC333/Recordings/RE333.mp3"
+
+    def test_voicemail_audio_proxy_returns_correct_content_type(self, client, monkeypatch):
+        """Audio proxy must forward the Twilio content-type header so the browser can decode the audio."""
+        def fake_fetch(_: int):
+            return b"fake-ogg-bytes", "audio/ogg"
+
+        monkeypatch.setattr(TwilioService, "fetch_recording_audio", staticmethod(fake_fetch))
+        response = client.get("/api/voicemails/1/audio")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("audio/ogg")
+
+    def test_voicemail_audio_proxy_returns_404_when_no_recording_url(self, client, monkeypatch):
+        """If the voicemail record has no recording_url, fetch_recording_audio returns None → 404."""
+        monkeypatch.setattr(TwilioService, "fetch_recording_audio", staticmethod(lambda _: None))
+        response = client.get("/api/voicemails/9999/audio")
+        assert response.status_code == 404
