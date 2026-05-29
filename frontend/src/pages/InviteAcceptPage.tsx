@@ -229,75 +229,75 @@ export default function InviteAcceptPage() {
                     </>
                 ) : (
                     <>
-                <h1 style={S.title}>Accept Invite</h1>
-                <p style={S.copy}>Set your password to activate your Tech Restore Desk account.</p>
-                {inviteEmail ? (
-                    <div style={{ display: "grid", gap: "6px" }}>
-                        <label htmlFor="invite-email" style={S.label}>Invited Email</label>
-                        <input id="invite-email" type="email" style={S.input} value={inviteEmail} readOnly disabled />
-                    </div>
-                ) : null}
-                {inviteRole ? <p style={S.copy}>Role: {inviteRole}</p> : null}
-                {inviteError ? <p style={S.error}>{inviteError}</p> : null}
-                {success ? <p style={S.success}>{success}</p> : null}
+                        <h1 style={S.title}>Accept Invite</h1>
+                        <p style={S.copy}>Set your password to activate your Tech Restore Desk account.</p>
+                        {inviteEmail ? (
+                            <div style={{ display: "grid", gap: "6px" }}>
+                                <label htmlFor="invite-email" style={S.label}>Invited Email</label>
+                                <input id="invite-email" type="email" style={S.input} value={inviteEmail} readOnly disabled />
+                            </div>
+                        ) : null}
+                        {inviteRole ? <p style={S.copy}>Role: {inviteRole}</p> : null}
+                        {inviteError ? <p style={S.error}>{inviteError}</p> : null}
+                        {success ? <p style={S.success}>{success}</p> : null}
 
-                {!inviteError || success ? (
-                    <form onSubmit={handleSubmit} style={{ display: "grid", gap: "10px" }}>
-                        <label htmlFor="password" style={S.label}>Password</label>
-                        <div style={S.passwordWrap}>
-                            <input
-                                id="password"
-                                type={showPassword ? "text" : "password"}
-                                autoComplete="new-password"
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                                style={S.passwordInput}
-                                disabled={busy}
-                            />
-                            <button
-                                type="button"
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                                title={showPassword ? "Hide password" : "Show password"}
-                                style={S.eyeButton}
-                                onClick={() => setShowPassword((current) => !current)}
-                                disabled={busy}
-                            >
-                                <EyeIcon hidden={showPassword} />
-                            </button>
-                        </div>
+                        {!inviteError || success ? (
+                            <form onSubmit={handleSubmit} style={{ display: "grid", gap: "10px" }}>
+                                <label htmlFor="password" style={S.label}>Password</label>
+                                <div style={S.passwordWrap}>
+                                    <input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        autoComplete="new-password"
+                                        value={password}
+                                        onChange={(event) => setPassword(event.target.value)}
+                                        style={S.passwordInput}
+                                        disabled={busy}
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                        title={showPassword ? "Hide password" : "Show password"}
+                                        style={S.eyeButton}
+                                        onClick={() => setShowPassword((current) => !current)}
+                                        disabled={busy}
+                                    >
+                                        <EyeIcon hidden={showPassword} />
+                                    </button>
+                                </div>
 
-                        <label htmlFor="confirm-password" style={S.label}>Confirm Password</label>
-                        <div style={S.passwordWrap}>
-                            <input
-                                id="confirm-password"
-                                type={showConfirmPassword ? "text" : "password"}
-                                autoComplete="new-password"
-                                value={confirmPassword}
-                                onChange={(event) => setConfirmPassword(event.target.value)}
-                                style={S.passwordInput}
-                                disabled={busy}
-                            />
-                            <button
-                                type="button"
-                                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                                title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                                style={S.eyeButton}
-                                onClick={() => setShowConfirmPassword((current) => !current)}
-                                disabled={busy}
-                            >
-                                <EyeIcon hidden={showConfirmPassword} />
-                            </button>
-                        </div>
+                                <label htmlFor="confirm-password" style={S.label}>Confirm Password</label>
+                                <div style={S.passwordWrap}>
+                                    <input
+                                        id="confirm-password"
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        autoComplete="new-password"
+                                        value={confirmPassword}
+                                        onChange={(event) => setConfirmPassword(event.target.value)}
+                                        style={S.passwordInput}
+                                        disabled={busy}
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                                        title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                                        style={S.eyeButton}
+                                        onClick={() => setShowConfirmPassword((current) => !current)}
+                                        disabled={busy}
+                                    >
+                                        <EyeIcon hidden={showConfirmPassword} />
+                                    </button>
+                                </div>
 
-                        <button type="submit" style={S.button} disabled={busy}>
-                            {busy ? "Activating..." : "Activate account"}
-                        </button>
-                    </form>
-                ) : null}
+                                <button type="submit" style={S.button} disabled={busy}>
+                                    {busy ? "Activating..." : "Activate account"}
+                                </button>
+                            </form>
+                        ) : null}
 
-                <Link to="/login" style={{ color: "#174d43", fontWeight: 700 }}>
-                    Back to sign in
-                </Link>
+                        <Link to="/login" style={{ color: "#174d43", fontWeight: 700 }}>
+                            Back to sign in
+                        </Link>
                     </>
                 )}
             </section>
