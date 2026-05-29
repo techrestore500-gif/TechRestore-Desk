@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -110,3 +112,31 @@ def test_secret_key_alias_is_supported(monkeypatch):
     settings = get_settings()
     assert settings.jwt_secret == "prod-secret-key"
     assert settings.signed_url_secret == "prod-secret-key"
+
+
+def test_runtime_diagnostics_flags_non_persistent_sqlite_path(client: TestClient, monkeypatch):
+    monkeypatch.setattr(database, "DB_PATH", database.DEFAULT_DB_PATH)
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./data/tech_restore_desk.sqlite")
+
+    response = client.get("/api/system/runtime-diagnostics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["database_type"] == "sqlite"
+    assert payload["database_url_configured"] is True
+    assert payload["sqlite_under_var_data"] is False
+    assert payload["persistence_status"] == "ephemeral_or_unknown"
+    assert "/var/data" in payload["warning"]
+
+
+def test_runtime_diagnostics_flags_var_data_sqlite_path_as_persistent(client: TestClient, monkeypatch):
+    monkeypatch.setattr(database, "DB_PATH", Path("/var/data/tech_restore_desk.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////var/data/tech_restore_desk.sqlite")
+
+    response = client.get("/api/system/runtime-diagnostics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["database_type"] == "sqlite"
+    assert payload["database_path"] == "/var/data/tech_restore_desk.sqlite"
+    assert payload["sqlite_under_var_data"] is True
+    assert payload["persistence_status"] == "persistent_disk"
+    assert payload["warning"] is None

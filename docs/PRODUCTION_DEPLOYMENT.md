@@ -134,6 +134,17 @@ Required for hosted production:
   - Daily SQLite file snapshot to object storage (S3/R2/B2), plus retention policy.
   - Keep app-level export/backup feature available for manual recovery.
 
+Required Render-safe SQLite setting:
+- `DATABASE_URL=sqlite:////var/data/tech_restore_desk.sqlite`
+
+Admin verification endpoint:
+- `GET /api/system/runtime-diagnostics`
+- Expected persistent-disk values in production:
+   - `database_type=sqlite`
+   - `database_path=/var/data/tech_restore_desk.sqlite`
+   - `sqlite_under_var_data=true`
+   - `persistence_status=persistent_disk`
+
 Simplest safe first-production option:
 - Render persistent disk + SQLite + automated daily file backup job.
 
@@ -152,6 +163,7 @@ Simplest safe first-production option:
    - voicemail appears in inbox in desk UI
    - audio playback works
 7. Confirm backups are written and restorable.
+8. Confirm `GET /api/system/runtime-diagnostics` reports `/var/data/tech_restore_desk.sqlite` and `persistence_status=persistent_disk`.
 
 ## Future auth boundary (recommended next step)
 

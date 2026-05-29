@@ -46,6 +46,9 @@ Required:
 - FRONTEND_BASE_URL
 - CORS_ALLOWED_ORIGINS
 
+Recommended exact Render SQLite value:
+- `DATABASE_URL=sqlite:////var/data/tech_restore_desk.sqlite`
+
 Required for Twilio voicemail:
 - TWILIO_ACCOUNT_SID
 - TWILIO_AUTH_TOKEN
@@ -80,6 +83,13 @@ Use Render Blueprint from render.yaml so service env keys are managed in version
 Render services defined:
 - tech-restore-api (Python web service)
 - tech-restore-desk (static frontend)
+
+Production persistence verification:
+- Sign in as an owner/admin and call `GET /api/system/runtime-diagnostics`.
+- Expected SQLite production response:
+	- `database_path=/var/data/tech_restore_desk.sqlite`
+	- `sqlite_under_var_data=true`
+	- `persistence_status=persistent_disk`
 
 ## Required vs Optional Summary
 

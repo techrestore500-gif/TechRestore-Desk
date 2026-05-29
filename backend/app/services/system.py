@@ -1,4 +1,8 @@
 """Service layer for local backup and export workflows."""
+import os
+from pathlib import Path
+
+import app.database as database
 from app.models import (
     AuditLogListResponse,
     AuditLogResponse,
@@ -8,6 +12,7 @@ from app.models import (
     NotificationTemplate,
     NotificationTemplatesUpdate,
     QueryMetricsResponse,
+    RuntimeDiagnosticsResponse,
     SystemActivityResponse,
 )
 from app.core.query_metrics import query_metrics_registry
@@ -116,3 +121,25 @@ class SystemService:
     def reset_query_metrics() -> dict:
         query_metrics_registry.reset()
         return {"reset": True}
+
+    @staticmethod
+    def get_runtime_diagnostics() -> RuntimeDiagnosticsResponse:
+        database_url = os.getenv("DATABASE_URL", "").strip()
+        database_path = Path(database.DB_PATH).as_posix()
+        is_sqlite = True
+        sqlite_under_var_data = database_path.startswith("/var/data/") if is_sqlite else None
+        persistence_status = "persistent_disk" if sqlite_under_var_data else "ephemeral_or_unknown"
+        warning = None
+        if is_sqlite and not sqlite_under_var_data:
+            warning = "SQLite database path is not under /var/data; Render redeploys may wipe data."
+
+        return RuntimeDiagnosticsResponse.model_validate(
+            {
+                "database_type": "sqlite",
+                "database_path": database_path,
+                "database_url_configured": bool(database_url),
+                "sqlite_under_var_data": sqlite_under_var_data,
+                "persistence_status": persistence_status,
+                "warning": warning,
+            }
+        )

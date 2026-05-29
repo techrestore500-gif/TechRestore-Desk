@@ -806,6 +806,15 @@ class QueryMetricsResponse(BaseModel):
     top_slowest: list[QueryMetricEntryResponse]
 
 
+class RuntimeDiagnosticsResponse(BaseModel):
+    database_type: str
+    database_path: str | None = None
+    database_url_configured: bool
+    sqlite_under_var_data: bool | None = None
+    persistence_status: str
+    warning: str | None = None
+
+
 # ============================================================================
 # Phase 5: Inventory and Donor Devices
 # ============================================================================

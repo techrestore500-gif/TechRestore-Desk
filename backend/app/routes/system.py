@@ -11,6 +11,7 @@ from app.models import (
     NotificationTemplate,
     NotificationTemplatesUpdate,
     QueryMetricsResponse,
+    RuntimeDiagnosticsResponse,
     SystemActivityResponse,
 )
 from app.services.system import SystemService
@@ -95,3 +96,8 @@ def get_query_metrics(_: dict = Depends(require_role("admin"))) -> QueryMetricsR
 @router.post("/performance/query-metrics/reset")
 def post_reset_query_metrics(_: dict = Depends(require_role("admin"))) -> dict:
     return SystemService.reset_query_metrics()
+
+
+@router.get("/runtime-diagnostics", response_model=RuntimeDiagnosticsResponse)
+def get_runtime_diagnostics(_: dict = Depends(require_role("admin"))) -> RuntimeDiagnosticsResponse:
+    return SystemService.get_runtime_diagnostics()
