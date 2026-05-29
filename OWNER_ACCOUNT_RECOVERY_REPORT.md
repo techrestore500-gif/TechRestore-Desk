@@ -59,30 +59,46 @@ If owner email exists:
   - is_active = `1`
 - no duplicate user creation
 
-## Exact Render Commands
+## Exact Render Production Command
 
-### Render One-Off Job Command
-
-Run from repo root service command:
+Render backend service is configured with `rootDir: backend` in `render.yaml`, so the process working directory is already the backend folder. Use this exact command:
 
 ```bash
-cd backend && python -m scripts.ensure_owner_account
+python -m scripts.ensure_owner_account
+```
+
+### One-Off Job Command
+
+```bash
+python -m scripts.ensure_owner_account
 ```
 
 ### Render Shell Command
 
-In shell at repo root:
-
 ```bash
-cd backend
 python -m scripts.ensure_owner_account
 ```
 
 Optional env override example:
 
 ```bash
-TECH_RESTORE_OWNER_EMAIL=mattiskleinbh@gmail.com TECH_RESTORE_OWNER_PASSWORD=TR500tag cd backend && python -m scripts.ensure_owner_account
+TECH_RESTORE_OWNER_EMAIL=mattiskleinbh@gmail.com TECH_RESTORE_OWNER_PASSWORD=TR500tag python -m scripts.ensure_owner_account
 ```
+
+### Expected Success Output
+
+```text
+owner account ensured action=<created|updated> email=<masked-email> user_id=<id> db_path=<path>
+```
+
+### Expected Path/Import Failure Symptoms
+
+- `No module named scripts.ensure_owner_account`
+- `No module named app`
+
+### Redeploy Requirement
+
+Yes. Deploy backend first so the latest script and Dockerfile copy behavior are in production before running the command.
 
 ## Tests Added/Run
 

@@ -9,6 +9,8 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY scripts ./scripts
+COPY run_server.py ./run_server.py
 
 EXPOSE 8787
 

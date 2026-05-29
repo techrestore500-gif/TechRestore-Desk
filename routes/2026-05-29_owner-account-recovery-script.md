@@ -32,5 +32,7 @@ Defaults:
 ## Command
 
 ```bash
-cd backend && python -m scripts.ensure_owner_account
+python -m scripts.ensure_owner_account
 ```
+
+Render backend service has `rootDir: backend`, so command context already starts in backend.

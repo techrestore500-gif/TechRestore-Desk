@@ -8,7 +8,6 @@ Script:
 Run:
 
 ```bash
-cd backend
 python -m scripts.ensure_owner_account
 ```
 
@@ -29,6 +28,16 @@ Security posture:
 - not connected to request auth flow
 - no public signup
 - no auth bypass introduced
+
+Expected success output:
+
+```text
+owner account ensured action=<created|updated> email=<masked-email> user_id=<id> db_path=<path>
+```
+
+Failure symptoms that indicate path/import context is wrong:
+- `No module named scripts.ensure_owner_account`
+- `No module named app`
 
 See full report:
 - `OWNER_ACCOUNT_RECOVERY_REPORT.md`
