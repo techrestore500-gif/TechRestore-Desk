@@ -40,8 +40,34 @@ describe("api client auth integration", () => {
         const onUnauthorized = vi.fn();
         vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 401 }));
         setUnauthorizedHandler(onUnauthorized);
+        setAuthTokenProvider(() => "token-123");
 
         await apiFetch("/api/tickets");
+
+        expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not invoke unauthorized handler on 401 when no token is sent", async () => {
+        const onUnauthorized = vi.fn();
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 401 }));
+        setUnauthorizedHandler(onUnauthorized);
+        setAuthTokenProvider(() => null);
+
+        await apiFetch("/api/tickets");
+
+        expect(onUnauthorized).not.toHaveBeenCalled();
+    });
+
+    it("invokes unauthorized handler on 401 with explicit authorization header", async () => {
+        const onUnauthorized = vi.fn();
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 401 }));
+        setUnauthorizedHandler(onUnauthorized);
+
+        await apiFetch("/api/auth/me", {
+            headers: {
+                Authorization: "Bearer explicit-token",
+            },
+        });
 
         expect(onUnauthorized).toHaveBeenCalledTimes(1);
     });

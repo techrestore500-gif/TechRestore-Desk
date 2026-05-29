@@ -62,10 +62,12 @@ export function apiUrl(path: string): string {
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
     const headers = new Headers(init?.headers);
+    let hadAuthorizationHeader = headers.has("Authorization");
     if (!headers.has("Authorization")) {
         const token = authTokenProvider?.();
         if (token) {
             headers.set("Authorization", `Bearer ${token}`);
+            hadAuthorizationHeader = true;
         }
     }
 
@@ -73,7 +75,7 @@ export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
         ...init,
         headers,
     }).then((response) => {
-        if (response.status === 401 && unauthorizedHandler) {
+        if (response.status === 401 && unauthorizedHandler && hadAuthorizationHeader) {
             unauthorizedHandler();
         }
         return response;

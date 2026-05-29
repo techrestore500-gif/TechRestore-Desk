@@ -54,8 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const response = await login(nextEmail, nextPassword);
-        const nextToken = response.access_token;
+        const nextToken = response.access_token?.trim();
         const nextUser = response.user;
+
+        if (!nextToken) {
+            throw new Error("Login response did not include an access token.");
+        }
+
+        // Avoid a race where protected queries fire before the useEffect refreshes
+        // the provider after state updates.
+        setAuthTokenProvider(() => nextToken);
 
         setAccessToken(nextToken);
         setUser(nextUser);

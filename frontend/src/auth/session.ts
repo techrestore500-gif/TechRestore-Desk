@@ -13,9 +13,13 @@ export function loadSession(): AuthSession {
         if (!raw) {
             return { accessToken: null, user: null };
         }
-        const parsed = JSON.parse(raw) as AuthSession;
+        const parsed = JSON.parse(raw) as Partial<AuthSession> & {
+            token?: string | null;
+            access_token?: string | null;
+        };
+        const accessToken = parsed.accessToken ?? parsed.access_token ?? parsed.token ?? null;
         return {
-            accessToken: parsed.accessToken ?? null,
+            accessToken,
             user: parsed.user ?? null,
         };
     } catch {
