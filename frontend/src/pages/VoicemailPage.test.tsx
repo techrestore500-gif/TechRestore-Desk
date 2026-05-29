@@ -77,7 +77,8 @@ describe('VoicemailPage', () => {
         );
 
         expect(await screen.findByText('Voicemail Inbox')).toBeInTheDocument();
-        expect(await screen.findByText('+15555550111')).toBeInTheDocument();
+        expect(await screen.findByText('From: +15555550111')).toBeInTheDocument();
+        expect(await screen.findByText('Line: +15555550123')).toBeInTheDocument();
         expect(await screen.findByText('New')).toBeInTheDocument();
         expect(await screen.findByText(/Duration:/)).toBeInTheDocument();
         expect(await screen.findByText('Note added')).toBeInTheDocument();
@@ -85,6 +86,7 @@ describe('VoicemailPage', () => {
         expect(await screen.findByRole('button', { name: 'Mark listened' })).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: 'Mark done' })).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Add follow-up note')).not.toBeInTheDocument();
 
         // Audio is loaded via fetchVoicemailAudio (which injects the Bearer token), then
         // served to the <audio> element as a blob URL — not a direct backend path.
@@ -114,10 +116,11 @@ describe('VoicemailPage', () => {
             expect(updateVoicemail).toHaveBeenCalledWith(7, { status: 'archived' });
         });
 
-        fireEvent.change(screen.getByPlaceholderText('Add follow-up note'), {
+        fireEvent.click(screen.getByRole('button', { name: 'Edit note' }));
+        fireEvent.change(await screen.findByPlaceholderText('Add follow-up note'), {
             target: { value: 'Call after lunch' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
 
         await waitFor(() => {
             expect(updateVoicemail).toHaveBeenCalledWith(7, { note: 'Call after lunch' });

@@ -8,6 +8,7 @@ import * as t from "../styles/theme";
 export default function VoicemailPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+    const [noteEditorsOpen, setNoteEditorsOpen] = useState<Record<number, boolean>>({});
     const [autoListenInFlight, setAutoListenInFlight] = useState<Record<number, boolean>>({});
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export default function VoicemailPage() {
                 void loadAudio(voicemail.id);
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [voicemails]); // intentionally excludes audio state — checked synchronously via queuedAudioIds ref
 
     async function refresh() {
@@ -107,6 +108,7 @@ export default function VoicemailPage() {
             setActionMessage(null);
             await updateVoicemail(voicemailId, { note });
             setNoteDrafts((current) => ({ ...current, [voicemailId]: "" }));
+            setNoteEditorsOpen((current) => ({ ...current, [voicemailId]: false }));
             await refresh();
         } catch (requestError) {
             setActionError(requestError instanceof Error ? requestError.message : "Could not save voicemail note");
@@ -192,71 +194,92 @@ export default function VoicemailPage() {
                     {voicemails.map((voicemail) => {
                         const receivedAt = new Date(voicemail.created_at).toLocaleString();
                         const duration = formatDuration(voicemail.recording_duration_seconds);
+                        const fromLabel = voicemail.caller_number ? `From: ${voicemail.caller_number}` : "From: Unknown";
+                        const lineLabel = voicemail.called_number ? `Line: ${voicemail.called_number}` : "Line: Unknown";
+                        const noteEditorOpen = Boolean(noteEditorsOpen[voicemail.id]);
                         return (
                             <article key={voicemail.id} style={voicemailCardStyle}>
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                                    <div>
-                                        <div style={{ fontWeight: 800, fontSize: "1.05rem", letterSpacing: "0.01em" }}>{voicemail.caller_number || "Unknown caller"}</div>
+                                <div style={cardHeaderStyle}>
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={fromTitleStyle}>{fromLabel}</div>
+                                        {voicemail.customer_name ? <div style={customerNameStyle}>{voicemail.customer_name}</div> : null}
                                     </div>
                                     <span style={{ ...statusChip, ...statusStyles[voicemail.status as keyof typeof statusStyles] }}>{statusLabel[voicemail.status as keyof typeof statusLabel]}</span>
                                 </div>
 
                                 <div style={metaRowStyle}>
+                                    <span style={metaPillStyle}>{lineLabel}</span>
                                     <span style={metaPillStyle}>Received: {receivedAt}</span>
                                     <span style={metaPillStyle}>Duration: {duration}</span>
                                     {voicemail.notes ? <span style={notePillStyle}>Note added</span> : null}
                                 </div>
 
-                                <div style={{ marginTop: "12px" }}>
-                                    <div style={{ ...t.meta, marginTop: 0, marginBottom: "6px" }}>Playback</div>
+                                <div style={{ marginTop: "8px" }}>
                                     {voicemail.recording_url ? (
                                         audioBlobUrls[voicemail.id] ? (
                                             <audio
                                                 controls
-                                                style={{ width: "100%" }}
+                                                style={audioPlayerStyle}
                                                 src={audioBlobUrls[voicemail.id]}
                                                 onPlay={() => void markListenedFromPlayback(voicemail)}
                                             />
                                         ) : audioLoadErrors[voicemail.id] ? (
-                                            <div>
-                                                <div style={t.warning}>{audioLoadErrors[voicemail.id]}</div>
+                                            <div style={{ display: "grid", gap: "6px" }}>
+                                                <div style={compactWarningStyle}>{audioLoadErrors[voicemail.id]}</div>
                                                 <button
                                                     type="button"
-                                                    style={{ ...t.secondaryBtn, marginTop: "6px" }}
+                                                    style={compactActionBtnStyle}
                                                     onClick={() => retryAudio(voicemail.id)}
                                                 >
                                                     Retry
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div style={{ ...t.meta, color: "#6b7280" }}>
+                                            <div style={{ ...t.meta, color: "#6b7280", marginTop: 0 }}>
                                                 {audioLoadingIds[voicemail.id] ? "Loading audio…" : "Audio pending…"}
                                             </div>
                                         )
                                     ) : (
-                                        <div style={t.warning}>Recording audio not available yet.</div>
+                                        <div style={compactWarningStyle}>Recording audio not available yet.</div>
                                     )}
                                 </div>
 
                                 {voicemail.notes ? <pre style={noteLogStyle}>{voicemail.notes}</pre> : null}
 
-                                <div style={{ ...t.formStack, gap: "10px", marginTop: "12px" }}>
-                                    <textarea
-                                        value={noteDrafts[voicemail.id] || ""}
-                                        onChange={(event) => setNoteDrafts((current) => ({ ...current, [voicemail.id]: event.target.value }))}
-                                        placeholder="Add follow-up note"
-                                        style={{ ...t.input, minHeight: "88px", resize: "vertical" }}
-                                    />
-                                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                                        <button type="button" style={t.primaryBtn} onClick={() => void saveNote(voicemail.id)}>Add note</button>
-                                        <button type="button" style={t.secondaryBtn} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
-                                        <button type="button" style={t.secondaryBtn} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
-                                        <button type="button" style={t.secondaryBtn} onClick={() => void copyCallerNumber(voicemail.caller_number)}>Copy number</button>
+                                <div style={{ ...t.formStack, gap: "8px", marginTop: "10px" }}>
+                                    <div style={actionRowStyle}>
+                                        <button
+                                            type="button"
+                                            style={voicemail.notes ? compactActionBtnStyle : compactPrimaryBtnStyle}
+                                            onClick={() => setNoteEditorsOpen((current) => ({ ...current, [voicemail.id]: !noteEditorOpen }))}
+                                        >
+                                            {noteEditorOpen ? "Hide note" : voicemail.notes ? "Edit note" : "Add note"}
+                                        </button>
+                                        <button type="button" style={compactActionBtnStyle} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
+                                        <button type="button" style={compactActionBtnStyle} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
+                                        <button type="button" style={compactActionBtnStyle} onClick={() => void copyCallerNumber(voicemail.caller_number)}>Copy number</button>
                                         <button type="button" style={deleteBtnStyle} onClick={() => void removeVoicemail(voicemail.id)}>Delete</button>
                                     </div>
-                                    <div style={{ ...t.meta, ...t.formActionsRow, gap: "10px" }}>
-                                        <span>Called line: {voicemail.called_number || "Unknown"}</span>
-                                    </div>
+                                    {noteEditorOpen ? (
+                                        <div style={noteEditorWrapStyle}>
+                                            <textarea
+                                                value={noteDrafts[voicemail.id] || ""}
+                                                onChange={(event) => setNoteDrafts((current) => ({ ...current, [voicemail.id]: event.target.value }))}
+                                                placeholder="Add follow-up note"
+                                                style={noteInputStyle}
+                                            />
+                                            <div style={actionRowStyle}>
+                                                <button type="button" style={compactPrimaryBtnStyle} onClick={() => void saveNote(voicemail.id)}>Save note</button>
+                                                <button
+                                                    type="button"
+                                                    style={compactActionBtnStyle}
+                                                    onClick={() => setNoteEditorsOpen((current) => ({ ...current, [voicemail.id]: false }))}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </article>
                         );
@@ -270,13 +293,35 @@ export default function VoicemailPage() {
 const voicemailCardStyle: React.CSSProperties = {
     ...t.panel,
     borderRadius: "18px",
+    padding: "14px 16px",
+};
+
+const cardHeaderStyle: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "8px",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+};
+
+const fromTitleStyle: React.CSSProperties = {
+    fontWeight: 800,
+    fontSize: "0.98rem",
+    letterSpacing: "0.01em",
+    color: "#1d2b28",
+};
+
+const customerNameStyle: React.CSSProperties = {
+    ...t.meta,
+    marginTop: "2px",
+    fontSize: "0.84rem",
 };
 
 const statusChip: React.CSSProperties = {
     borderRadius: "999px",
-    padding: "7px 12px",
+    padding: "5px 10px",
     fontWeight: 700,
-    fontSize: "0.8rem",
+    fontSize: "0.76rem",
     border: "1px solid transparent",
     alignSelf: "start",
 };
@@ -306,18 +351,18 @@ function formatDuration(seconds: number | null): string {
 
 const metaRowStyle: React.CSSProperties = {
     display: "flex",
-    gap: "8px",
+    gap: "6px",
     flexWrap: "wrap",
-    marginTop: "10px",
+    marginTop: "8px",
 };
 
 const metaPillStyle: React.CSSProperties = {
     borderRadius: "999px",
-    padding: "5px 10px",
+    padding: "4px 8px",
     border: "1px solid rgba(29,43,40,0.14)",
     background: "#ffffff",
     color: "#40514c",
-    fontSize: "0.82rem",
+    fontSize: "0.76rem",
     fontWeight: 600,
 };
 
@@ -331,10 +376,12 @@ const notePillStyle: React.CSSProperties = {
 const noteLogStyle: React.CSSProperties = {
     whiteSpace: "pre-wrap",
     background: "#f8f3ea",
-    borderRadius: "12px",
-    padding: "12px",
-    margin: "10px 0 0",
+    borderRadius: "10px",
+    padding: "8px 10px",
+    margin: "8px 0 0",
     border: "1px solid rgba(29,43,40,0.12)",
+    fontSize: "0.84rem",
+    lineHeight: 1.45,
 };
 
 const backLinkStyle: React.CSSProperties = {
@@ -348,7 +395,50 @@ const backLinkStyle: React.CSSProperties = {
 };
 
 const deleteBtnStyle: React.CSSProperties = {
-    ...t.secondaryBtn,
+    ...t.miniBtn,
     borderColor: "#f3b0b0",
     color: "#9b2c2c",
+};
+
+const audioPlayerStyle: React.CSSProperties = {
+    width: "100%",
+    height: "36px",
+};
+
+const actionRowStyle: React.CSSProperties = {
+    ...t.formActionsRow,
+    gap: "6px",
+};
+
+const compactActionBtnStyle: React.CSSProperties = {
+    ...t.miniBtn,
+    fontWeight: 600,
+};
+
+const compactPrimaryBtnStyle: React.CSSProperties = {
+    ...t.miniBtn,
+    background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
+    color: "#f5efe3",
+    border: "none",
+    boxShadow: "0 6px 12px rgba(23, 70, 60, 0.16)",
+    fontWeight: 700,
+};
+
+const noteEditorWrapStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "6px",
+};
+
+const noteInputStyle: React.CSSProperties = {
+    ...t.input,
+    minHeight: "64px",
+    padding: "10px 12px",
+    resize: "vertical",
+    fontSize: "0.94rem",
+};
+
+const compactWarningStyle: React.CSSProperties = {
+    ...t.warning,
+    padding: "8px 10px",
+    fontSize: "0.86rem",
 };
