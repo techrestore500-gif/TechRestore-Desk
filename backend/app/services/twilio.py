@@ -20,10 +20,12 @@ from app.database import (
 )
 
 DEFAULT_VOICEMAIL_GREETING = (
-    "Hi, and thank you for calling Tech Restore. "
-    "We are helping customers right now. "
-    "Please leave your name, phone number, and a short message. "
-    "We will call you back as soon as we can."
+    "Thank you for calling Tech Restore at 500 West Kennedy Boulevard. "
+    "Please leave a detailed message with your name, phone number, which device you have, "
+    "and a description of the issue you are experiencing. "
+    "A technician is usually available between 4 PM and 5 PM daily, "
+    "and we will get back to you within 24 hours. "
+    "Thank you!"
 )
 
 DEFAULT_VOICEMAIL_TTS_VOICE = "Polly.Joanna"
