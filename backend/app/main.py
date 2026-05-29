@@ -41,6 +41,15 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Tech Restore Desk", lifespan=lifespan)
 
+
+@app.get("/", include_in_schema=False)
+@app.head("/", include_in_schema=False)
+def root_health() -> dict[str, str]:
+    return {
+        "service": "Tech Restore Desk API",
+        "status": "ok",
+    }
+
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(AuthGateMiddleware)
 app.add_middleware(AccessLogMiddleware)

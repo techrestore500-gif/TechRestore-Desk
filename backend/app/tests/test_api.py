@@ -28,6 +28,19 @@ def client(tmp_path, monkeypatch):
 
 
 class TestHealth:
+    def test_root_endpoint(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.json() == {
+            "service": "Tech Restore Desk API",
+            "status": "ok",
+        }
+
+    def test_root_head_endpoint(self, client):
+        response = client.head("/")
+        assert response.status_code == 200
+        assert response.text == ""
+
     def test_health_endpoint(self, client):
         response = client.get("/api/health")
         assert response.status_code == 200
