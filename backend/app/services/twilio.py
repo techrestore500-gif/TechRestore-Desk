@@ -42,6 +42,16 @@ class TwilioAudioFetchError(Exception):
 
 class TwilioService:
     @staticmethod
+    def _first_non_empty(*values: str | None) -> str | None:
+        for value in values:
+            if value is None:
+                continue
+            candidate = value.strip()
+            if candidate:
+                return candidate
+        return None
+
+    @staticmethod
     def _public_webhook_base_from_env() -> str | None:
         return (
             TwilioService._clean_env("PUBLIC_WEBHOOK_BASE_URL")
@@ -159,23 +169,38 @@ class TwilioService:
 
     @staticmethod
     def record_voice_callback(payload: dict) -> dict:
-        recording_url = payload.get("RecordingUrl") or payload.get("recording_url")
+        recording_url = TwilioService._first_non_empty(payload.get("RecordingUrl"), payload.get("recording_url"))
         if recording_url and not recording_url.endswith(".mp3"):
             recording_url = f"{recording_url}.mp3"
 
-        recording_duration = payload.get("RecordingDuration") or payload.get("recording_duration")
+        settings = TwilioService.get_settings()
+
+        recording_duration = TwilioService._first_non_empty(payload.get("RecordingDuration"), payload.get("recording_duration"))
         duration_value = int(recording_duration) if str(recording_duration or "").strip().isdigit() else None
 
+        caller_number = TwilioService._first_non_empty(
+            payload.get("From"),
+            payload.get("Caller"),
+            payload.get("caller_number"),
+        )
+        called_number = TwilioService._first_non_empty(
+            payload.get("To"),
+            payload.get("Called"),
+            payload.get("called_number"),
+            settings.get("phone_number"),
+            TwilioService._clean_env("TWILIO_PHONE_NUMBER"),
+        )
+
         record_payload = {
-            "caller_number": payload.get("From") or payload.get("Caller") or payload.get("caller_number"),
-            "called_number": payload.get("To") or payload.get("Called") or payload.get("called_number"),
-            "call_sid": payload.get("CallSid") or payload.get("call_sid"),
-            "recording_sid": payload.get("RecordingSid") or payload.get("recording_sid"),
+            "caller_number": caller_number,
+            "called_number": called_number,
+            "call_sid": TwilioService._first_non_empty(payload.get("CallSid"), payload.get("call_sid")),
+            "recording_sid": TwilioService._first_non_empty(payload.get("RecordingSid"), payload.get("recording_sid")),
             "recording_url": recording_url,
             "recording_duration_seconds": duration_value,
-            "transcription_text": payload.get("TranscriptionText") or payload.get("transcription_text"),
-            "notes": payload.get("notes"),
-            "status": payload.get("status") or "new",
+            "transcription_text": TwilioService._first_non_empty(payload.get("TranscriptionText"), payload.get("transcription_text")),
+            "notes": TwilioService._first_non_empty(payload.get("notes")),
+            "status": TwilioService._first_non_empty(payload.get("status")) or "new",
         }
         return create_voicemail_record(record_payload)
 

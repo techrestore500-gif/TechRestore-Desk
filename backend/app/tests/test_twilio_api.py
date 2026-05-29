@@ -173,6 +173,52 @@ class TestTwilioWebhooks:
         assert payload["caller_number"] == "+15555550777"
         assert payload["called_number"] == "+15555550100"
 
+    def test_recording_callback_trims_fields_and_ignores_blank_from(self, client):
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "   ",
+                "Caller": " +15555550801 ",
+                "To": " +15555550100 ",
+                "CallSid": " CA801 ",
+                "RecordingSid": " RE801 ",
+                "RecordingUrl": " https://api.twilio.com/2010-04-01/Accounts/AC801/Recordings/RE801 ",
+                "RecordingDuration": " 9 ",
+            },
+        )
+        assert callback_resp.status_code == 200
+        payload = callback_resp.json()
+        assert payload["caller_number"] == "+15555550801"
+        assert payload["called_number"] == "+15555550100"
+        assert payload["call_sid"] == "CA801"
+        assert payload["recording_sid"] == "RE801"
+
+    def test_recording_callback_falls_back_to_configured_line_when_to_missing(self, client):
+        save_resp = client.put(
+            "/api/settings/twilio",
+            json={
+                "account_sid": "TWILIO_ACCOUNT_SID_TEST_LINE",
+                "auth_token": "line-token-123",
+                "phone_number": "+18772683048",
+            },
+        )
+        assert save_resp.status_code == 200
+
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550888",
+                "CallSid": "CA802",
+                "RecordingSid": "RE802",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC802/Recordings/RE802",
+                "RecordingDuration": "12",
+            },
+        )
+        assert callback_resp.status_code == 200
+        payload = callback_resp.json()
+        assert payload["caller_number"] == "+15555550888"
+        assert payload["called_number"] == "+18772683048"
+
     def test_voicemail_patch_updates_status_and_notes(self, client):
         created = client.post(
             "/api/twilio/recording",
@@ -248,6 +294,25 @@ class TestTwilioWebhooks:
         assert payload["recording_callback_url"] == "https://example.ngrok.app/api/twilio/recording"
         assert payload["recording_callback_route_active"] is True
         assert payload["last_voicemail"]["recording_sid"] == "RE888"
+
+    def test_voicemail_list_response_handles_null_phone_fields(self, client):
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "CallSid": "CA803",
+                "RecordingSid": "RE803",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC803/Recordings/RE803",
+                "RecordingDuration": "5",
+            },
+        )
+        assert callback_resp.status_code == 200
+
+        inbox_resp = client.get("/api/voicemails")
+        assert inbox_resp.status_code == 200
+        record = next((vm for vm in inbox_resp.json() if vm["recording_sid"] == "RE803"), None)
+        assert record is not None
+        assert record["caller_number"] is None
+        assert record["called_number"] is None
 
     def test_setup_status_uses_environment_webhook_base_and_credentials(self, client, monkeypatch):
         monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_FROM_ENV")
