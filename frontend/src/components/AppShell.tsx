@@ -245,7 +245,7 @@ export function AppShell() {
 
             <aside style={sidebarStyle}>
                 <div style={S.brand}>
-                    <div style={S.phase}>Phase 5 In Progress</div>
+                    <div style={S.phase}>Tech Restore Desk</div>
                     <div style={S.appName}>Tech Restore<br />Desk</div>
                     <div style={S.tagLine}>Local-first repair workflow</div>
                 </div>
