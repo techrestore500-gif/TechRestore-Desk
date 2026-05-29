@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 
+function toFriendlyErrorMessage(requestError: unknown): string {
+    const message = requestError instanceof Error ? requestError.message : "Request failed";
+    const normalized = message.toLowerCase();
+    if (
+        normalized.includes("request failed: 401")
+        || normalized.includes("missing bearer token")
+        || normalized.includes("invalid token")
+    ) {
+        return "Your session expired. Please sign in again.";
+    }
+    return message;
+}
+
 export type AsyncState<T> = {
     data: T | undefined;
     loading: boolean;
@@ -24,7 +37,7 @@ export function useAsyncData<T>(factory: () => Promise<T>, dependencies: readonl
             })
             .catch((requestError: unknown) => {
                 if (isActive) {
-                    setError(requestError instanceof Error ? requestError.message : "Request failed");
+                    setError(toFriendlyErrorMessage(requestError));
                 }
             })
             .finally(() => {

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import { AuthProvider } from "../auth/AuthProvider";
 import InviteAcceptPage from "./InviteAcceptPage";
 
 vi.mock("../api/auth", () => ({
@@ -9,15 +11,24 @@ vi.mock("../api/auth", () => ({
     acceptInvite: vi.fn(),
 }));
 
+vi.mock("../auth/config", () => ({
+    AUTH_ENABLED: true,
+}));
+
 import { acceptInvite, resolveInvite } from "../api/auth";
 
 function renderPage(path: string) {
+    const queryClient = new QueryClient();
     return render(
-        <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route path="/invite/:token" element={<InviteAcceptPage />} />
-            </Routes>
-        </MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+                <MemoryRouter initialEntries={[path]}>
+                    <Routes>
+                        <Route path="/invite/:token" element={<InviteAcceptPage />} />
+                    </Routes>
+                </MemoryRouter>
+            </AuthProvider>
+        </QueryClientProvider>
     );
 }
 

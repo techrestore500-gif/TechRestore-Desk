@@ -146,6 +146,79 @@ class TestAuthApi:
         assert payload["token_type"] == "bearer"
         assert payload["user"]["email"] == "admin1@example.com"
 
+    def test_me_succeeds_with_login_access_token(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+
+        login_response = client.post("/api/auth/login", json={"email": "owner@example.com", "password": "pass12345"})
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        me_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me_response.status_code == 200
+        payload = me_response.json()
+        assert payload["email"] == "owner@example.com"
+        assert payload["role"] == "owner"
+
+    def test_change_password_success_and_old_password_stops_working(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+
+        login_response = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "pass12345"})
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        change_password_response = client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "pass12345",
+                "new_password": "new-pass-456",
+                "confirm_password": "new-pass-456",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert change_password_response.status_code == 200
+
+        old_password_login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "pass12345"})
+        assert old_password_login.status_code == 401
+
+        new_password_login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "new-pass-456"})
+        assert new_password_login.status_code == 200
+
+    def test_change_password_fails_with_wrong_current_password(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        token = self._login(client, "admin@example.com")["access_token"]
+
+        response = client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "wrong-pass-123",
+                "new_password": "new-pass-456",
+                "confirm_password": "new-pass-456",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 400
+        assert "current password is incorrect" in response.json()["detail"].lower()
+
+    def test_change_password_rejects_mismatched_confirmation(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        token = self._login(client, "admin@example.com")["access_token"]
+
+        response = client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "pass12345",
+                "new_password": "new-pass-456",
+                "confirm_password": "different-pass-456",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 400
+        assert "do not match" in response.json()["detail"].lower()
+
     def test_login_invalid_credentials(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
 

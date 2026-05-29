@@ -439,3 +439,22 @@ class AuthRepository:
             if cursor.rowcount == 0:
                 return None
         return AuthRepository.get_user_by_id(user_id)
+
+    @staticmethod
+    def update_user_password_hash(user_id: int, password_hash: str) -> dict | None:
+        AuthRepository.ensure_user_table()
+        now = utc_now()
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE users
+                SET password_hash = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (password_hash, now, user_id),
+            )
+            connection.commit()
+            if cursor.rowcount == 0:
+                return None
+        return AuthRepository.get_user_by_id(user_id)

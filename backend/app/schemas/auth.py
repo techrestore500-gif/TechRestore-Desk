@@ -82,3 +82,13 @@ class AuthInviteAcceptRequest(BaseModel):
 class AuthDecisionResponse(BaseModel):
     message: str
     user: AuthUserResponse
+
+
+class AuthChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=8)
+    new_password: str = Field(min_length=8)
+    confirm_password: str = Field(min_length=8)
+
+
+class AuthMessageResponse(BaseModel):
+    message: str

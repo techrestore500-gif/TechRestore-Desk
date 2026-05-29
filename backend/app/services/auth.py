@@ -21,6 +21,7 @@ ALLOWED_STATUSES = {"pending", "active", "denied", "disabled"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVITE_TOKEN_BYTES = 32
 INVITE_EXPIRY_HOURS = int(os.getenv("TECH_RESTORE_INVITE_EXPIRY_HOURS", "72"))
+MIN_PASSWORD_LENGTH = 8
 
 
 def _utc_now() -> datetime:
@@ -130,6 +131,25 @@ def _validate_email(email: str) -> str:
     if not EMAIL_RE.match(normalized):
         raise ValueError("Invalid email address")
     return normalized
+
+
+def _validate_new_password(current_password: str, new_password: str, confirm_password: str) -> str:
+    current = current_password.strip()
+    next_password = new_password.strip()
+    confirmation = confirm_password.strip()
+
+    if not current:
+        raise ValueError("Current password is required")
+    if not next_password:
+        raise ValueError("New password is required")
+    if len(next_password) < MIN_PASSWORD_LENGTH:
+        raise ValueError("New password must be at least 8 characters")
+    if next_password == current:
+        raise ValueError("New password must be different from your current password")
+    if next_password != confirmation:
+        raise ValueError("New password and confirm password do not match")
+
+    return next_password
 
 
 def _generate_unique_username(name: str, email: str) -> str:
@@ -499,3 +519,31 @@ class AuthService:
                 )
             )
         return updated
+
+    @staticmethod
+    def change_password(*, user_id: int, current_password: str, new_password: str, confirm_password: str) -> None:
+        user = AuthRepository.get_user_by_id(user_id)
+        if user is None:
+            raise ValueError("User not found")
+
+        if int(user.get("id", 0)) == 0:
+            raise ValueError("Shared-password sessions cannot change password")
+
+        normalized_new_password = _validate_new_password(current_password, new_password, confirm_password)
+        if not verify_password(current_password, user["password_hash"]):
+            raise ValueError("Current password is incorrect")
+
+        next_hash = hash_password(normalized_new_password)
+        updated = AuthRepository.update_user_password_hash(user_id=int(user["id"]), password_hash=next_hash)
+        if updated is None:
+            raise ValueError("Unable to change password")
+
+        AuditService.log_event(
+            admin_action(
+                entity_type="user",
+                entity_id=user_id,
+                action="auth_password_changed",
+                old_value=None,
+                new_value={"password_changed": True},
+            )
+        )

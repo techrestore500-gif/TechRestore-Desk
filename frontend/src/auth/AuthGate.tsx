@@ -3,7 +3,7 @@ import { FormEvent, ReactNode, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-    const { authEnabled, isAuthenticated, isBootstrapping, loginWithCredentials } = useAuth();
+    const { authEnabled, isAuthenticated, isBootstrapping, authMessage, loginWithCredentials, dismissAuthMessage } = useAuth();
     const isInvitePath = typeof window !== "undefined" && window.location.pathname.startsWith("/invite/");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -44,6 +44,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
             setSubmitting(true);
             setError(null);
+            dismissAuthMessage();
             try {
                 await loginWithCredentials(email, password);
                 setEmail("");
@@ -68,7 +69,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                             type="email"
                             autoComplete="email"
                             value={email}
-                            onChange={(event) => setEmail(event.target.value)}
+                            onChange={(event) => {
+                                setEmail(event.target.value);
+                                if (authMessage) {
+                                    dismissAuthMessage();
+                                }
+                            }}
                             style={S.input}
                             placeholder="you@techrestoredesk.com"
                             disabled={submitting}
@@ -80,7 +86,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                                 type={showPassword ? "text" : "password"}
                                 autoComplete="current-password"
                                 value={password}
-                                onChange={(event) => setPassword(event.target.value)}
+                                onChange={(event) => {
+                                    setPassword(event.target.value);
+                                    if (authMessage) {
+                                        dismissAuthMessage();
+                                    }
+                                }}
                                 style={S.passwordInput}
                                 placeholder="Enter your password"
                                 disabled={submitting}
@@ -97,6 +108,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                             </button>
                         </div>
                         {error ? <p style={S.error}>{error}</p> : null}
+                        {!error && authMessage ? <p style={S.error}>{authMessage}</p> : null}
                         <button type="submit" style={S.button} disabled={submitting}>
                             {submitting ? "Signing in..." : "Sign in"}
                         </button>

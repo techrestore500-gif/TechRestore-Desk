@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.auth.dependencies import get_current_user, require_role
 from app.schemas.auth import (
+    AuthChangePasswordRequest,
     AuthCreateUserRequest,
     AuthDecisionResponse,
     AuthInviteAcceptRequest,
@@ -12,6 +13,7 @@ from app.schemas.auth import (
     AuthInviteResponse,
     AuthLoginRequest,
     AuthLoginResponse,
+    AuthMessageResponse,
     AuthUpdateUserRoleRequest,
     AuthUserResponse,
 )
@@ -111,6 +113,30 @@ def patch_user_role(
 @router.get("/me", response_model=AuthUserResponse)
 def get_me(user: dict = Depends(get_current_user)) -> AuthUserResponse:
     return AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"})
+
+
+@router.post("/change-password", response_model=AuthMessageResponse)
+def post_change_password(
+    payload: AuthChangePasswordRequest,
+    user: dict = Depends(get_current_user),
+) -> AuthMessageResponse:
+    if int(user.get("id", 0)) == 0:
+        raise HTTPException(status_code=403, detail="Shared-password sessions cannot change password")
+
+    try:
+        AuthService.change_password(
+            user_id=int(user["id"]),
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+            confirm_password=payload.confirm_password,
+        )
+    except ValueError as error:
+        message = str(error)
+        if message == "Current password is incorrect":
+            raise HTTPException(status_code=400, detail=message) from error
+        raise HTTPException(status_code=400, detail=message) from error
+
+    return AuthMessageResponse(message="Password changed successfully. Please sign in again.")
 
 
 @router.get("/invites", response_model=list[AuthInviteResponse])

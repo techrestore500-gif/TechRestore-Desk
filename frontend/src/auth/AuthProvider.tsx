@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { login, type AuthUser } from "../api/auth";
+import { fetchCurrentUser, login, type AuthUser } from "../api/auth";
 import { setAuthTokenProvider, setUnauthorizedHandler } from "../api/client";
 import { queryClient } from "../lib/queryClient";
 import { AUTH_ENABLED } from "./config";
@@ -11,8 +11,10 @@ type AuthContextValue = {
     isAuthenticated: boolean;
     isBootstrapping: boolean;
     user: AuthUser | null;
+    authMessage: string | null;
     loginWithCredentials: (email: string, password: string) => Promise<void>;
-    logout: () => void;
+    logout: (reason?: string) => void;
+    dismissAuthMessage: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,17 +23,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initialSession = useMemo(() => loadSession(), []);
     const [accessToken, setAccessToken] = useState<string | null>(initialSession.accessToken);
     const [user, setUser] = useState<AuthUser | null>(initialSession.user);
-    const [isBootstrapping] = useState(false);
+    const [isBootstrapping, setIsBootstrapping] = useState(AUTH_ENABLED);
+    const [authMessage, setAuthMessage] = useState<string | null>(null);
+
+    function clearAuthState(message: string | null = null) {
+        setAccessToken(null);
+        setUser(null);
+        clearSession();
+        queryClient.clear();
+        setAuthMessage(message);
+    }
 
     useEffect(() => {
         setAuthTokenProvider(() => accessToken);
 
         if (AUTH_ENABLED) {
             setUnauthorizedHandler(() => {
-                setAccessToken(null);
-                setUser(null);
-                clearSession();
-                queryClient.clear();
+                clearAuthState("Your session expired. Please sign in again.");
             });
         } else {
             setUnauthorizedHandler(null);
@@ -42,6 +50,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUnauthorizedHandler(null);
         };
     }, [accessToken]);
+
+    useEffect(() => {
+        if (!AUTH_ENABLED) {
+            setIsBootstrapping(false);
+            return;
+        }
+
+        const token = initialSession.accessToken?.trim() ?? "";
+        if (!token) {
+            setIsBootstrapping(false);
+            return;
+        }
+
+        let active = true;
+        setAuthTokenProvider(() => token);
+        fetchCurrentUser(token)
+            .then((sessionUser) => {
+                if (!active) {
+                    return;
+                }
+                setAccessToken(token);
+                setUser(sessionUser);
+                saveSession({ accessToken: token, user: sessionUser });
+            })
+            .catch(() => {
+                if (!active) {
+                    return;
+                }
+                clearAuthState("Your session expired. Please sign in again.");
+            })
+            .finally(() => {
+                if (active) {
+                    setIsBootstrapping(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [initialSession.accessToken]);
 
     async function loginWithCredentials(email: string, password: string) {
         const nextEmail = email.trim();
@@ -67,15 +115,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setAccessToken(nextToken);
         setUser(nextUser);
+        setAuthMessage(null);
         saveSession({ accessToken: nextToken, user: nextUser });
         queryClient.clear();
     }
 
-    function logout() {
-        setAccessToken(null);
-        setUser(null);
-        clearSession();
-        queryClient.clear();
+    function logout(reason?: string) {
+        clearAuthState(reason ?? null);
+    }
+
+    function dismissAuthMessage() {
+        setAuthMessage(null);
     }
 
     const value = useMemo<AuthContextValue>(
@@ -84,10 +134,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: !AUTH_ENABLED || Boolean(accessToken),
             isBootstrapping,
             user,
+            authMessage,
             loginWithCredentials,
             logout,
+            dismissAuthMessage,
         }),
-        [accessToken, isBootstrapping, user]
+        [accessToken, authMessage, isBootstrapping, user]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

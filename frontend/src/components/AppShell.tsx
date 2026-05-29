@@ -18,6 +18,7 @@ const navItems = [
     { to: "/voicemail", label: "Voicemail" },
     { to: "/users-invites", label: "Users / Invites" },
     { to: "/settings", label: "Settings" },
+    { to: "/account", label: "Account" },
 ];
 
 const S = {
@@ -86,6 +87,45 @@ const S = {
         gap: "2px",
         padding: "12px 10px",
         flex: 1,
+    },
+    profileCard: {
+        margin: "10px",
+        padding: "10px 11px",
+        borderRadius: "12px",
+        border: "1px solid rgba(19, 49, 42, 0.12)",
+        background: "rgba(255,255,255,0.72)",
+        display: "grid" as const,
+        gap: "4px",
+    },
+    profileName: {
+        margin: 0,
+        fontSize: "0.84rem",
+        fontWeight: 700,
+        color: "#1f433a",
+        lineHeight: 1.2,
+    },
+    profileMeta: {
+        margin: 0,
+        fontSize: "0.74rem",
+        color: "#4b665f",
+        lineHeight: 1.35,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    profileActions: {
+        marginTop: "6px",
+        display: "flex" as const,
+        gap: "6px",
+        flexWrap: "wrap" as const,
+    },
+    profileLink: {
+        border: "1px solid rgba(19, 49, 42, 0.18)",
+        borderRadius: "8px",
+        padding: "5px 8px",
+        color: "#21463d",
+        textDecoration: "none",
+        fontSize: "0.74rem",
+        fontWeight: 700,
     },
     linkBase: {
         display: "flex" as const,
@@ -208,11 +248,6 @@ export function AppShell() {
                     <div style={S.phase}>Phase 5 In Progress</div>
                     <div style={S.appName}>Tech Restore<br />Desk</div>
                     <div style={S.tagLine}>Local-first repair workflow</div>
-                    {authEnabled && isAuthenticated ? (
-                        <button type="button" style={S.logoutBtn} onClick={logout}>
-                            Logout
-                        </button>
-                    ) : null}
                 </div>
                 <nav style={S.nav}>
                     {visibleNavItems.map((item) => (
@@ -261,6 +296,21 @@ export function AppShell() {
                         </NavLink>
                     ))}
                 </nav>
+                {authEnabled && isAuthenticated && user ? (
+                    <div style={S.profileCard}>
+                        <p style={S.profileName}>{user.name}</p>
+                        <p style={S.profileMeta}>{user.email}</p>
+                        <p style={S.profileMeta}>Role: {user.role ?? "none"}</p>
+                        <div style={S.profileActions}>
+                            <NavLink to="/account" style={S.profileLink}>
+                                View account
+                            </NavLink>
+                            <button type="button" style={S.logoutBtn} onClick={() => logout("You have been signed out.")}>
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
             </aside>
 
             <main style={mainStyle}>

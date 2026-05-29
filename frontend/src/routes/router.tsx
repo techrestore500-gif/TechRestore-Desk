@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
 import AccessRequestsPage from "../pages/AccessRequestsPage";
+import AccountPage from "../pages/AccountPage";
 import DashboardPage from "../pages/DashboardPage";
 import { DonorsPage } from "../pages/DonorsPage";
 import { HoursPage } from "../pages/HoursPage";
@@ -10,6 +11,7 @@ import IntakePrintPage from "../pages/IntakePrintPage";
 import IntakePage from "../pages/IntakePage";
 import InvoicePrintPage from "../pages/InvoicePrintPage";
 import { InventoryPage } from "../pages/InventoryPage";
+import LoginStatePage from "../pages/LoginStatePage";
 import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
 import LoanersPage from "../pages/LoanersPage";
 import InviteAcceptPage from "../pages/InviteAcceptPage";
@@ -21,6 +23,10 @@ import TicketsPage from "../pages/TicketsPage";
 import VoicemailPage from "../pages/VoicemailPage";
 
 export const router = createBrowserRouter([
+    {
+        path: "/login",
+        element: <LoginStatePage />,
+    },
     {
         path: "/invite/:token",
         element: <InviteAcceptPage />,
@@ -88,6 +94,10 @@ export const router = createBrowserRouter([
             {
                 path: "settings",
                 element: <SettingsPage />,
+            },
+            {
+                path: "account",
+                element: <AccountPage />,
             },
             {
                 path: "users-invites",

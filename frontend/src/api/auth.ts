@@ -44,6 +44,10 @@ export type AuthDecisionResponse = {
     user: AuthUser;
 };
 
+export type AuthMessageResponse = {
+    message: string;
+};
+
 export type InviteResolveResponse = {
     email: string;
     name: string | null;
@@ -147,4 +151,27 @@ export async function acceptInvite(token: string, password: string): Promise<Aut
         throw new Error(payload.detail ?? 'Unable to accept invite');
     }
     return response.json() as Promise<AuthDecisionResponse>;
+}
+
+export async function changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string
+): Promise<AuthMessageResponse> {
+    const response = await apiFetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword,
+        }),
+    });
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail ?? 'Unable to change password');
+    }
+
+    return response.json() as Promise<AuthMessageResponse>;
 }

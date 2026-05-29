@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { acceptInvite, resolveInvite } from "../api/auth";
+import { useAuth } from "../auth/AuthProvider";
 
 const S = {
     page: {
@@ -134,6 +135,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 
 export default function InviteAcceptPage() {
     const { token = "" } = useParams();
+    const { isAuthenticated, user, logout } = useAuth();
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState("");
@@ -146,6 +148,9 @@ export default function InviteAcceptPage() {
     const tokenMissing = useMemo(() => !token.trim(), [token]);
 
     useEffect(() => {
+        if (isAuthenticated) {
+            return;
+        }
         if (tokenMissing) {
             setInviteError("Invite token is missing.");
             return;
@@ -171,7 +176,7 @@ export default function InviteAcceptPage() {
         return () => {
             active = false;
         };
-    }, [token, tokenMissing]);
+    }, [isAuthenticated, token, tokenMissing]);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -206,6 +211,24 @@ export default function InviteAcceptPage() {
     return (
         <main style={S.page}>
             <section style={S.card}>
+                {isAuthenticated ? (
+                    <>
+                        <h1 style={S.title}>You are already signed in</h1>
+                        <p style={S.copy}>
+                            Signed in as {user?.name || "Tech Restore user"} ({user?.email || "no-email"}).
+                        </p>
+                        <p style={S.copy}>
+                            To accept an invite for a different account, sign out first and open the invite link again.
+                        </p>
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                            <Link to="/" style={{ color: "#174d43", fontWeight: 700 }}>
+                                Go to dashboard
+                            </Link>
+                            <button type="button" style={S.button} onClick={() => logout("You have been signed out.")}>Sign out</button>
+                        </div>
+                    </>
+                ) : (
+                    <>
                 <h1 style={S.title}>Accept Invite</h1>
                 <p style={S.copy}>Set your password to activate your Tech Restore Desk account.</p>
                 {inviteEmail ? (
@@ -272,9 +295,11 @@ export default function InviteAcceptPage() {
                     </form>
                 ) : null}
 
-                <Link to="/" style={{ color: "#174d43", fontWeight: 700 }}>
+                <Link to="/login" style={{ color: "#174d43", fontWeight: 700 }}>
                     Back to sign in
                 </Link>
+                    </>
+                )}
             </section>
         </main>
     );

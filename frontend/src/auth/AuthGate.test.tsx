@@ -12,9 +12,10 @@ vi.mock("./config", () => ({
 
 vi.mock("../api/auth", () => ({
     login: vi.fn(),
+    fetchCurrentUser: vi.fn(),
 }));
 
-import { login } from "../api/auth";
+import { fetchCurrentUser, login } from "../api/auth";
 
 const STORAGE_KEY = "techRestore.auth.session";
 
@@ -126,6 +127,19 @@ describe("AuthGate", () => {
         );
 
         vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 401 }));
+        vi.mocked(fetchCurrentUser).mockResolvedValue({
+            id: 0,
+            name: "Desk User",
+            email: "desk@example.com",
+            username: "desk",
+            role: "admin",
+            status: "active",
+            is_active: true,
+            approved_at: new Date().toISOString(),
+            approved_by: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
 
         renderGate();
 
@@ -138,6 +152,59 @@ describe("AuthGate", () => {
         await waitFor(() => {
             expect(screen.getByText("Sign in with your invited Tech Restore account.")).toBeInTheDocument();
         });
+        expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
         expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it("shows checking session state before protected app when token is present", async () => {
+        let resolveUser: ((value: unknown) => void) | null = null;
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+                accessToken: "valid-token",
+                user: {
+                    id: 0,
+                    name: "Desk User",
+                    email: "desk@example.com",
+                    username: "desk",
+                    role: "admin",
+                    status: "active",
+                    is_active: true,
+                    approved_at: new Date().toISOString(),
+                    approved_by: null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                },
+            })
+        );
+
+        vi.mocked(fetchCurrentUser).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveUser = resolve as unknown as (value: unknown) => void;
+                })
+        );
+
+        renderGate();
+        expect(await screen.findByText("Checking session...")).toBeInTheDocument();
+        expect(screen.queryByText("Protected desk")).not.toBeInTheDocument();
+
+        act(() => {
+            resolveUser?.({
+                id: 0,
+                name: "Desk User",
+                email: "desk@example.com",
+                username: "desk",
+                role: "admin",
+                status: "active",
+                is_active: true,
+                approved_at: new Date().toISOString(),
+                approved_by: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            });
+        });
+
+        expect(await screen.findByText("Protected desk")).toBeInTheDocument();
     });
 });
