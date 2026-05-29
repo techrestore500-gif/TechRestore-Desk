@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 import re
 import secrets
 import hashlib
+
+logger = logging.getLogger(__name__)
 
 from app.repositories.auth import AuthRepository
 from app.events.audit_events import admin_action
@@ -59,6 +62,12 @@ def _to_public_invite(invite: dict) -> dict:
         "accepted_user_id": invite.get("accepted_user_id"),
         "revoked_at": invite.get("revoked_at"),
     }
+
+
+def _log_login_failure(email: str, reason: str) -> None:
+    """Log login failure with reason code. Never logs passwords, hashes, or full emails."""
+    domain = email.split("@", 1)[-1] if "@" in email else "unknown"
+    logger.warning("login_failed reason=%s email_domain=%s", reason, domain)
 
 
 def _desk_base_url() -> str:
@@ -182,45 +191,50 @@ class AuthService:
         shared_password = os.getenv("REPAIR_DESK_PASSWORD", "").strip()
         shared_auth_enabled = os.getenv("REPAIR_DESK_AUTH_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 
-        if shared_auth_enabled and shared_password:
-            if password != shared_password:
-                raise ValueError("Invalid credentials")
-
-            subject = normalized_email.strip() or "shared-password-admin"
-            token, expires_at = create_access_token(subject=subject, role="admin", user_id=0)
-            now = _utc_now().isoformat()
-            user = {
-                "id": 0,
-                "name": "Shared Password Admin",
-                "email": normalized_email,
-                "username": subject,
-                "role": "admin",
-                "status": "active",
-                "is_active": True,
-                "approved_at": now,
-                "approved_by": None,
-                "created_at": now,
-                "updated_at": now,
-            }
-            return user, token, expires_at
-
+        # Always check per-user auth first. Shared-password is only a fallback when no
+        # individual account exists for this email (e.g. before first invite is accepted).
         user = AuthRepository.get_user_by_email(normalized_email)
         if user is None:
+            if shared_auth_enabled and shared_password and password == shared_password:
+                subject = normalized_email.strip() or "shared-password-admin"
+                token, expires_at = create_access_token(subject=subject, role="admin", user_id=0)
+                now = _utc_now().isoformat()
+                shared_user = {
+                    "id": 0,
+                    "name": "Shared Password Admin",
+                    "email": normalized_email,
+                    "username": subject,
+                    "role": "admin",
+                    "status": "active",
+                    "is_active": True,
+                    "approved_at": now,
+                    "approved_by": None,
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                return shared_user, token, expires_at
+            _log_login_failure(normalized_email, "user_not_found")
             raise ValueError("Invalid credentials")
 
         status = _normalize_status(user)
         if status == "pending":
+            _log_login_failure(normalized_email, "account_pending")
             raise ValueError("Account is pending approval")
         if status == "denied":
+            _log_login_failure(normalized_email, "account_denied")
             raise ValueError("Account request was denied")
         if status == "disabled":
+            _log_login_failure(normalized_email, "account_disabled")
             raise ValueError("Account is disabled")
         if not user.get("role"):
+            _log_login_failure(normalized_email, "no_role_assigned")
             raise ValueError("Account role is not assigned")
         if not user.get("is_active"):
+            _log_login_failure(normalized_email, "account_inactive")
             raise ValueError("Invalid credentials")
 
         if not verify_password(password, user["password_hash"]):
+            _log_login_failure(normalized_email, "wrong_password")
             raise ValueError("Invalid credentials")
 
         token, expires_at = create_access_token(subject=user["username"], role=user["role"], user_id=user["id"])

@@ -467,3 +467,146 @@ class TestAuthApi:
         )
         assert response.status_code == 200
         assert response.json()["defaults"]["diagnostic_fee"] == 22
+
+    # -------------------------------------------------------------------------
+    # Production bug regression: invite-accept / login with shared password set
+    # -------------------------------------------------------------------------
+
+    def test_invite_accepted_owner_can_login_when_shared_password_also_set(self, client, monkeypatch):
+        """
+        Production regression test.
+        When REPAIR_DESK_AUTH_ENABLED=true and REPAIR_DESK_PASSWORD is set,
+        an invite-accepted user must be able to log in with their own password.
+        The shared-password must not intercept per-user auth.
+        """
+        monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
+        monkeypatch.setenv("REPAIR_DESK_PASSWORD", "shared-prod-pass")
+        sent = self._capture_invite_emails(monkeypatch)
+
+        # Bootstrap owner accepts invite
+        self._create_user(name="Bootstrap Admin", email="bootstrapadmin@example.com", username="bootstrapadmin1", role="owner")
+        admin_token = self._login(client, "bootstrapadmin@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Owner User", "email": "owner@example.com", "role": "owner"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
+
+        accept_response = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "owner-invite-pass-456"},
+        )
+        assert accept_response.status_code == 200
+        accepted_user = accept_response.json()["user"]
+        assert accepted_user["status"] == "active"
+        assert accepted_user["role"] == "owner"
+
+        # Per-user password must succeed even though shared password is set
+        login_response = client.post(
+            "/api/auth/login",
+            json={"email": "owner@example.com", "password": "owner-invite-pass-456"},
+        )
+        assert login_response.status_code == 200
+        payload = login_response.json()
+        assert payload["user"]["email"] == "owner@example.com"
+        assert payload["user"]["role"] == "owner"
+        assert payload["user"]["id"] != 0  # must be the real DB user, not shared-password ghost
+
+    def test_invite_accepted_user_wrong_password_returns_401_when_shared_password_set(self, client, monkeypatch):
+        """Per-user wrong password must still return 401 even when shared-password mode is active."""
+        monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
+        monkeypatch.setenv("REPAIR_DESK_PASSWORD", "shared-prod-pass")
+        sent = self._capture_invite_emails(monkeypatch)
+
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        admin_token = self._login(client, "admin@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Tech", "email": "tech@example.com", "role": "technician"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
+
+        client.post(f"/api/auth/invites/{token}/accept", json={"password": "correct-pass-999"})
+
+        wrong = client.post("/api/auth/login", json={"email": "tech@example.com", "password": "wrong-pass"})
+        assert wrong.status_code == 401
+        assert "Invalid credentials" in wrong.json()["detail"]
+
+    def test_shared_password_fallback_still_works_when_no_per_user_account(self, client, monkeypatch):
+        """Shared-password fallback must still authenticate when no individual user exists for the email."""
+        monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
+        monkeypatch.setenv("REPAIR_DESK_PASSWORD", "shared-prod-pass")
+
+        response = client.post("/api/auth/login", json={"email": "nobody@example.com", "password": "shared-prod-pass"})
+        assert response.status_code == 200
+        assert response.json()["user"]["id"] == 0
+
+    def test_invite_accept_creates_active_owner_user(self, client, monkeypatch):
+        """Accepting an owner invite must produce a user with status=active, is_active=True, role=owner."""
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        admin_token = self._login(client, "admin@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "New Owner", "email": "newowner@example.com", "role": "owner"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
+
+        accept_response = client.post(
+            f"/api/auth/invites/{token}/accept",
+            json={"password": "owner-pass-321"},
+        )
+        assert accept_response.status_code == 200
+        user = accept_response.json()["user"]
+        assert user["status"] == "active"
+        assert user["is_active"] is True
+        assert user["role"] == "owner"
+        assert user["email"] == "newowner@example.com"
+
+    def test_accepted_invite_is_single_use_even_after_login(self, client, monkeypatch):
+        """An already-accepted invite token must be rejected on a second accept attempt."""
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        sent = self._capture_invite_emails(monkeypatch)
+        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
+        admin_token = self._login(client, "admin@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Single Use", "email": "singleuse@example.com", "role": "viewer"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert invite_response.status_code == 201
+        token = self._token_from_link(sent[-1]["invite_link"])
+
+        first = client.post(f"/api/auth/invites/{token}/accept", json={"password": "single-pass-123"})
+        assert first.status_code == 200
+
+        # Login after first accept must succeed
+        login = client.post("/api/auth/login", json={"email": "singleuse@example.com", "password": "single-pass-123"})
+        assert login.status_code == 200
+
+        # Second accept of same token must fail
+        second = client.post(f"/api/auth/invites/{token}/accept", json={"password": "single-pass-123"})
+        assert second.status_code == 400
+        assert "not available" in second.json()["detail"].lower()
+
+    def test_login_email_is_case_insensitive(self, client, monkeypatch):
+        """Login must succeed regardless of email case because lookup uses LOWER(email)."""
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        self._create_user(name="Case User", email="CaseUser@Example.COM", username="caseuser1", role="viewer")
+
+        lower = client.post("/api/auth/login", json={"email": "caseuser@example.com", "password": "pass12345"})
+        assert lower.status_code == 200
+
+        upper = client.post("/api/auth/login", json={"email": "CASEUSER@EXAMPLE.COM", "password": "pass12345"})
+        assert upper.status_code == 200
