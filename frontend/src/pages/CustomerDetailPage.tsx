@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { fetchCustomer, fetchCustomerTickets, type Customer, type TicketSummary } from "../api/tickets";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 export default function CustomerDetailPage() {
@@ -28,41 +29,38 @@ export default function CustomerDetailPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div style={headerStyle}>
-                <div>
-                    <div style={{ color: "#56706a", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.76rem" }}>
-                        Customer Record
-                    </div>
-                    <h2 style={{ margin: "6px 0 0" }}>{customer.full_name}</h2>
-                    <p style={{ ...t.pageIntro, marginTop: "6px" }}>
+            <PageHeader
+                kicker="Customer Record"
+                title={customer.full_name}
+                description={
+                    <>
                         {customer.primary_phone || customer.alternate_phone || "No phone on file"}
                         {customer.email ? ` · ${customer.email}` : ""}
-                    </p>
-                </div>
-                <div style={{ display: "grid", gap: "8px", textAlign: "right" }}>
-                    <div style={summaryPillStyle}>Tickets: {tickets.length}</div>
-                    <div style={summaryPillStyle}>Open: {openTickets}</div>
-                    <div style={summaryPillStyle}>Paid: {paidTickets}</div>
-                </div>
-            </div>
+                    </>
+                }
+                actions={
+                    <div style={{ display: "grid", gap: "8px", textAlign: "right" }}>
+                        <div style={summaryPillStyle}>Tickets: {tickets.length}</div>
+                        <div style={summaryPillStyle}>Open: {openTickets}</div>
+                        <div style={summaryPillStyle}>Paid: {paidTickets}</div>
+                    </div>
+                }
+            />
 
-            <div style={t.panel}>
-                <h3 style={t.heading}>Customer Notes</h3>
+            <SectionCard title="Customer Notes" compact>
                 <p style={{ ...t.copy, marginBottom: 0 }}>{customer.notes || "No customer notes on file."}</p>
-            </div>
+            </SectionCard>
 
             <div style={detailGridStyle}>
-                <div style={t.panel}>
-                    <h3 style={t.heading}>Contact Details</h3>
+                <SectionCard title="Contact Details" compact>
                     <DetailRow label="Primary Phone" value={customer.primary_phone || "Not set"} />
                     <DetailRow label="Alternate Phone" value={customer.alternate_phone || "Not set"} />
                     <DetailRow label="Email" value={customer.email || "Not set"} />
                     <DetailRow label="Created" value={new Date(customer.created_at).toLocaleString()} />
                     <DetailRow label="Updated" value={new Date(customer.updated_at).toLocaleString()} />
-                </div>
+                </SectionCard>
 
-                <div style={t.panel}>
-                    <h3 style={t.heading}>Repair History</h3>
+                <SectionCard title="Repair History" compact>
                     {latestTicket ? (
                         <div style={{ ...t.subCard, marginBottom: "12px" }}>
                             <strong>Latest</strong>
@@ -93,12 +91,11 @@ export default function CustomerDetailPage() {
                             ))}
                         </div>
                     )}
-                </div>
+                </SectionCard>
             </div>
         </section>
     );
 }
-
 function DetailRow(props: { label: string; value: string }) {
     return (
         <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "12px", borderBottom: "1px solid rgba(29,43,40,0.08)", padding: "10px 0" }}>
@@ -107,15 +104,6 @@ function DetailRow(props: { label: string; value: string }) {
         </div>
     );
 }
-
-const headerStyle = {
-    ...t.panel,
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    alignItems: "start",
-    flexWrap: "wrap" as const,
-};
 
 const detailGridStyle = {
     display: "grid",
@@ -143,6 +131,6 @@ const summaryPillStyle = {
     borderRadius: "999px",
     border: "1px solid rgba(29,43,40,0.12)",
     background: "#ffffff",
-    padding: "8px 12px",
+    padding: "7px 11px",
     fontWeight: 700,
 };

@@ -13,6 +13,7 @@ import {
     type HoursSummary,
 } from '../api/tickets';
 import { useAsyncData } from '../hooks/useAsyncData';
+import { PageHeader } from '../components/PageChrome';
 import * as t from '../styles/theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -173,12 +174,11 @@ export function HoursPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div>
-                <h2 style={{ margin: 0 }}>Hours</h2>
-                <p style={t.pageIntro}>
-                    Track your time as Mattis with a live clock session, then review or correct past hours from the same screen.
-                </p>
-            </div>
+            <PageHeader
+                kicker="Time Tracking"
+                title="Hours"
+                description="Track your time as Mattis with a live clock session, then review or correct past hours from the same screen."
+            />
 
             {visibleError ? <div style={t.errorBanner}>{visibleError}</div> : null}
 

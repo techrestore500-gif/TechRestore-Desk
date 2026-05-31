@@ -7,11 +7,11 @@ import type { CSSProperties } from "react";
 
 /** Standard content panel — soft gradient card with shadow. */
 export const panel: CSSProperties = {
-    background: "linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(243, 249, 247, 0.88) 100%)",
+    background: "linear-gradient(145deg, rgba(255, 255, 255, 0.94) 0%, rgba(243, 249, 247, 0.9) 100%)",
     border: "1px solid rgba(29, 43, 40, 0.12)",
-    borderRadius: "20px",
-    padding: "16px 18px",
-    boxShadow: "0 10px 20px rgba(22, 49, 42, 0.08)",
+    borderRadius: "18px",
+    padding: "18px",
+    boxShadow: "0 8px 18px rgba(22, 49, 42, 0.08)",
 };
 
 /** Primary action button — deep green gradient pill. */
@@ -20,10 +20,10 @@ export const primaryBtn: CSSProperties = {
     border: "none",
     background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
     color: "#f5efe3",
-    padding: "9px 18px",
+    padding: "11px 16px",
     cursor: "pointer",
     fontWeight: 700,
-    boxShadow: "0 6px 12px rgba(23, 70, 60, 0.18)",
+    boxShadow: "0 7px 14px rgba(23, 70, 60, 0.18)",
     transition: "all 180ms ease",
 };
 
@@ -33,7 +33,7 @@ export const secondaryBtn: CSSProperties = {
     border: "1px solid rgba(29, 43, 40, 0.18)",
     background: "#ffffff",
     color: "#1d2b28",
-    padding: "9px 18px",
+    padding: "11px 16px",
     cursor: "pointer",
     transition: "all 180ms ease",
 };
@@ -44,8 +44,7 @@ export const miniBtn: CSSProperties = {
     border: "1px solid rgba(29, 43, 40, 0.12)",
     background: "#ffffff",
     color: "#1d2b28",
-    padding: "6px 11px",
-    fontSize: "0.83rem",
+    padding: "7px 11px",
     cursor: "pointer",
     transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
 };
@@ -55,8 +54,8 @@ export const input: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    padding: "9px 12px",
-    borderRadius: "12px",
+    padding: "11px 13px",
+    borderRadius: "11px",
     border: "1px solid rgba(29, 43, 40, 0.18)",
     background: "#ffffff",
     fontSize: "1rem",
@@ -95,37 +94,11 @@ export const meta: CSSProperties = {
 
 /** Error banner for inline page-level failures. */
 export const errorBanner: CSSProperties = {
-    padding: "9px 14px",
+    padding: "10px 13px",
     background: "#fde8e8",
     color: "#9b2c2c",
     border: "1px solid #f8b4b4",
-    borderRadius: "12px",
-};
-
-/** Success banner for confirmations and saved states. */
-export const successBanner: CSSProperties = {
-    padding: "9px 14px",
-    background: "#e8f6ee",
-    color: "#1f6a3f",
-    border: "1px solid #b3dfc4",
-    borderRadius: "12px",
-};
-
-/** Inline muted notice — for tips, explanations, non-critical info. */
-export const notice: CSSProperties = {
-    padding: "9px 14px",
-    background: "rgba(240,242,239,0.8)",
-    color: "#465954",
-    border: "1px solid rgba(29,43,40,0.1)",
-    borderRadius: "12px",
-    fontSize: "0.88rem",
-};
-
-/** Section divider line within a panel. */
-export const sectionDivider: CSSProperties = {
-    border: "none",
-    borderTop: "1px solid rgba(29,43,40,0.08)",
-    margin: "16px 0",
+    borderRadius: "11px",
 };
 
 /** Table shell for pages that still render dense record tables. */
@@ -134,9 +107,9 @@ export const tableShell: CSSProperties = {
     borderCollapse: "collapse",
     backgroundColor: "white",
     border: "1px solid #d7e0df",
-    borderRadius: "12px",
+    borderRadius: "11px",
     overflow: "hidden",
-    boxShadow: "0 10px 24px rgba(26, 46, 41, 0.08)",
+    boxShadow: "0 8px 20px rgba(26, 46, 41, 0.08)",
 };
 
 export const tableHeaderCell: CSSProperties = {
@@ -151,15 +124,15 @@ export const tableCell: CSSProperties = {
 
 /** Inline sub-card for history items, notes, and usage rows. */
 export const subCard: CSSProperties = {
-    borderRadius: "14px",
+    borderRadius: "12px",
     background: "#f6f1e8",
-    padding: "10px 14px",
+    padding: "12px 14px",
 };
 
 /** Policy or constraint warning notice. */
 export const warning: CSSProperties = {
-    padding: "12px 14px",
-    borderRadius: "12px",
+    padding: "11px 13px",
+    borderRadius: "11px",
     background: "#fff1dd",
     color: "#8a4b00",
     border: "1px solid #f3c481",
@@ -175,42 +148,42 @@ export const heading: CSSProperties = {
 export const statusBadge: CSSProperties = {
     alignSelf: "start",
     borderRadius: "999px",
-    padding: "7px 14px",
+    padding: "8px 12px",
     background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
     color: "#f5efe3",
     fontWeight: 700,
-    boxShadow: "0 4px 10px rgba(23, 70, 60, 0.16)",
+    boxShadow: "0 7px 14px rgba(23, 70, 60, 0.18)",
 };
 
 /** Responsive auto-fit grid for detail panels. */
 export const detailGrid: CSSProperties = {
     display: "grid",
-    gap: "18px 20px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "16px 18px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
     alignItems: "start",
 };
 
 /** Responsive auto-fit grid for form fields. */
 export const fieldGrid: CSSProperties = {
     display: "grid",
-    gap: "16px 18px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "14px 16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     alignItems: "start",
 };
 
 /** Two-column form grid with desktop pairing and mobile-safe stacking. */
 export const fieldGridTwo: CSSProperties = {
     display: "grid",
-    gap: "14px 18px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "13px 16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     alignItems: "start",
 };
 
 /** Compact two-column grid for settings rows with short controls. */
 export const fieldGridTwoCompact: CSSProperties = {
     display: "grid",
-    gap: "12px 16px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "10px 14px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     alignItems: "start",
 };
 
@@ -235,9 +208,70 @@ export const pageWrap: CSSProperties = {
     display: "grid",
     gap: "16px",
     width: "100%",
-    maxWidth: "1280px",
+    maxWidth: "1240px",
     margin: "0 auto",
     minWidth: 0,
+};
+
+export const pageHeader: CSSProperties = {
+    display: "grid",
+    gap: "6px",
+};
+
+export const pageKicker: CSSProperties = {
+    margin: 0,
+    color: "#5a7268",
+    fontSize: "0.77rem",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+};
+
+export const pageTitle: CSSProperties = {
+    margin: 0,
+    color: "#173f37",
+    lineHeight: 1.1,
+};
+
+export const pageDescription: CSSProperties = {
+    ...copy,
+    margin: 0,
+    fontSize: "0.93rem",
+};
+
+export const sectionHeader: CSSProperties = {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "12px",
+};
+
+export const sectionTitle: CSSProperties = {
+    margin: 0,
+    fontSize: "1.02rem",
+    color: "#183731",
+};
+
+export const sectionMeta: CSSProperties = {
+    margin: 0,
+    color: "#5d716b",
+    fontSize: "0.84rem",
+};
+
+export const compactSurface: CSSProperties = {
+    ...panel,
+    padding: "14px",
+    borderRadius: "16px",
+};
+
+export const stateBanner: CSSProperties = {
+    padding: "10px 13px",
+    borderRadius: "11px",
+    border: "1px solid rgba(29, 43, 40, 0.12)",
+    background: "#ffffff",
+    color: "#244038",
 };
 
 // ─── Interactive state helpers (for onMouseEnter/onMouseLeave/onFocus) ───

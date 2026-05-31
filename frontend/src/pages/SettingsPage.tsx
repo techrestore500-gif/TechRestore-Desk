@@ -33,6 +33,7 @@ import {
     type TwilioSetupStatus,
 } from "../api/system";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 // ─── localStorage helpers ───
@@ -451,14 +452,13 @@ export default function SettingsPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div>
-                <h2 style={{ margin: 0 }}>Settings Control Center</h2>
-                <p style={{ ...t.copy, marginTop: "4px", marginBottom: 0, fontSize: "0.9rem" }}>
-                    Manage shop configuration, communication channels, workflow policy, and system safety tools in one place.
-                </p>
-            </div>
+            <PageHeader
+                kicker="Administration"
+                title="Settings Control Center"
+                description="Manage shop configuration, communication channels, workflow policy, and system safety tools in one place."
+            />
 
-            <div style={{ ...panelStyle, display: "grid", gap: "14px" }}>
+            <SectionCard title="Quick jump" compact>
                 <div style={{ ...t.formActionsRow, justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                         <strong style={{ color: "#173f37" }}>Quick jump</strong>
@@ -489,7 +489,7 @@ export default function SettingsPage() {
                         <div style={statusTileValueStyle}>{twilioReady ? "Ready" : "Needs setup"}</div>
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
             <div id="settings-business" style={sectionLabelStyle}>Business Profile</div>
 
@@ -1166,14 +1166,11 @@ const roadmapChip: React.CSSProperties = {
 };
 
 const sectionLabelStyle: React.CSSProperties = {
-    fontSize: "0.72rem",
+    fontSize: "0.78rem",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     fontWeight: 800,
     color: "#1b4f45",
-    paddingBottom: "6px",
-    borderBottom: "2px solid rgba(27, 79, 69, 0.12)",
-    marginTop: "4px",
 };
 
 const statusTileStyle: React.CSSProperties = {

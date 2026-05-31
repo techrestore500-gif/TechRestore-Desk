@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { changePassword } from "../api/auth";
 import { useAuth } from "../auth/AuthProvider";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 export default function AccountPage() {
@@ -47,22 +48,23 @@ export default function AccountPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div style={{ ...t.panel, display: "grid", gap: "10px" }}>
-                <h2 style={{ margin: 0 }}>Account</h2>
-                <p style={{ ...t.copy, margin: 0 }}>Review your profile and account access details.</p>
+            <PageHeader
+                kicker="Profile"
+                title="Account"
+                description="Review your profile, access details, and password controls."
+                actions={<button type="button" style={t.secondaryBtn} onClick={() => logout("You have been signed out.")}>Logout</button>}
+            />
+
+            <SectionCard title="Profile details" compact>
                 <div style={{ display: "grid", gap: "6px" }}>
                     <div><strong>Name:</strong> {user?.name ?? "-"}</div>
                     <div><strong>Email:</strong> {user?.email ?? "-"}</div>
                     <div><strong>Role:</strong> {user?.role ?? "-"}</div>
                 </div>
-                <div style={t.formActionsRow}>
-                    <button type="button" style={t.secondaryBtn} onClick={() => logout("You have been signed out.")}>Logout</button>
-                </div>
-            </div>
+            </SectionCard>
 
-            <form style={{ ...t.panel, display: "grid", gap: "12px" }} onSubmit={handleChangePassword}>
-                <h3 style={{ margin: 0 }}>Change Password</h3>
-                <p style={{ ...t.copy, margin: 0 }}>Use your current password, then set a new password.</p>
+            <SectionCard title="Change Password" description="Use your current password, then set a new password.">
+                <form style={{ display: "grid", gap: "12px" }} onSubmit={handleChangePassword}>
 
                 <label style={t.label} htmlFor="account-current-password">
                     Current password
@@ -110,12 +112,13 @@ export default function AccountPage() {
                     </div>
                 ) : null}
 
-                <div style={t.formActionsRow}>
-                    <button type="submit" style={t.primaryBtn} disabled={busy}>
-                        {busy ? "Updating password..." : "Change password"}
-                    </button>
-                </div>
-            </form>
+                    <div style={t.formActionsRow}>
+                        <button type="submit" style={t.primaryBtn} disabled={busy}>
+                            {busy ? "Updating password..." : "Change password"}
+                        </button>
+                    </div>
+                </form>
+            </SectionCard>
         </section>
     );
 }

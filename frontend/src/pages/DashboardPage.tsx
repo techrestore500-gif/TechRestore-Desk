@@ -10,6 +10,7 @@ import {
 } from "../api/tickets";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { buildTransitionPath, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
+import { MetricTile, PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 const TERMINAL_STATUSES = new Set(["Picked Up / Closed", "Not Repairable", "Returned Unrepaired", "Customer Declined"]);
@@ -103,25 +104,24 @@ export default function DashboardPage() {
     }
 
     return (
-        <section style={{ display: "grid", gap: "20px", width: "100%", maxWidth: "1280px", margin: "0 auto" }}>
-            <div style={{ ...t.formActionsRow, justifyContent: "space-between" }}>
-                <div>
-                    <h2 style={{ margin: 0 }}>Service Desk</h2>
-                    <p style={{ ...t.pageIntro, marginTop: "6px" }}>Fast repair tracking built for counter speed and technician flow.</p>
-                </div>
-                <Link to="/intake" style={newRepairButtonStyle}>+ New Repair</Link>
-            </div>
+        <section style={{ display: "grid", gap: "16px", width: "100%", maxWidth: "1240px", margin: "0 auto" }}>
+            <PageHeader
+                kicker="Today"
+                title="Service Desk"
+                description="Fast repair tracking built for counter speed and technician flow."
+                actions={<Link to="/intake" style={newRepairButtonStyle}>+ New Repair</Link>}
+            />
 
             <div style={heroPanelStyle}>
                 <div style={metricGridStyle}>
-                    <MetricCard label="Active Repairs" value={metrics.activeRepairs} accent="#175f4a" />
-                    <MetricCard label="Completed Today" value={metrics.completedToday} accent="#2e6c3e" />
-                    <MetricCard label="Waiting for Parts" value={metrics.waitingForParts} accent="#8c4b1b" />
-                    <MetricCard label="Unpaid Repairs" value={metrics.unpaidRepairs} accent="#9b2c2c" />
+                    <MetricTile label="Active Repairs" value={metrics.activeRepairs} />
+                    <MetricTile label="Completed Today" value={metrics.completedToday} />
+                    <MetricTile label="Waiting for Parts" value={metrics.waitingForParts} />
+                    <MetricTile label="Unpaid Repairs" value={metrics.unpaidRepairs} />
                 </div>
             </div>
 
-            <div style={t.panel}>
+            <SectionCard title="Quick search and filter">
                 <div style={{ display: "grid", gap: "10px" }}>
                     <input
                         value={search}
@@ -144,7 +144,6 @@ export default function DashboardPage() {
                                 <button
                                     key={status}
                                     type="button"
-                                    onClick={() => setFilterStatus(status)}
                                     style={{
                                         ...filterChipStyle,
                                         background: active ? colors.text : colors.bg,
@@ -162,7 +161,7 @@ export default function DashboardPage() {
                         </select>
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
             {updateError ? <div style={t.errorBanner}>{updateError}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
@@ -208,8 +207,7 @@ export default function DashboardPage() {
                 })}
             </div>
 
-            <div style={t.panel}>
-                <h3 style={{ marginTop: 0, marginBottom: "12px" }}>Recent Customers</h3>
+            <SectionCard title="Recent Customers">
                 {metrics.recentCustomers.length === 0 ? (
                     <p style={t.copy}>No customer activity yet.</p>
                 ) : (
@@ -226,47 +224,31 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 )}
-            </div>
+            </SectionCard>
         </section>
-    );
-}
-
-function MetricCard(props: { label: string; value: number; accent: string }) {
-    return (
-        <div style={{ ...metricCardStyle, borderColor: `${props.accent}33` }}>
-            <div style={{ fontSize: "0.72rem", letterSpacing: "0.07em", textTransform: "uppercase", color: "#5d746e", fontWeight: 700 }}>{props.label}</div>
-            <div style={{ fontSize: "1.75rem", color: props.accent, fontWeight: 800, marginTop: "4px", lineHeight: 1.15 }}>{props.value}</div>
-        </div>
     );
 }
 
 const newRepairButtonStyle = {
     textDecoration: "none",
     borderRadius: "999px",
-    padding: "9px 18px",
+    padding: "12px 18px",
     background: "linear-gradient(145deg, #196352 0%, #133f35 100%)",
     color: "#f5efe3",
     fontWeight: 700,
-    boxShadow: "0 6px 14px rgba(18, 52, 45, 0.2)",
+    boxShadow: "0 10px 20px rgba(18, 52, 45, 0.24)",
 };
 
 const heroPanelStyle = {
     ...t.panel,
-    padding: "14px 16px",
+    padding: "14px",
     background: "radial-gradient(circle at 16% 14%, rgba(230, 250, 241, 0.96) 0%, rgba(255, 249, 238, 0.96) 45%, rgba(248, 236, 218, 0.96) 100%)",
 };
 
 const metricGridStyle = {
     display: "grid",
-    gap: "8px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-};
-
-const metricCardStyle = {
-    border: "1px solid rgba(29, 43, 40, 0.1)",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.85)",
-    padding: "12px 14px",
+    gap: "10px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
 };
 
 const filterChipStyle = {
@@ -274,7 +256,7 @@ const filterChipStyle = {
     border: "1px solid rgba(29,43,40,0.12)",
     background: "#ffffff",
     color: "#18342e",
-    padding: "6px 11px",
+    padding: "8px 11px",
     fontWeight: 700,
     fontSize: "0.82rem",
     cursor: "pointer",
@@ -288,15 +270,15 @@ const activeFilterChipStyle = {
 
 const boardGridStyle = {
     display: "grid",
-    gap: "10px",
+    gap: "12px",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
 };
 
 const ticketCardStyle = {
     ...t.panel,
-    padding: "12px 14px",
+    padding: "14px",
     borderRadius: "16px",
-    boxShadow: "0 8px 16px rgba(26, 46, 41, 0.07)",
+    boxShadow: "0 12px 20px rgba(26, 46, 41, 0.08)",
 };
 
 const quickActionChipStyle = {
@@ -304,7 +286,7 @@ const quickActionChipStyle = {
     border: "1px solid rgba(29, 43, 40, 0.15)",
     background: "#ffffff",
     color: "#17342d",
-    padding: "5px 9px",
+    padding: "6px 9px",
     fontWeight: 700,
     fontSize: "0.73rem",
     cursor: "pointer",

@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 
 import { TechnicianQueue, QueueTicket, assignQueueTicket } from '../api/tickets';
 import { LoadingBoundary } from '../components/LoadingBoundary';
+import { PageHeader } from '../components/PageChrome';
 import { ScannerInput } from '../components/ScannerInput';
 import { queryKeys } from '../hooks/queryKeys';
 import { useQueueQuery } from '../hooks/queries/useQueueQuery';
 import { useUiStore } from '../store/uiStore';
-import * as t from '../styles/theme';
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
     'Loaner Outstanding': { bg: '#fff1eb', border: '#f3c8b6', text: '#8f2f16' },
@@ -23,7 +23,7 @@ const sectionCardStyle = {
     borderRadius: '14px',
     background: 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(243,249,247,0.88) 100%)',
     boxShadow: '0 10px 22px rgba(19, 47, 41, 0.08)',
-    padding: '12px 14px',
+    padding: '1rem',
 };
 
 export function QueuePage() {
@@ -116,17 +116,17 @@ export function QueuePage() {
         const tickets = filterTickets(sourceTickets);
         const color = statusColors[status] ?? { bg: '#f2f4f3', border: '#d9dfdd', text: '#33453f' };
         return (
-            <div key={status} style={{ marginBottom: '10px', ...sectionCardStyle }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', marginBottom: '8px' }}>
-                    <h3 style={{ color: '#1f3c35', margin: 0, fontSize: '0.97rem', fontWeight: 700 }}>{status}</h3>
+            <div key={status} style={{ marginBottom: '1.2rem', ...sectionCardStyle }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem', marginBottom: '0.6rem' }}>
+                    <h3 style={{ color: '#1f3c35', margin: 0, fontSize: '1.06rem' }}>{status}</h3>
                     <span style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}`, borderRadius: '999px', padding: '0.2rem 0.65rem', fontWeight: 700, fontSize: '0.82rem' }}>
                         {tickets.length}
                     </span>
                 </div>
                 {tickets.length === 0 ? (
-                    <p style={{ color: '#9aafab', fontStyle: 'italic', margin: '0.2rem 0', fontSize: '0.85rem' }}>No tickets here.</p>
+                    <p style={{ color: '#7f8c8d', fontStyle: 'italic', margin: '0.4rem 0 0.2rem' }}>No tickets in this status.</p>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {tickets.map(ticket => (
                             <div
                                 key={ticket.id}
@@ -135,7 +135,7 @@ export function QueuePage() {
                                 style={{
                                     border: `1px solid ${color.border}`,
                                     borderRadius: '10px',
-                                    padding: '10px 12px',
+                                    padding: '1rem',
                                     backgroundColor: color.bg,
                                     cursor: 'pointer',
                                     transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
@@ -163,15 +163,15 @@ export function QueuePage() {
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                                     <div>
-                                        <strong style={{ fontSize: '0.93rem', color: '#17312a' }}>{ticket.ticket_number}</strong>
-                                        <p style={{ margin: '4px 0 0 0', color: '#2c3e50', fontSize: '0.88rem' }}>
+                                        <strong style={{ fontSize: '1rem', color: '#17312a' }}>{ticket.ticket_number}</strong>
+                                        <p style={{ margin: '0.5rem 0 0 0', color: '#2c3e50' }}>
                                             {ticket.customer_name || 'Unknown Customer'} · {ticket.customer_phone}
                                         </p>
-                                        <p style={{ margin: '2px 0', color: '#34495e', fontSize: '0.84rem' }}>
+                                        <p style={{ margin: '0.25rem 0', color: '#34495e', fontSize: '0.9rem' }}>
                                             {ticket.manufacturer} {ticket.model_name} · {ticket.issue_category}
                                         </p>
-                                        <div style={{ marginTop: '6px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' as const }}>
-                                            <label style={{ color: '#7f8c8d', fontSize: '0.8rem' }}>Assigned:</label>
+                                        <div style={{ marginTop: '0.35rem', display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' as const }}>
+                                            <label style={{ color: '#7f8c8d', fontSize: '0.85rem' }}>Assigned:</label>
                                             <select
                                                 value={ticket.assigned_technician ?? ''}
                                                 onChange={(event) => {
@@ -181,7 +181,6 @@ export function QueuePage() {
                                                     });
                                                 }}
                                                 disabled={assigningTicketId === ticket.id}
-                                                style={{ fontSize: '0.82rem', padding: '2px 6px', borderRadius: '8px', border: '1px solid rgba(29,43,40,0.18)' }}
                                             >
                                                 <option value="">Unassigned</option>
                                                 {technicianOptions.map((name) => (
@@ -192,11 +191,11 @@ export function QueuePage() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         {ticket.customer_approval_limit && (
-                                            <p style={{ margin: '0', color: '#744091', fontSize: '0.8rem', fontWeight: 600 }}>
+                                            <p style={{ margin: '0', color: '#744091', fontSize: '0.88rem', fontWeight: 600 }}>
                                                 Approval limit: ${ticket.customer_approval_limit}
                                             </p>
                                         )}
-                                        <p style={{ margin: '4px 0 0 0', color: '#7f8c8d', fontSize: '0.78rem' }}>
+                                        <p style={{ margin: '0.5rem 0 0 0', color: '#7f8c8d', fontSize: '0.85rem' }}>
                                             {new Date(ticket.intake_date).toLocaleString()}
                                         </p>
                                     </div>
@@ -211,26 +210,32 @@ export function QueuePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' as const, marginBottom: '14px' }}>
-                <div>
-                    <h2 style={{ margin: 0 }}>Technician Queue</h2>
-                    <p style={{ color: '#60756f', marginTop: '4px', marginBottom: 0, lineHeight: 1.5, fontSize: '0.9rem' }}>
-                        Daily work queue grouped by priority. Click any ticket to open.
-                    </p>
-                </div>
-                <button
-                    onClick={handleRefresh}
-                    style={{
-                        ...t.primaryBtn,
-                        fontSize: '0.88rem',
-                        whiteSpace: 'nowrap' as const,
-                    }}
-                >
-                    ↺ Refresh
-                </button>
-            </div>
+            <PageHeader
+                kicker="Operations"
+                title="Technician Queue"
+                description="Daily work queue grouped by priority. Click any ticket to open."
+                actions={
+                    <button
+                        onClick={handleRefresh}
+                        style={{
+                            padding: '8px 16px',
+                            background: 'linear-gradient(145deg, #1f6657 0%, #184e42 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '999px',
+                            cursor: 'pointer',
+                            fontSize: '0.88rem',
+                            fontWeight: 700,
+                            boxShadow: '0 6px 12px rgba(23, 70, 60, 0.2)',
+                            whiteSpace: 'nowrap' as const,
+                        }}
+                    >
+                        ↺ Refresh
+                    </button>
+                }
+            />
 
-            <div style={{ display: 'grid', gap: '6px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gap: '8px', marginBottom: '12px' }}>
                 <ScannerInput
                     value={quickFilter}
                     onChange={setQuickFilter}
@@ -243,11 +248,10 @@ export function QueuePage() {
                         onChange={(event) => setViewName(event.target.value)}
                         placeholder='Queue view name'
                         style={{
-                            ...t.input,
-                            width: 'auto',
-                            minWidth: '160px',
-                            flex: '1 1 160px',
-                            maxWidth: '260px',
+                            minWidth: '170px',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(29, 43, 40, 0.18)',
                         }}
                     />
                     <button
@@ -256,7 +260,13 @@ export function QueuePage() {
                             saveQueueView(viewName);
                             setViewName('');
                         }}
-                        style={t.secondaryBtn}
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(29, 43, 40, 0.18)',
+                            background: '#fff',
+                            cursor: 'pointer',
+                        }}
                     >
                         Save view
                     </button>
@@ -265,14 +275,26 @@ export function QueuePage() {
                             <button
                                 type='button'
                                 onClick={() => applyQueueView(name)}
-                                style={t.miniBtn}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: '999px',
+                                    border: '1px solid rgba(29, 43, 40, 0.18)',
+                                    background: '#fff',
+                                    cursor: 'pointer',
+                                }}
                             >
                                 {name}
                             </button>
                             <button
                                 type='button'
                                 onClick={() => deleteQueueView(name)}
-                                style={t.miniBtn}
+                                style={{
+                                    padding: '8px 10px',
+                                    borderRadius: '999px',
+                                    border: '1px solid rgba(29, 43, 40, 0.18)',
+                                    background: '#fff',
+                                    cursor: 'pointer',
+                                }}
                             >
                                 x
                             </button>

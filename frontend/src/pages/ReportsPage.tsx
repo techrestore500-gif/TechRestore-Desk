@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { fetchReportSummary, type ReportSummary } from '../api/tickets';
 import { useAsyncData } from '../hooks/useAsyncData';
+import { MetricTile, PageHeader, SectionCard } from '../components/PageChrome';
 import * as t from '../styles/theme';
 
 function todayIsoDate() {
@@ -32,14 +33,13 @@ export default function ReportsPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div>
-                <h2 style={{ margin: 0 }}>Reports</h2>
-                <p style={{ ...t.copy, marginTop: '6px', marginBottom: 0 }}>
-                    Revenue and throughput snapshot for a selected date range.
-                </p>
-            </div>
+            <PageHeader
+                kicker="Operations"
+                title="Reports"
+                description="Revenue and throughput snapshot for a selected date range."
+            />
 
-            <div style={t.panel}>
+            <SectionCard title="Filters" compact>
                 <div style={t.fieldGrid}>
                     <label style={t.label}>
                         <span>Start date</span>
@@ -94,24 +94,23 @@ export default function ReportsPage() {
                     Apply filters
                 </button>
                 {error ? <p style={{ ...t.copy, color: '#9b2c2c' }}>{error}</p> : null}
-            </div>
+            </SectionCard>
 
-            {loading && !summary ? <section style={t.panel}><p>Loading report…</p></section> : null}
+            {loading && !summary ? <SectionCard><p>Loading report…</p></SectionCard> : null}
 
             {summary ? (
                 <>
                     <div style={t.detailGrid}>
-                        <MetricCard label="Created tickets" value={String(summary.created_tickets_count)} />
-                        <MetricCard label="Closed tickets" value={String(summary.closed_tickets_count)} />
-                        <MetricCard label="Revenue" value={`$${summary.total_revenue.toFixed(2)}`} />
-                        <MetricCard label="Hours logged" value={String(summary.total_hours)} />
-                        <MetricCard label="Avg closed ticket" value={`$${summary.average_closed_ticket_revenue.toFixed(2)}`} />
-                        <MetricCard label="Revenue / hour" value={`$${summary.revenue_per_hour.toFixed(2)}`} />
+                        <MetricTile label="Created tickets" value={String(summary.created_tickets_count)} />
+                        <MetricTile label="Closed tickets" value={String(summary.closed_tickets_count)} />
+                        <MetricTile label="Revenue" value={`$${summary.total_revenue.toFixed(2)}`} />
+                        <MetricTile label="Hours logged" value={String(summary.total_hours)} />
+                        <MetricTile label="Avg closed ticket" value={`$${summary.average_closed_ticket_revenue.toFixed(2)}`} />
+                        <MetricTile label="Revenue / hour" value={`$${summary.revenue_per_hour.toFixed(2)}`} />
                     </div>
 
                     <div style={t.detailGrid}>
-                        <div style={t.panel}>
-                            <h3 style={{ marginTop: 0 }}>Technician breakdown</h3>
+                        <SectionCard title="Technician breakdown" compact>
                             {summary.technician_breakdown.length === 0 ? (
                                 <p style={t.copy}>No technician activity matched the current filters.</p>
                             ) : (
@@ -129,10 +128,9 @@ export default function ReportsPage() {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </SectionCard>
 
-                        <div style={t.panel}>
-                            <h3 style={{ marginTop: 0 }}>Repair category breakdown</h3>
+                        <SectionCard title="Repair category breakdown" compact>
                             {summary.repair_category_breakdown.length === 0 ? (
                                 <p style={t.copy}>No repair actions matched the current filters.</p>
                             ) : (
@@ -150,19 +148,10 @@ export default function ReportsPage() {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </SectionCard>
                     </div>
                 </>
             ) : null}
         </section>
-    );
-}
-
-function MetricCard(props: { label: string; value: string }) {
-    return (
-        <div style={t.panel}>
-            <div style={{ ...t.meta, marginBottom: '8px' }}>{props.label}</div>
-            <strong style={{ fontSize: '1.7rem', color: '#173f37' }}>{props.value}</strong>
-        </div>
     );
 }

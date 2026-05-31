@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 
 import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, updateVoicemail, type VoicemailRecord } from "../api/system";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 export default function VoicemailPage() {
     const [refreshKey, setRefreshKey] = useState(0);
-    const [statusFilter, setStatusFilter] = useState<"all" | "new" | "listened" | "archived">("all");
     const [expandedVoicemailId, setExpandedVoicemailId] = useState<number | null>(null);
     const [openMenuVoicemailId, setOpenMenuVoicemailId] = useState<number | null>(null);
     const [noteEditorVoicemailId, setNoteEditorVoicemailId] = useState<number | null>(null);
@@ -23,10 +23,6 @@ export default function VoicemailPage() {
 
     const audioElementRefs = useRef<Record<number, HTMLAudioElement | null>>({});
     const { data: voicemails = [], error } = useAsyncData<VoicemailRecord[]>(() => fetchVoicemails(), [refreshKey]);
-
-    const filteredVoicemails = statusFilter === "all"
-        ? voicemails
-        : voicemails.filter((vm) => vm.status === statusFilter);
 
     const prevBlobUrls = useRef<Record<number, string>>({});
     useEffect(() => {
@@ -248,118 +244,83 @@ export default function VoicemailPage() {
     }
 
     return (
-        <section style={{ ...t.pageWrap, gap: "12px" }}>
-            <div style={{ ...t.formActionsRow, justifyContent: "space-between", gap: "8px" }}>
-                <div>
-                    <h2 style={{ margin: 0 }}>Voicemail Inbox</h2>
-                    <p style={{ ...t.pageIntro, marginTop: "4px" }}>
-                        {voicemails.length} message{voicemails.length !== 1 ? "s" : ""}
-                        {statusFilter !== "all" ? ` · showing ${statusLabel[statusFilter]}` : ""}
-                    </p>
-                </div>
-                <Link to="/settings" style={backLinkStyle}>Back to Settings</Link>
-            </div>
-
-            <div style={{ ...t.formActionsRow, gap: "6px" }}>
-                {(["all", "new", "listened", "archived"] as const).map((f) => {
-                    const isActive = statusFilter === f;
-                    const chipLabel: Record<typeof f, string> = { all: "All", new: "New", listened: "Listened", archived: "Done" };
-                    return (
-                        <button
-                            key={f}
-                            type="button"
-                            onClick={() => setStatusFilter(f)}
-                            style={{
-                                ...filterChipStyle,
-                                ...(isActive ? activeFilterChipStyle : null),
-                            }}
-                        >
-                            {chipLabel[f]}
-                            {f !== "all" ? (
-                                <span style={chipCountStyle}>
-                                    {voicemails.filter((vm) => vm.status === f).length}
-                                </span>
-                            ) : null}
-                        </button>
-                    );
-                })}
-            </div>
+        <section style={{ ...t.pageWrap, gap: "14px" }}>
+            <PageHeader
+                kicker="Communication"
+                title="Voicemail Inbox"
+                description="Compact inbox view with quick playback and actions."
+                actions={<Link to="/settings" style={backLinkStyle}>Back to Settings</Link>}
+            />
 
             {actionError ? <div style={t.errorBanner}>{actionError}</div> : null}
-            {actionMessage ? <div style={t.successBanner}>{actionMessage}</div> : null}
+            {actionMessage ? <div style={successBannerStyle}>{actionMessage}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
 
             {voicemails.length === 0 ? (
-                <div style={t.panel}>
-                    <p style={t.copy}>No voicemail messages yet. Once Twilio is configured, recordings will appear here.</p>
-                </div>
-            ) : filteredVoicemails.length === 0 ? (
-                <div style={t.panel}>
-                    <p style={t.copy}>No voicemails match the selected filter.</p>
-                </div>
+                <SectionCard compact>
+                    <p style={t.copy}>No voicemail messages yet. Once Twilio is configured, new recordings will appear here.</p>
+                </SectionCard>
             ) : (
-                <div style={{ display: "grid", gap: "6px" }}>
-                    {filteredVoicemails.map((voicemail) => {
+                <div style={{ display: "grid", gap: "8px" }}>
+                    {voicemails.map((voicemail) => {
                         const isExpanded = expandedVoicemailId === voicemail.id;
                         const isMenuOpen = openMenuVoicemailId === voicemail.id;
                         const isNoteEditorOpen = noteEditorVoicemailId === voicemail.id;
+                        const fromLabel = voicemail.caller_number ? `From: ${voicemail.caller_number}` : "From: Unknown";
+                        const lineLabel = voicemail.called_number ? `Line: ${voicemail.called_number}` : "Line: Unknown";
+                        const receivedLabel = formatReceived(voicemail.created_at);
+                        const durationLabel = formatDuration(voicemail.recording_duration_seconds);
 
                         return (
                             <article key={voicemail.id} style={rowWrapStyle}>
-                                <div style={rowGridStyle}>
-                                    <span style={{ ...statusChipStyle, ...statusStyles[voicemail.status as keyof typeof statusStyles], justifySelf: "start" }}>
-                                        {statusLabel[voicemail.status as keyof typeof statusLabel] ?? voicemail.status}
+                                <div style={rowMainStyle}>
+                                    <span style={{ ...statusChipStyle, ...statusStyles[voicemail.status as keyof typeof statusStyles] }}>
+                                        {statusLabel[voicemail.status as keyof typeof statusLabel]}
                                     </span>
 
-                                    <div style={callerFieldStyle} title={voicemail.caller_number ?? "Unknown"}>
-                                        {voicemail.caller_number ?? "Unknown"}
-                                    </div>
-                                    <div style={metaFieldStyle} title={voicemail.called_number ?? "Unknown"}>
-                                        {voicemail.called_number ?? "—"}
-                                    </div>
-                                    <div style={metaFieldStyle}>{formatReceived(voicemail.created_at)}</div>
-                                    <div style={metaFieldStyle}>{formatDuration(voicemail.recording_duration_seconds)}</div>
+                                    <div style={fieldStyle}>{fromLabel}</div>
+                                    <div style={fieldStyle}>{lineLabel}</div>
+                                    <div style={fieldStyle}>Received: {receivedLabel}</div>
+                                    <div style={fieldStyle}>Duration: {durationLabel}</div>
 
-                                    <div style={rowActionsStyle}>
+                                    <button
+                                        type="button"
+                                        style={playBtnStyle}
+                                        onClick={() => void ensureExpandedWithAudio(voicemail, true)}
+                                        disabled={!voicemail.recording_url}
+                                    >
+                                        Play
+                                    </button>
+
+                                    <div data-voicemail-menu style={menuWrapStyle}>
                                         <button
                                             type="button"
-                                            style={playBtnStyle}
-                                            onClick={() => void ensureExpandedWithAudio(voicemail, true)}
-                                            disabled={!voicemail.recording_url}
+                                            aria-haspopup="menu"
+                                            aria-expanded={isMenuOpen}
+                                            aria-label={`More actions for voicemail ${voicemail.id}`}
+                                            style={menuTriggerStyle}
+                                            onClick={() => setOpenMenuVoicemailId((current) => (current === voicemail.id ? null : voicemail.id))}
                                         >
-                                            ▶ Play
+                                            ⋮
                                         </button>
 
-                                        <div data-voicemail-menu style={menuWrapStyle}>
-                                            <button
-                                                type="button"
-                                                aria-haspopup="menu"
-                                                aria-expanded={isMenuOpen}
-                                                aria-label={`More actions for voicemail ${voicemail.id}`}
-                                                style={menuTriggerStyle}
-                                                onClick={() => setOpenMenuVoicemailId((current) => (current === voicemail.id ? null : voicemail.id))}
-                                            >
-                                                ⋮
-                                            </button>
-
-                                            {isMenuOpen ? (
-                                                <div role="menu" style={menuPanelStyle}>
-                                                    <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
-                                                    <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
-                                                    <button type="button" role="menuitem" style={menuItemStyle} onClick={() => openNoteEditor(voicemail.id)}>{voicemail.notes ? "Edit note" : "Add note"}</button>
-                                                    <button
-                                                        type="button"
-                                                        role="menuitem"
-                                                        style={menuItemStyle}
-                                                        onClick={() => void copyCallerNumber(voicemail.caller_number)}
-                                                        disabled={!voicemail.caller_number}
-                                                    >
-                                                        Copy number
-                                                    </button>
-                                                    <button type="button" role="menuitem" style={menuDeleteStyle} onClick={() => void removeVoicemail(voicemail.id)}>Delete</button>
-                                                </div>
-                                            ) : null}
-                                        </div>
+                                        {isMenuOpen ? (
+                                            <div role="menu" style={menuPanelStyle}>
+                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
+                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
+                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => openNoteEditor(voicemail.id)}>{voicemail.notes ? "Add/Edit note" : "Add note"}</button>
+                                                <button
+                                                    type="button"
+                                                    role="menuitem"
+                                                    style={menuItemStyle}
+                                                    onClick={() => void copyCallerNumber(voicemail.caller_number)}
+                                                    disabled={!voicemail.caller_number}
+                                                >
+                                                    Copy caller number
+                                                </button>
+                                                <button type="button" role="menuitem" style={menuDeleteStyle} onClick={() => void removeVoicemail(voicemail.id)}>Delete</button>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
 
@@ -421,13 +382,11 @@ const rowWrapStyle: React.CSSProperties = {
     borderRadius: "14px",
 };
 
-const rowGridStyle: React.CSSProperties = {
+const rowMainStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "90px 1fr 1fr 1fr 80px 140px",
-    gap: "0 10px",
+    gridTemplateColumns: "auto minmax(0, 1.2fr) minmax(0, 1fr) auto auto auto",
+    gap: "8px 10px",
     alignItems: "center",
-    minWidth: 0,
-    overflow: "hidden",
 };
 
 const statusChipStyle: React.CSSProperties = {
@@ -451,28 +410,14 @@ const statusLabel = {
     archived: "Done",
 } as const;
 
-const callerFieldStyle: React.CSSProperties = {
+const fieldStyle: React.CSSProperties = {
     fontSize: "0.84rem",
     color: "#33453f",
-    fontWeight: 600,
+    minWidth: "138px",
+    maxWidth: "100%",
+    whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-};
-
-const metaFieldStyle: React.CSSProperties = {
-    fontSize: "0.8rem",
-    color: "#5a726c",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-};
-
-const rowActionsStyle: React.CSSProperties = {
-    display: "flex",
-    gap: "4px",
-    alignItems: "center",
-    justifyContent: "flex-end",
 };
 
 const playBtnStyle: React.CSSProperties = {
@@ -482,6 +427,7 @@ const playBtnStyle: React.CSSProperties = {
 
 const menuWrapStyle: React.CSSProperties = {
     position: "relative",
+    marginLeft: "auto",
 };
 
 const menuTriggerStyle: React.CSSProperties = {
@@ -582,6 +528,13 @@ const compactWarningStyle: React.CSSProperties = {
     fontSize: "0.84rem",
 };
 
+const successBannerStyle: React.CSSProperties = {
+    ...t.warning,
+    background: "#d1fae5",
+    color: "#065f46",
+    borderColor: "#a7f3d0",
+};
+
 const backLinkStyle: React.CSSProperties = {
     textDecoration: "none",
     borderRadius: "999px",
@@ -590,36 +543,6 @@ const backLinkStyle: React.CSSProperties = {
     color: "#1d2b28",
     padding: "8px 12px",
     fontWeight: 700,
-};
-
-const filterChipStyle: React.CSSProperties = {
-    borderRadius: "999px",
-    border: "1px solid rgba(29,43,40,0.16)",
-    background: "#ffffff",
-    color: "#1c3830",
-    padding: "5px 12px",
-    fontSize: "0.82rem",
-    fontWeight: 600,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-};
-
-const activeFilterChipStyle: React.CSSProperties = {
-    background: "linear-gradient(135deg, #1b5045 0%, #163f37 100%)",
-    color: "#f4efe4",
-    borderColor: "#173f37",
-};
-
-const chipCountStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.25)",
-    borderRadius: "999px",
-    padding: "1px 6px",
-    fontSize: "0.75rem",
-    fontWeight: 700,
-    minWidth: "18px",
-    textAlign: "center",
 };
 
 function formatDuration(seconds: number | null): string {

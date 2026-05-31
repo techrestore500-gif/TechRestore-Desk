@@ -5,6 +5,7 @@ import { type TicketSummary } from "../api/tickets";
 import { LoadingBoundary } from "../components/LoadingBoundary";
 import { ScannerInput } from "../components/ScannerInput";
 import { DataTable } from "../components/table/DataTable";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import { useTicketsQuery } from "../hooks/queries/useTicketsQuery";
 import { useUiStore } from "../store/uiStore";
 import * as t from "../styles/theme";
@@ -104,13 +105,14 @@ export default function TicketsPage() {
     ];
 
     return (
-        <section style={{ display: "grid", gap: "18px", width: "100%" }}>
-            <div>
-                <h2 style={{ margin: 0 }}>Tickets</h2>
-                <p style={{ ...copyStyle, marginTop: "4px", marginBottom: 0, fontSize: "0.9rem" }}>Search by ticket number, customer, phone, issue, or model.</p>
-            </div>
+        <section style={{ display: "grid", gap: "16px", width: "100%" }}>
+            <PageHeader
+                kicker="Ticket Management"
+                title="Tickets"
+                description="Search by ticket number, customer, phone, issue, or model."
+            />
 
-            <div style={panelStyle}>
+            <SectionCard title="Search and saved views" compact>
                 <div style={{ ...t.formStack, gap: "8px" }}>
                     <ScannerInput
                         value={search}
@@ -151,9 +153,9 @@ export default function TicketsPage() {
                         ))}
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
-            <div style={panelStyle}>
+            <SectionCard title="Ticket list" compact>
                 <LoadingBoundary loading={isLoading} error={error instanceof Error ? error.message : null} loadingMessage="Loading tickets…">
                     <DataTable
                         rows={filtered}
@@ -174,13 +176,13 @@ export default function TicketsPage() {
                                         }
                                     }}
                                 >
-                                    Copy Phone
+                                    Copy phone
                                 </button>
                             </div>
                         )}
                     />
                 </LoadingBoundary>
-            </div>
+            </SectionCard>
         </section>
     );
 }
@@ -189,7 +191,4 @@ function formatDate(value: string) {
     return new Date(value).toLocaleString();
 }
 
-// ─── theme aliases ───
-const panelStyle = t.panel;
-const copyStyle = t.copy;
 const metaStyle = t.meta;

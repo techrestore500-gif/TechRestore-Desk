@@ -12,6 +12,7 @@ import {
     type TicketSummary,
 } from "../api/tickets";
 import { QUICK_REPAIR_STATUSES, QUICK_REPAIR_STATUS_COLORS } from "../lib/repairFlow";
+import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 type QuickFormState = {
@@ -204,15 +205,14 @@ export default function IntakePage() {
 
     return (
         <section style={t.pageWrap}>
-            <div style={{ ...t.formActionsRow, justifyContent: "space-between", alignItems: "baseline" }}>
-                <div>
-                    <h2 style={{ margin: 0 }}>Quick New Repair</h2>
-                    <p style={{ ...t.pageIntro, marginTop: "6px" }}>Single-screen intake built for walk-ins. Tab through fields and press Ctrl+Enter to create.</p>
-                </div>
-                <div style={{ fontSize: "0.84rem", color: "#4b635d", fontWeight: 700 }}>Target: under 15 seconds</div>
-            </div>
+            <PageHeader
+                kicker="Intake"
+                title="Quick New Repair"
+                description="Single-screen intake built for walk-ins. Tab through fields and press Ctrl+Enter to create."
+                actions={<div style={{ fontSize: "0.84rem", color: "#4b635d", fontWeight: 700 }}>Target: under 15 seconds</div>}
+            />
 
-            <div style={quickPanelStyle}>
+            <SectionCard tone="accent">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -398,7 +398,7 @@ export default function IntakePage() {
                         </button>
                     </div>
                 </form>
-            </div>
+            </SectionCard>
         </section>
     );
 }
@@ -409,13 +409,13 @@ const primaryButtonStyle = t.primaryBtn;
 
 const quickPanelStyle = {
     ...t.panel,
-    borderRadius: "20px",
+    borderRadius: "18px",
     background: "linear-gradient(158deg, rgba(255,255,255,0.96) 0%, rgba(244,250,247,0.95) 48%, rgba(238,248,245,0.92) 100%)",
 };
 
 const quickFormLayoutStyle = {
     display: "grid",
-    gap: "14px",
+    gap: "16px",
     minWidth: 0,
 };
 
@@ -426,7 +426,7 @@ const formSectionStyle = {
 };
 
 const sectionTitleStyle = {
-    fontSize: "0.73rem",
+    fontSize: "0.77rem",
     letterSpacing: "0.04em",
     textTransform: "uppercase" as const,
     color: "#56706a",
@@ -436,7 +436,7 @@ const sectionTitleStyle = {
 const twoColumnGridStyle = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "12px 16px",
+    gap: "16px 18px",
     minWidth: 0,
 };
 
@@ -479,8 +479,8 @@ const statusRowStyle = {
 const statusChipStyle = {
     borderRadius: "999px",
     border: "1px solid transparent",
-    padding: "7px 12px",
+    padding: "10px 12px",
     fontWeight: 700,
     cursor: "pointer",
-    fontSize: "0.82rem",
+    fontSize: "0.84rem",
 };
