@@ -70,6 +70,11 @@ tech-restore-desk/
   data/
   backups/
   docs/
+  reports/
+    ux/
+    auth_and_access/
+    operations/
+    voicemail/
 ```
 
 ## Backend setup
@@ -136,6 +141,7 @@ Services:
 - Seed data is limited to supported device models and repair categories for Phase 0.
 - Soldering-required repair categories remain flagged as unsupported for standard v1 workflow.
 - App-level implementation notes live in `tech-restore-desk/docs/`.
+- Historical audit/incident/redesign reports live in `tech-restore-desk/reports/`.
 - Visual consistency guidelines live in `tech-restore-desk/docs/UI_SYSTEM_GUIDE.md`.
 - Production hosting runbook lives in `tech-restore-desk/docs/PRODUCTION_DEPLOYMENT.md`.
 
