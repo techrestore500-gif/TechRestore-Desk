@@ -85,10 +85,13 @@ def authenticate_bearer_token(token: str) -> dict:
         return user
 
     user = AuthService.get_user(uid)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
     status = str(user.get("status") or "").strip().lower()
     if status in {"pending", "denied", "disabled"}:
         raise HTTPException(status_code=401, detail="Invalid user")
-    if user is None or not bool(user.get("is_active")):
+    if not bool(user.get("is_active")):
         raise HTTPException(status_code=401, detail="Invalid user")
     set_actor(user)
     return user

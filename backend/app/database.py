@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
+from cryptography.fernet import Fernet, InvalidToken
+
 from app.core.query_metrics import query_metrics_registry
 from app.core.request_context import get_request_id
 from app.seed import REPAIR_CATEGORIES, SUPPORTED_DEVICE_MODELS
@@ -813,14 +815,22 @@ def _get_twilio_cipher_secret() -> bytes:
     return hashlib.sha256(get_settings().signed_url_secret.encode("utf-8")).digest()
 
 
-def _encrypt_twilio_value(value: str) -> str:
+def _get_twilio_fernet() -> Fernet:
+    key = base64.urlsafe_b64encode(_get_twilio_cipher_secret())
+    return Fernet(key)
+
+
+TWILIO_TOKEN_V2_PREFIX = "v2:"
+
+
+def _encrypt_twilio_value_legacy(value: str) -> str:
     secret = _get_twilio_cipher_secret()
     raw = value.encode("utf-8")
     encrypted = bytes(byte ^ secret[index % len(secret)] for index, byte in enumerate(raw))
     return base64.urlsafe_b64encode(encrypted).decode("ascii")
 
 
-def _decrypt_twilio_value(value: str | None) -> str | None:
+def _decrypt_twilio_value_legacy(value: str | None) -> str | None:
     if not value:
         return None
 
@@ -835,6 +845,26 @@ def _decrypt_twilio_value(value: str | None) -> str | None:
         return decrypted.decode("utf-8")
     except UnicodeDecodeError:
         return None
+
+
+def _encrypt_twilio_value(value: str) -> str:
+    token = _get_twilio_fernet().encrypt(value.encode("utf-8")).decode("ascii")
+    return f"{TWILIO_TOKEN_V2_PREFIX}{token}"
+
+
+def _decrypt_twilio_value(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    if value.startswith(TWILIO_TOKEN_V2_PREFIX):
+        encrypted = value.removeprefix(TWILIO_TOKEN_V2_PREFIX)
+        try:
+            return _get_twilio_fernet().decrypt(encrypted.encode("ascii")).decode("utf-8")
+        except (InvalidToken, ValueError, UnicodeError):
+            return None
+
+    # Backward compatibility for pre-v2 records.
+    return _decrypt_twilio_value_legacy(value)
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:

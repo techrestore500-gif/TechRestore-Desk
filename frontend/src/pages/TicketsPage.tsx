@@ -165,7 +165,7 @@ export default function TicketsPage() {
                         onPageChange={setPage}
                         bulkActions={bulkActions}
                         rowActions={(ticket: TicketSummary) => (
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", whiteSpace: "nowrap" }}>
                                 <Link to={`/tickets/${ticket.id}`} style={{ ...t.miniBtn, textDecoration: "none" }}>Open</Link>
                                 <button
                                     type="button"

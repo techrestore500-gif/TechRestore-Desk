@@ -66,6 +66,9 @@ export function DataTable<T extends { id: number | string }>({
     const pagedRows = sortedRows.slice(startIndex, startIndex + pageSize);
 
     const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+    const hasBulkActions = Boolean(bulkActions && bulkActions.length > 0);
+    const hasRowActions = Boolean(rowActions);
+    const minTableWidth = Math.max(980, columns.length * 160 + (hasBulkActions ? 70 : 0) + (hasRowActions ? 170 : 0));
 
     const toggleSort = (column: Column<T>) => {
         if (!column.sortable) {
@@ -110,10 +113,10 @@ export function DataTable<T extends { id: number | string }>({
                 </div>
             ) : null}
             <div style={{ overflowX: "auto", border: "1px solid #d7e0df", borderRadius: "12px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "#fff" }}>
+                <table style={{ width: "100%", minWidth: `${minTableWidth}px`, borderCollapse: "collapse", backgroundColor: "#fff" }}>
                     <thead style={{ backgroundColor: "#1f4a41", color: "#f7f5ee" }}>
                         <tr>
-                            {bulkActions && bulkActions.length > 0 ? <th style={thStyle}>Select</th> : null}
+                            {hasBulkActions ? <th style={thStyle}>Select</th> : null}
                             {columns.map((column) => (
                                 <th
                                     key={column.key}
@@ -124,20 +127,20 @@ export function DataTable<T extends { id: number | string }>({
                                     {sortBy === column.key ? (sortDirection === "asc" ? " ▲" : " ▼") : ""}
                                 </th>
                             ))}
-                            {rowActions ? <th style={thStyle}>Actions</th> : null}
+                            {hasRowActions ? <th style={thStyle}>Actions</th> : null}
                         </tr>
                     </thead>
                     <tbody>
                         {pagedRows.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length + (rowActions ? 1 : 0) + (bulkActions?.length ? 1 : 0)} style={tdStyle}>
+                                <td colSpan={columns.length + (hasRowActions ? 1 : 0) + (hasBulkActions ? 1 : 0)} style={tdStyle}>
                                     No records.
                                 </td>
                             </tr>
                         ) : (
                             pagedRows.map((row) => (
                                 <tr key={String(row.id)}>
-                                    {bulkActions && bulkActions.length > 0 ? (
+                                    {hasBulkActions ? (
                                         <td style={tdStyle}>
                                             <input
                                                 type="checkbox"
@@ -181,10 +184,15 @@ const thStyle = {
     textAlign: "left" as const,
     borderBottom: "1px solid rgba(255,255,255,0.22)",
     fontSize: "0.9rem",
+    whiteSpace: "nowrap" as const,
+    overflowWrap: "normal" as const,
+    wordBreak: "normal" as const,
 };
 
 const tdStyle = {
     padding: "10px",
     borderBottom: "1px solid #ebf1ef",
     verticalAlign: "top" as const,
+    overflowWrap: "normal" as const,
+    wordBreak: "normal" as const,
 };

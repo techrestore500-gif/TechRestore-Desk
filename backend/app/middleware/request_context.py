@@ -7,6 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.auth.dependencies import auth_enforcement_enabled
 from app.core.request_context import reset_context, set_actor, set_request_id
 from app.utils.jwt import decode_access_token
 
@@ -29,7 +30,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 
 def _extract_actor_from_request(request: Request) -> dict | None:
-    if os.getenv("TECH_RESTORE_AUTH_BYPASS", "1") == "1":
+    if not auth_enforcement_enabled():
         return {
             "id": 0,
             "username": "dev-bypass",

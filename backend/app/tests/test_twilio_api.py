@@ -1,8 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
+import base64
+import hashlib
 
 import app.database as database
 from app.main import app
+from app.core.settings import get_settings
 from app.services.twilio import TwilioAudioFetchError, TwilioService
 
 
@@ -71,6 +74,39 @@ class TestTwilioSettings:
         assert payload["configured"] is True
         assert "secret-token-123" not in get_resp.text
         assert "auth_token" not in payload
+
+        with database.get_connection() as connection:
+            row = connection.execute(
+                "SELECT auth_token_ciphertext FROM twilio_settings WHERE id = 1"
+            ).fetchone()
+        assert row is not None
+        assert isinstance(row["auth_token_ciphertext"], str)
+        assert row["auth_token_ciphertext"].startswith("v2:")
+
+    def test_legacy_twilio_token_ciphertext_is_still_readable(self, client):
+        database.update_twilio_settings(
+            {
+                "account_sid": "TWILIO_ACCOUNT_SID_LEGACY",
+                "auth_token": "bootstrap-token",
+                "phone_number": "+15555550199",
+            }
+        )
+
+        secret = hashlib.sha256(get_settings().signed_url_secret.encode("utf-8")).digest()
+        legacy_plaintext = "legacy-token-compat"
+        encrypted = bytes(
+            byte ^ secret[index % len(secret)] for index, byte in enumerate(legacy_plaintext.encode("utf-8"))
+        )
+        legacy_ciphertext = base64.urlsafe_b64encode(encrypted).decode("ascii")
+
+        with database.get_connection() as connection:
+            connection.execute(
+                "UPDATE twilio_settings SET auth_token_ciphertext = ? WHERE id = 1",
+                (legacy_ciphertext,),
+            )
+            connection.commit()
+
+        assert database.get_decrypted_twilio_auth_token() == legacy_plaintext
 
     def test_clear_settings(self, client):
         client.put(
