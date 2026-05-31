@@ -85,17 +85,19 @@ const headerRowStyle: CSSProperties = {
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: "12px",
+    gap: "14px",
     flexWrap: "wrap",
 };
 
 const headerShellStyle: CSSProperties = {
     ...t.panel,
-    padding: "18px 20px",
+    padding: "18px 20px 16px",
     display: "grid",
-    gap: "8px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,241,227,0.96) 100%)",
-    borderLeft: "5px solid #be8b2b",
+    gap: "10px",
+    background: "linear-gradient(150deg, rgba(255,255,255,0.9) 0%, rgba(233,246,245,0.82) 62%, rgba(241,232,216,0.86) 100%)",
+    borderLeft: "5px solid #238f8a",
+    position: "relative",
+    overflow: "hidden",
 };
 
 const actionsWrapStyle: CSSProperties = {
@@ -109,7 +111,7 @@ const baseSectionStyle: CSSProperties = {
     ...t.panel,
     display: "grid",
     gap: "12px",
-    borderTop: "4px solid rgba(190, 139, 43, 0.75)",
+    borderTop: "4px solid rgba(35, 143, 138, 0.72)",
 };
 
 const compactStyle: CSSProperties = {
@@ -120,39 +122,40 @@ const compactStyle: CSSProperties = {
 const toneStyles: Record<"default" | "soft" | "accent", CSSProperties> = {
     default: {},
     soft: {
-        background: "linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(247,250,248,0.95) 100%)",
+        background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(236,244,245,0.86) 100%)",
     },
     accent: {
-        background: "linear-gradient(145deg, rgba(255,246,213,0.98) 0%, rgba(248,231,181,0.96) 100%)",
+        background: "linear-gradient(145deg, rgba(255,235,196,0.98) 0%, rgba(243,188,126,0.92) 100%)",
+        borderTopColor: "rgba(228, 141, 55, 0.88)",
     },
 };
 
 const metricTileStyle: CSSProperties = {
     ...t.subCard,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(250,244,231,0.96) 100%)",
-    border: "1px solid rgba(24, 34, 30, 0.12)",
+    background: "linear-gradient(175deg, rgba(255,255,255,0.92) 0%, rgba(235,246,246,0.9) 100%)",
+    border: "1px solid rgba(22, 48, 54, 0.13)",
     display: "grid",
     gap: "4px",
-    boxShadow: "0 10px 18px rgba(18, 33, 29, 0.06)",
+    boxShadow: "0 11px 20px rgba(18, 43, 49, 0.08)",
 };
 
 const metricLabelStyle: CSSProperties = {
-    color: "#7b5f25",
+    color: "#2b6d75",
     fontSize: "0.74rem",
     fontWeight: 800,
-    letterSpacing: "0.08em",
+    letterSpacing: "0.1em",
     textTransform: "uppercase",
 };
 
 const metricValueStyle: CSSProperties = {
-    color: "#132f29",
+    color: "#113641",
     fontSize: "1.65rem",
     fontWeight: 800,
     lineHeight: 1.05,
 };
 
 const metricHintStyle: CSSProperties = {
-    color: "#5d716b",
+    color: "#4f6670",
     fontSize: "0.84rem",
 };
 
@@ -162,21 +165,21 @@ const stateStyles: Record<string, CSSProperties> = {
     },
     success: {
         ...t.stateBanner,
-        borderColor: "#a7f3d0",
-        background: "#ecfdf5",
-        color: "#065f46",
+        borderColor: "#8ce4cf",
+        background: "#e6fbf3",
+        color: "#0a6553",
     },
     warning: {
         ...t.stateBanner,
-        borderColor: "#f3c481",
-        background: "#fff1dd",
-        color: "#8a4b00",
+        borderColor: "#eeb877",
+        background: "#fff0da",
+        color: "#8a4a09",
     },
     error: {
         ...t.stateBanner,
-        borderColor: "#f8b4b4",
-        background: "#fde8e8",
-        color: "#9b2c2c",
+        borderColor: "#f3a9a9",
+        background: "#ffeaea",
+        color: "#9d2929",
     },
 };
 

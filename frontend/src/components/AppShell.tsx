@@ -27,58 +27,91 @@ const S = {
     root: {
         display: "flex" as const,
         minHeight: "100vh",
-        fontFamily: '"Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif',
-        color: "#16302a",
-        background: "linear-gradient(135deg, #f6efe2 0%, #eadcbf 38%, #d8c08f 100%)",
+        fontFamily: '"Sora", "Plus Jakarta Sans", "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif',
+        color: "#102b33",
+        background: "transparent",
         position: "relative" as const,
+        isolation: "isolate" as const,
+    },
+    auraLayer: {
+        position: "fixed" as const,
+        inset: 0,
+        pointerEvents: "none" as const,
+        zIndex: 0,
+    },
+    auraPrimary: {
+        position: "absolute" as const,
+        width: "36vw",
+        height: "36vw",
+        minWidth: "340px",
+        minHeight: "340px",
+        borderRadius: "50%",
+        left: "-8vw",
+        top: "-12vw",
+        background: "radial-gradient(circle, rgba(31, 161, 153, 0.24) 0%, rgba(31, 161, 153, 0) 70%)",
+        filter: "blur(2px)",
+        animation: "auraShift 13s ease-in-out infinite",
+    },
+    auraSecondary: {
+        position: "absolute" as const,
+        width: "42vw",
+        height: "42vw",
+        minWidth: "360px",
+        minHeight: "360px",
+        borderRadius: "50%",
+        right: "-12vw",
+        bottom: "-20vw",
+        background: "radial-gradient(circle, rgba(247, 175, 101, 0.2) 0%, rgba(247, 175, 101, 0) 68%)",
+        animation: "auraShift 16s ease-in-out infinite reverse",
     },
     sidebar: {
-        width: "252px",
+        width: "286px",
         flexShrink: 0,
         display: "flex" as const,
         flexDirection: "column" as const,
-        background: "linear-gradient(180deg, #162f29 0%, #10241f 100%)",
-        borderRight: "1px solid rgba(246, 240, 224, 0.08)",
-        backdropFilter: "blur(8px)",
+        background: "linear-gradient(180deg, rgba(14, 35, 42, 0.96) 0%, rgba(11, 24, 32, 0.98) 100%)",
+        borderRight: "1px solid rgba(136, 205, 198, 0.18)",
+        backdropFilter: "blur(14px)",
         position: "sticky" as const,
         top: 0,
         height: "100vh",
         overflowY: "auto" as const,
         zIndex: 20,
+        boxShadow: "16px 0 32px rgba(11, 21, 28, 0.34)",
     },
     brand: {
-        padding: "22px 18px 16px",
-        borderBottom: "1px solid rgba(246, 240, 224, 0.08)",
-        background: "linear-gradient(180deg, rgba(215, 180, 95, 0.12) 0%, rgba(16, 36, 31, 0) 100%)",
+        padding: "24px 18px 17px",
+        borderBottom: "1px solid rgba(126, 188, 182, 0.22)",
+        background: "linear-gradient(180deg, rgba(36, 115, 108, 0.34) 0%, rgba(16, 31, 37, 0) 100%)",
     },
     phase: {
-        fontSize: "0.65rem",
-        letterSpacing: "0.2em",
+        fontSize: "0.63rem",
+        letterSpacing: "0.24em",
         textTransform: "uppercase" as const,
-        color: "#d7ba6e",
-        fontWeight: 700,
+        color: "#95dacd",
+        fontWeight: 800,
         marginBottom: "6px",
     },
     appName: {
-        fontSize: "1.24rem",
+        fontSize: "1.36rem",
         fontWeight: 800,
-        letterSpacing: "0.01em",
-        color: "#f7f1e3",
-        lineHeight: 1.2,
+        letterSpacing: "-0.02em",
+        color: "#f0fcfb",
+        lineHeight: 1.14,
         margin: 0,
     },
     tagLine: {
-        marginTop: "5px",
-        fontSize: "0.75rem",
-        color: "#c9d5cf",
+        marginTop: "7px",
+        fontSize: "0.76rem",
+        color: "#b2d1cc",
         lineHeight: 1.4,
     },
     logoutBtn: {
         marginTop: "8px",
-        border: "1px solid rgba(246, 240, 224, 0.14)",
+        border: "1px solid rgba(243, 137, 120, 0.36)",
         borderRadius: "10px",
-        background: "rgba(255,255,255,0.06)",
-        color: "#f8d7d3",
+        background: "rgba(255,255,255,0.04)",
+        color: "#ffd4cb",
         cursor: "pointer",
         fontSize: "0.78rem",
         fontWeight: 700,
@@ -87,42 +120,42 @@ const S = {
     nav: {
         display: "flex" as const,
         flexDirection: "column" as const,
-        gap: "14px",
-        padding: "14px 10px 10px",
+        gap: "16px",
+        padding: "16px 12px 10px",
         flex: 1,
     },
     navGroup: {
         display: "grid" as const,
-        gap: "6px",
+        gap: "8px",
     },
     navGroupLabel: {
-        margin: "0 4px",
-        fontSize: "0.68rem",
-        letterSpacing: "0.16em",
+        margin: "0 6px",
+        fontSize: "0.64rem",
+        letterSpacing: "0.2em",
         textTransform: "uppercase" as const,
         fontWeight: 800,
-        color: "#aab7b2",
+        color: "#85a9af",
     },
     profileCard: {
-        margin: "10px",
-        padding: "10px 11px",
-        borderRadius: "12px",
-        border: "1px solid rgba(246, 240, 224, 0.12)",
-        background: "rgba(255,255,255,0.08)",
+        margin: "12px",
+        padding: "12px 12px",
+        borderRadius: "14px",
+        border: "1px solid rgba(133, 193, 188, 0.28)",
+        background: "linear-gradient(160deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 100%)",
         display: "grid" as const,
-        gap: "4px",
+        gap: "5px",
     },
     profileName: {
         margin: 0,
-        fontSize: "0.84rem",
-        fontWeight: 700,
-        color: "#f8f2e6",
+        fontSize: "0.86rem",
+        fontWeight: 750,
+        color: "#eafffd",
         lineHeight: 1.2,
     },
     profileMeta: {
         margin: 0,
         fontSize: "0.74rem",
-        color: "#d3ddd8",
+        color: "#b5cfd2",
         lineHeight: 1.35,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -134,10 +167,10 @@ const S = {
         flexWrap: "wrap" as const,
     },
     profileLink: {
-        border: "1px solid rgba(246, 240, 224, 0.16)",
+        border: "1px solid rgba(126, 188, 182, 0.24)",
         borderRadius: "8px",
         padding: "5px 8px",
-        color: "#f8f2e6",
+        color: "#e8fbf8",
         textDecoration: "none",
         fontSize: "0.74rem",
         fontWeight: 700,
@@ -146,39 +179,42 @@ const S = {
     linkBase: {
         display: "flex" as const,
         alignItems: "center" as const,
-        padding: "10px 13px",
-        borderRadius: "13px",
+        padding: "11px 13px",
+        borderRadius: "12px",
         textDecoration: "none",
-        color: "#eef3ef",
-        fontWeight: 600,
-        fontSize: "0.92rem",
+        color: "#d9f4f0",
+        fontWeight: 650,
+        fontSize: "0.9rem",
         letterSpacing: "0.01em",
-        transition: "background 140ms ease, color 140ms ease, box-shadow 140ms ease",
-        border: "1px solid transparent",
+        transition: "background 170ms ease, color 170ms ease, box-shadow 170ms ease, border-color 170ms ease",
+        border: "1px solid rgba(126, 188, 182, 0.08)",
+        position: "relative" as const,
     },
     main: {
         flex: 1,
         minWidth: 0,
-        padding: "26px 30px 38px",
+        padding: "28px 30px 40px",
+        position: "relative" as const,
+        zIndex: 1,
     },
     mobileTopBar: {
         display: "flex" as const,
         alignItems: "center" as const,
         justifyContent: "space-between" as const,
         gap: "12px",
-        border: "1px solid rgba(19, 49, 42, 0.12)",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.75)",
-        padding: "10px 12px",
+        border: "1px solid rgba(19, 49, 58, 0.16)",
+        borderRadius: "14px",
+        background: "linear-gradient(150deg, rgba(255,255,255,0.86) 0%, rgba(242,247,247,0.78) 100%)",
+        padding: "10px 11px",
         marginBottom: "14px",
-        boxShadow: "0 12px 24px rgba(19, 47, 41, 0.12)",
-        backdropFilter: "blur(4px)",
+        boxShadow: "0 12px 26px rgba(18, 48, 56, 0.14)",
+        backdropFilter: "blur(8px)",
     },
     menuBtn: {
-        border: "1px solid rgba(246, 240, 224, 0.16)",
+        border: "1px solid rgba(20, 78, 84, 0.2)",
         borderRadius: "10px",
-        background: "linear-gradient(145deg, #d9b85d 0%, #be8b2b 100%)",
-        color: "#132f29",
+        background: "linear-gradient(145deg, #1f9184 0%, #146a65 100%)",
+        color: "#eefdfb",
         cursor: "pointer",
         padding: "8px 10px",
         fontWeight: 700,
@@ -187,14 +223,14 @@ const S = {
     },
     mobilePageTitle: {
         margin: 0,
-        fontSize: "0.95rem",
-        color: "#16302a",
-        fontWeight: 700,
+        fontSize: "0.9rem",
+        color: "#153741",
+        fontWeight: 750,
     },
     overlay: {
         position: "fixed" as const,
         inset: 0,
-        background: "rgba(14, 22, 19, 0.36)",
+        background: "rgba(9, 20, 28, 0.42)",
         border: "none",
         zIndex: 15,
     },
@@ -270,6 +306,10 @@ export function AppShell() {
 
     return (
         <div style={S.root}>
+            <div style={S.auraLayer}>
+                <div style={S.auraPrimary} />
+                <div style={S.auraSecondary} />
+            </div>
             <CommandPalette />
             {isMobile && sidebarOpen ? <button type="button" aria-label="Close navigation" style={S.overlay} onClick={() => setSidebarOpen(false)} /> : null}
 
@@ -291,32 +331,34 @@ export function AppShell() {
                                     style={({ isActive }) => ({
                                         ...S.linkBase,
                                         background: isActive
-                                            ? "linear-gradient(135deg, #d9b85d 0%, #be8b2b 100%)"
+                                            ? "linear-gradient(145deg, #29ae9f 0%, #1f8a83 62%, #166267 100%)"
                                             : item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,241,198,0.96) 0%, rgba(248, 211, 116, 0.9) 100%)"
+                                                ? "linear-gradient(145deg, rgba(255,226,167,0.98) 0%, rgba(243, 171, 88, 0.92) 100%)"
                                                 : "transparent",
-                                        color: isActive ? "#132f29" : item.to === "/intake" ? "#734d00" : "#eef3ef",
+                                        color: isActive ? "#eafffd" : item.to === "/intake" ? "#6a3904" : "#d9f4f0",
                                         boxShadow: isActive
-                                            ? "0 8px 16px rgba(190, 139, 43, 0.28)"
+                                            ? "0 10px 20px rgba(26, 122, 118, 0.34)"
                                             : item.to === "/intake"
-                                                ? "0 6px 12px rgba(190, 139, 43, 0.18)"
+                                                ? "0 9px 17px rgba(211, 132, 47, 0.3)"
                                                 : "none",
-                                        borderColor: isActive ? "#be8b2b" : item.to === "/intake" ? "rgba(190, 139, 43, 0.24)" : "transparent",
+                                        borderColor: isActive ? "rgba(144, 247, 233, 0.5)" : item.to === "/intake" ? "rgba(236, 156, 74, 0.55)" : "rgba(126, 188, 182, 0.08)",
                                     })}
                                     onMouseEnter={(e) => {
                                         const el = e.currentTarget;
                                         if (!el.classList.contains("active")) {
                                             el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,241,198,1) 0%, rgba(248, 211, 116, 0.96) 100%)"
-                                                : "rgba(255,255,255,0.08)";
+                                                ? "linear-gradient(145deg, rgba(255,233,180,1) 0%, rgba(243, 171, 88, 0.96) 100%)"
+                                                : "rgba(126, 188, 182, 0.14)";
+                                            el.style.borderColor = "rgba(126, 188, 182, 0.3)";
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         const el = e.currentTarget;
                                         if (!el.classList.contains("active")) {
                                             el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,241,198,0.96) 0%, rgba(248, 211, 116, 0.9) 100%)"
+                                                ? "linear-gradient(145deg, rgba(255,226,167,0.98) 0%, rgba(243, 171, 88, 0.92) 100%)"
                                                 : "transparent";
+                                            el.style.borderColor = "rgba(126, 188, 182, 0.08)";
                                         }
                                     }}
                                     onClick={() => {

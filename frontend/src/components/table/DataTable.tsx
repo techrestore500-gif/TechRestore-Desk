@@ -95,26 +95,34 @@ export function DataTable<T extends { id: number | string }>({
     };
 
     return (
-        <div style={{ display: "grid", gap: "8px" }}>
+        <div style={{ display: "grid", gap: "10px" }}>
             {bulkActions && bulkActions.length > 0 ? (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                    <strong>{selectedRows.length} selected</strong>
+                    <strong style={{ color: "#123944" }}>{selectedRows.length} selected</strong>
                     {bulkActions.map((action) => (
                         <button
                             key={action.key}
                             type="button"
                             disabled={selectedRows.length === 0}
                             onClick={() => action.onClick(selectedRows)}
-                            style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid #bfd0cb", cursor: "pointer" }}
+                            style={{
+                                padding: "7px 11px",
+                                borderRadius: "10px",
+                                border: "1px solid rgba(20, 56, 63, 0.18)",
+                                background: "rgba(255,255,255,0.86)",
+                                color: "#173e47",
+                                fontWeight: 650,
+                                cursor: "pointer",
+                            }}
                         >
                             {action.label}
                         </button>
                     ))}
                 </div>
             ) : null}
-            <div style={{ overflowX: "auto", border: "1px solid #d7e0df", borderRadius: "12px" }}>
-                <table style={{ width: "100%", minWidth: `${minTableWidth}px`, borderCollapse: "collapse", backgroundColor: "#fff" }}>
-                    <thead style={{ backgroundColor: "#1f4a41", color: "#f7f5ee" }}>
+            <div style={{ overflowX: "auto", border: "1px solid rgba(20, 50, 58, 0.18)", borderRadius: "14px", boxShadow: "0 12px 24px rgba(20, 49, 56, 0.12)" }}>
+                <table style={{ width: "100%", minWidth: `${minTableWidth}px`, borderCollapse: "collapse", backgroundColor: "rgba(255,255,255,0.95)" }}>
+                    <thead style={{ background: "linear-gradient(145deg, #16464f 0%, #103742 100%)", color: "#edfcfa" }}>
                         <tr>
                             {hasBulkActions ? <th style={thStyle}>Select</th> : null}
                             {columns.map((column) => (
@@ -162,15 +170,15 @@ export function DataTable<T extends { id: number | string }>({
                 </table>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                <span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{ color: "#234650", fontWeight: 600 }}>
                     Page {currentPage} / {totalPages}
                 </span>
                 <div style={{ display: "flex", gap: "8px" }}>
-                    <button type="button" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage <= 1}>
+                    <button type="button" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} style={pagerButtonStyle}>
                         Prev
                     </button>
-                    <button type="button" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages}>
+                    <button type="button" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} style={pagerButtonStyle}>
                         Next
                     </button>
                 </div>
@@ -180,19 +188,30 @@ export function DataTable<T extends { id: number | string }>({
 }
 
 const thStyle = {
-    padding: "10px",
+    padding: "11px 10px",
     textAlign: "left" as const,
-    borderBottom: "1px solid rgba(255,255,255,0.22)",
-    fontSize: "0.9rem",
+    borderBottom: "1px solid rgba(236, 255, 251, 0.18)",
+    fontSize: "0.85rem",
+    letterSpacing: "0.03em",
+    textTransform: "uppercase" as const,
     whiteSpace: "nowrap" as const,
     overflowWrap: "normal" as const,
     wordBreak: "normal" as const,
 };
 
 const tdStyle = {
-    padding: "10px",
-    borderBottom: "1px solid #ebf1ef",
+    padding: "11px 10px",
+    borderBottom: "1px solid rgba(28, 58, 67, 0.09)",
     verticalAlign: "top" as const,
     overflowWrap: "normal" as const,
     wordBreak: "normal" as const,
+};
+
+const pagerButtonStyle = {
+    borderRadius: "10px",
+    border: "1px solid rgba(22, 52, 60, 0.18)",
+    background: "rgba(255,255,255,0.86)",
+    color: "#183f49",
+    fontWeight: 650,
+    padding: "6px 11px",
 };

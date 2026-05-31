@@ -5,47 +5,50 @@
  */
 import type { CSSProperties } from "react";
 
-/** Standard content panel — soft gradient card with shadow. */
+/** Standard content panel — frosted surface with angular geometry. */
 export const panel: CSSProperties = {
-    background: "linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 248, 240, 0.96) 100%)",
-    border: "1px solid rgba(24, 34, 30, 0.14)",
-    borderRadius: "20px",
+    background: "linear-gradient(150deg, rgba(255,255,255,0.9) 0%, rgba(246,241,234,0.84) 100%)",
+    border: "1px solid rgba(24, 42, 48, 0.15)",
+    borderRadius: "22px",
     padding: "18px 19px",
-    boxShadow: "0 14px 32px rgba(18, 33, 29, 0.11)",
+    boxShadow: "0 16px 38px rgba(22, 41, 46, 0.12)",
+    backdropFilter: "blur(8px)",
 };
 
-/** Primary action button — deep green gradient pill. */
+/** Primary action button — saturated cyan gradient with darker edge. */
 export const primaryBtn: CSSProperties = {
-    borderRadius: "999px",
-    border: "none",
-    background: "linear-gradient(145deg, #173f37 0%, #0f2f29 100%)",
-    color: "#f7f1e3",
-    padding: "11px 16px",
+    borderRadius: "12px",
+    border: "1px solid rgba(9, 64, 67, 0.16)",
+    background: "linear-gradient(145deg, #19a58f 0%, #13746f 55%, #0f4f53 100%)",
+    color: "#f2fffc",
+    padding: "11px 15px",
     cursor: "pointer",
-    fontWeight: 700,
-    boxShadow: "0 10px 20px rgba(12, 36, 31, 0.22)",
+    fontWeight: 750,
+    letterSpacing: "0.01em",
+    boxShadow: "0 11px 24px rgba(17, 83, 86, 0.26)",
     transition: "all 180ms ease",
 };
 
-/** Secondary / utility button — white pill with thin border. */
+/** Secondary / utility button — crisp neutral chip with quiet depth. */
 export const secondaryBtn: CSSProperties = {
-    borderRadius: "999px",
-    border: "1px solid rgba(24, 34, 30, 0.16)",
-    background: "rgba(255,255,255,0.82)",
-    color: "#173f37",
-    padding: "11px 16px",
+    borderRadius: "12px",
+    border: "1px solid rgba(26, 51, 58, 0.2)",
+    background: "rgba(255,255,255,0.78)",
+    color: "#163740",
+    padding: "11px 15px",
     cursor: "pointer",
     transition: "all 180ms ease",
 };
 
-/** Mini utility button — compact pill for quick-action rows. */
+/** Mini utility button — compact capsule for row actions. */
 export const miniBtn: CSSProperties = {
-    borderRadius: "999px",
-    border: "1px solid rgba(24, 34, 30, 0.12)",
-    background: "rgba(255,255,255,0.88)",
-    color: "#173f37",
-    padding: "7px 11px",
+    borderRadius: "10px",
+    border: "1px solid rgba(20, 49, 56, 0.16)",
+    background: "rgba(255,255,255,0.85)",
+    color: "#173b44",
+    padding: "7px 10px",
     cursor: "pointer",
+    fontWeight: 650,
     transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
 };
 
@@ -54,12 +57,12 @@ export const input: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    padding: "11px 14px",
-    borderRadius: "13px",
-    border: "1px solid rgba(24, 34, 30, 0.16)",
-    background: "rgba(255,255,255,0.96)",
+    padding: "11px 13px",
+    borderRadius: "11px",
+    border: "1px solid rgba(20, 52, 60, 0.17)",
+    background: "rgba(255,255,255,0.95)",
     fontSize: "1rem",
-    fontFamily: '"Avenir Next", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+    fontFamily: '"Sora", "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif',
     transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
 };
 
@@ -73,8 +76,8 @@ export const label: CSSProperties = {
 
 /** Body copy — readable line-height and muted green tone. */
 export const copy: CSSProperties = {
-    lineHeight: 1.6,
-    color: "#3d4f49",
+    lineHeight: 1.58,
+    color: "#2e454c",
 };
 
 /** Page intro copy — consistent spacing for page-level helper text. */
@@ -82,22 +85,22 @@ export const pageIntro: CSSProperties = {
     ...copy,
     marginTop: "4px",
     marginBottom: 0,
-    fontSize: "0.9rem",
+    fontSize: "0.93rem",
 };
 
 /** Small metadata line — muted color and slightly reduced size. */
 export const meta: CSSProperties = {
     marginTop: "6px",
-    color: "#60706a",
-    fontSize: "0.91rem",
+    color: "#55707a",
+    fontSize: "0.9rem",
 };
 
 /** Error banner for inline page-level failures. */
 export const errorBanner: CSSProperties = {
     padding: "10px 13px",
-    background: "#fef1f1",
-    color: "#a12727",
-    border: "1px solid #f4b7b7",
+    background: "#ffefee",
+    color: "#9a2929",
+    border: "1px solid #f2b1ad",
     borderRadius: "12px",
 };
 
@@ -106,10 +109,10 @@ export const tableShell: CSSProperties = {
     width: "100%",
     borderCollapse: "collapse",
     backgroundColor: "rgba(255,255,255,0.95)",
-    border: "1px solid rgba(24,34,30,0.12)",
+    border: "1px solid rgba(19,45,51,0.15)",
     borderRadius: "14px",
     overflow: "hidden",
-    boxShadow: "0 12px 26px rgba(18, 33, 29, 0.1)",
+    boxShadow: "0 14px 30px rgba(24, 45, 51, 0.11)",
 };
 
 export const tableHeaderCell: CSSProperties = {
@@ -124,18 +127,19 @@ export const tableCell: CSSProperties = {
 
 /** Inline sub-card for history items, notes, and usage rows. */
 export const subCard: CSSProperties = {
-    borderRadius: "14px",
-    background: "linear-gradient(180deg, #f7f1e7 0%, #f2eadc 100%)",
+    borderRadius: "16px",
+    background: "linear-gradient(155deg, rgba(255,255,255,0.9) 0%, rgba(236,242,244,0.82) 100%)",
     padding: "12px 14px",
+    border: "1px solid rgba(22, 49, 56, 0.1)",
 };
 
 /** Policy or constraint warning notice. */
 export const warning: CSSProperties = {
     padding: "11px 13px",
     borderRadius: "12px",
-    background: "#fff5e1",
-    color: "#8a5200",
-    border: "1px solid #efc86f",
+    background: "#fff4df",
+    color: "#81510f",
+    border: "1px solid #eec57b",
 };
 
 /** Section heading — removes top margin. */
@@ -147,12 +151,12 @@ export const heading: CSSProperties = {
 /** Status badge pill — used on ticket header and other prominent status displays. */
 export const statusBadge: CSSProperties = {
     alignSelf: "start",
-    borderRadius: "999px",
+    borderRadius: "11px",
     padding: "8px 12px",
-    background: "linear-gradient(145deg, #173f37 0%, #0f2f29 100%)",
-    color: "#f7f1e3",
+    background: "linear-gradient(145deg, #195c67 0%, #123f4a 100%)",
+    color: "#e8fbff",
     fontWeight: 700,
-    boxShadow: "0 10px 20px rgba(12, 36, 31, 0.2)",
+    boxShadow: "0 10px 18px rgba(14, 59, 67, 0.2)",
 };
 
 /** Responsive auto-fit grid for detail panels. */
@@ -206,11 +210,12 @@ export const formActionsRow: CSSProperties = {
 /** Page-level wrapper — fills the main content column with a vertical grid. */
 export const pageWrap: CSSProperties = {
     display: "grid",
-    gap: "16px",
+    gap: "18px",
     width: "100%",
     maxWidth: "1240px",
     margin: "0 auto",
     minWidth: 0,
+    animation: "riseIn 280ms ease",
 };
 
 export const pageHeader: CSSProperties = {
@@ -220,25 +225,25 @@ export const pageHeader: CSSProperties = {
 
 export const pageKicker: CSSProperties = {
     margin: 0,
-    color: "#7b5f25",
-    fontSize: "0.77rem",
+    color: "#245f67",
+    fontSize: "0.72rem",
     fontWeight: 800,
-    letterSpacing: "0.12em",
+    letterSpacing: "0.14em",
     textTransform: "uppercase",
 };
 
 export const pageTitle: CSSProperties = {
     margin: 0,
-    color: "#132f29",
-    lineHeight: 1.05,
-    fontSize: "1.72rem",
+    color: "#102b33",
+    lineHeight: 1.03,
+    fontSize: "1.9rem",
     fontWeight: 800,
 };
 
 export const pageDescription: CSSProperties = {
     ...copy,
     margin: 0,
-    fontSize: "0.95rem",
+    fontSize: "0.96rem",
 };
 
 export const sectionHeader: CSSProperties = {
@@ -247,33 +252,33 @@ export const sectionHeader: CSSProperties = {
     justifyContent: "space-between",
     gap: "10px",
     flexWrap: "wrap",
-    marginBottom: "14px",
+    marginBottom: "12px",
 };
 
 export const sectionTitle: CSSProperties = {
     margin: 0,
-    fontSize: "1.05rem",
-    color: "#132f29",
+    fontSize: "1.06rem",
+    color: "#143842",
 };
 
 export const sectionMeta: CSSProperties = {
     margin: 0,
-    color: "#60706a",
+    color: "#56707b",
     fontSize: "0.85rem",
 };
 
 export const compactSurface: CSSProperties = {
     ...panel,
     padding: "14px",
-    borderRadius: "16px",
+    borderRadius: "18px",
 };
 
 export const stateBanner: CSSProperties = {
     padding: "10px 13px",
     borderRadius: "11px",
-    border: "1px solid rgba(29, 43, 40, 0.12)",
+    border: "1px solid rgba(29, 58, 67, 0.15)",
     background: "#ffffff",
-    color: "#244038",
+    color: "#25434a",
 };
 
 // ─── Interactive state helpers (for onMouseEnter/onMouseLeave/onFocus) ───
@@ -281,13 +286,13 @@ export const stateBanner: CSSProperties = {
 /** Apply to input onFocus for visual feedback. */
 export function applyInputFocus(element: HTMLElement | null) {
     if (!element) return;
-    element.style.borderColor = "rgba(31, 102, 87, 0.4)";
-    element.style.boxShadow = "0 0 0 3px rgba(31, 102, 87, 0.08)";
+    element.style.borderColor = "rgba(25, 135, 132, 0.44)";
+    element.style.boxShadow = "0 0 0 3px rgba(25, 135, 132, 0.11)";
 }
 
 /** Reset input focus state. */
 export function resetInputFocus(element: HTMLElement | null) {
     if (!element) return;
-    element.style.borderColor = "rgba(29, 43, 40, 0.18)";
+    element.style.borderColor = "rgba(29, 58, 67, 0.17)";
     element.style.boxShadow = "none";
 }

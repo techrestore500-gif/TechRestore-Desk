@@ -457,27 +457,29 @@ export default function SettingsPage() {
             <PageHeader
                 kicker="Administration"
                 title="Settings Control Center"
-                description="Manage shop configuration, communication channels, workflow policy, and system safety tools in one place."
+                description="Manage shop configuration, communication channels, workflow policy, and system safety tools in focused lanes."
             />
 
-            <SectionCard title="Quick jump" compact>
-                <div style={{ ...t.formActionsRow, justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                        <strong style={{ color: "#173f37" }}>Quick jump</strong>
-                        <div style={{ ...t.meta, marginTop: "4px" }}>Jump directly to the area you need during front-desk operations.</div>
+            <SectionCard title="Control lanes" compact>
+                <div style={{ ...t.formStack, gap: "10px" }}>
+                    <div style={{ ...t.formActionsRow, justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                            <strong style={{ color: "#153d47" }}>Focused mode</strong>
+                            <div style={{ ...t.meta, marginTop: "4px" }}>Show one lane at a time for faster admin operations.</div>
+                        </div>
+                        <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                            <button type="button" style={settingsFocus === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("all")}>All</button>
+                            <button type="button" style={settingsFocus === "business" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("business")}>Business</button>
+                            <button type="button" style={settingsFocus === "communications" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("communications")}>Communications</button>
+                            <button type="button" style={settingsFocus === "workflow" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("workflow")}>Workflow</button>
+                            <button type="button" style={settingsFocus === "system" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("system")}>System</button>
+                        </div>
                     </div>
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                        <button type="button" style={settingsFocus === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("all")}>All</button>
-                        <button type="button" style={settingsFocus === "business" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("business")}>Business</button>
-                        <button type="button" style={settingsFocus === "communications" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("communications")}>Communications</button>
-                        <button type="button" style={settingsFocus === "workflow" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("workflow")}>Workflow</button>
-                        <button type="button" style={settingsFocus === "system" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("system")}>System</button>
-                    </div>
-                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                        <a href="#settings-business" style={{ ...t.miniBtn, textDecoration: "none" }}>Business</a>
-                        <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Communications</a>
-                        <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Workflow</a>
-                        <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System</a>
+                        <a href="#settings-business" style={{ ...t.miniBtn, textDecoration: "none" }}>Business lane</a>
+                        <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Communications lane</a>
+                        <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Workflow lane</a>
+                        <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System lane</a>
                     </div>
                 </div>
                 <div style={t.fieldGridTwoCompact}>

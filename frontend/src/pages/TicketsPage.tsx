@@ -41,6 +41,9 @@ export default function TicketsPage() {
         [tickets]
     );
 
+    const unpaidCount = filtered.filter((ticket) => ticket.payment_status !== "paid").length;
+    const openCount = filtered.filter((ticket) => ticket.status !== "Picked Up / Closed").length;
+
     const bulkActions = [
         {
             key: "copy-ticket-numbers",
@@ -105,55 +108,88 @@ export default function TicketsPage() {
     ];
 
     return (
-        <section style={{ display: "grid", gap: "16px", width: "100%" }}>
+        <section style={t.pageWrap}>
             <PageHeader
                 kicker="Ticket Management"
                 title="Tickets"
-                description="Search by ticket number, customer, phone, issue, or model."
+                description="Work incoming, active, and completion-ready repairs from one triage board."
+                actions={
+                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                        <Link to="/intake" style={{ ...t.primaryBtn, textDecoration: "none" }}>+ New Repair</Link>
+                        <Link to="/queue" style={{ ...t.secondaryBtn, textDecoration: "none" }}>Queue</Link>
+                    </div>
+                }
             />
 
-            <SectionCard title="Search and saved views" compact>
-                <div style={{ ...t.formStack, gap: "8px" }}>
-                    <ScannerInput
-                        value={search}
-                        onChange={setSearch}
-                        onScanSubmit={setSearch}
-                        placeholder="Search tickets"
-                    />
-                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={t.input}>
-                            <option value="">All statuses</option>
-                            {statuses.map((status) => (
-                                <option key={status} value={status}>
-                                    {status}
-                                </option>
-                            ))}
-                        </select>
-                        <input
-                            value={viewName}
-                            onChange={(event) => setViewName(event.target.value)}
-                            placeholder="Saved view name"
-                            style={{ ...t.input, flex: "1 1 180px", minWidth: 0, maxWidth: "320px" }}
-                        />
-                        <button
-                            type="button"
-                            style={t.secondaryBtn}
-                            onClick={() => {
-                                saveTicketView(viewName);
-                                setViewName("");
-                            }}
-                        >
-                            Save view
-                        </button>
-                        {Object.keys(ticketSavedViews).map((name) => (
-                            <div key={name} style={{ ...t.formActionsRow, gap: "4px" }}>
-                                <button type="button" style={t.miniBtn} onClick={() => applyTicketView(name)}>{name}</button>
-                                <button type="button" style={t.miniBtn} onClick={() => deleteTicketView(name)}>x</button>
-                            </div>
-                        ))}
-                    </div>
+            <div style={t.fieldGridTwoCompact}>
+                <div style={summaryTileStyle}>
+                    <div style={summaryLabelStyle}>Visible Tickets</div>
+                    <div style={summaryValueStyle}>{filtered.length}</div>
                 </div>
-            </SectionCard>
+                <div style={summaryTileStyle}>
+                    <div style={summaryLabelStyle}>Open Flow</div>
+                    <div style={summaryValueStyle}>{openCount}</div>
+                </div>
+                <div style={summaryTileStyle}>
+                    <div style={summaryLabelStyle}>Unpaid</div>
+                    <div style={summaryValueStyle}>{unpaidCount}</div>
+                </div>
+            </div>
+
+            <div style={ticketsWorkbenchStyle}>
+                <SectionCard title="Search and status filters" compact>
+                    <div style={{ ...t.formStack, gap: "8px" }}>
+                        <ScannerInput
+                            value={search}
+                            onChange={setSearch}
+                            onScanSubmit={setSearch}
+                            placeholder="Search tickets"
+                        />
+                        <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={t.input}>
+                                <option value="">All statuses</option>
+                                {statuses.map((status) => (
+                                    <option key={status} value={status}>
+                                        {status}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </SectionCard>
+
+                <SectionCard title="Saved views" compact tone="soft">
+                    <div style={{ ...t.formStack, gap: "8px" }}>
+                        <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                            <input
+                                value={viewName}
+                                onChange={(event) => setViewName(event.target.value)}
+                                placeholder="Saved view name"
+                                style={{ ...t.input, flex: "1 1 180px", minWidth: 0 }}
+                            />
+                            <button
+                                type="button"
+                                style={t.secondaryBtn}
+                                onClick={() => {
+                                    saveTicketView(viewName);
+                                    setViewName("");
+                                }}
+                            >
+                                Save view
+                            </button>
+                        </div>
+                        <div style={{ ...t.formActionsRow, gap: "6px" }}>
+                            {Object.keys(ticketSavedViews).length === 0 ? <span style={t.meta}>No saved views yet.</span> : null}
+                            {Object.keys(ticketSavedViews).map((name) => (
+                                <div key={name} style={{ ...t.formActionsRow, gap: "4px" }}>
+                                    <button type="button" style={t.miniBtn} onClick={() => applyTicketView(name)}>{name}</button>
+                                    <button type="button" style={t.miniBtn} onClick={() => deleteTicketView(name)}>x</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </SectionCard>
+            </div>
 
             <SectionCard title="Ticket list" compact>
                 <LoadingBoundary loading={isLoading} error={error instanceof Error ? error.message : null} loadingMessage="Loading tickets…">
@@ -192,3 +228,30 @@ function formatDate(value: string) {
 }
 
 const metaStyle = t.meta;
+
+const ticketsWorkbenchStyle = {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+};
+
+const summaryTileStyle = {
+    ...t.subCard,
+    display: "grid",
+    gap: "4px",
+    borderRadius: "14px",
+};
+
+const summaryLabelStyle = {
+    color: "#48707b",
+    fontSize: "0.76rem",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+};
+
+const summaryValueStyle = {
+    color: "#123943",
+    fontSize: "1.5rem",
+    fontWeight: 800,
+};

@@ -104,12 +104,17 @@ export default function DashboardPage() {
     }
 
     return (
-        <section style={{ display: "grid", gap: "16px", width: "100%", maxWidth: "1240px", margin: "0 auto" }}>
+        <section style={t.pageWrap}>
             <PageHeader
-                kicker="Today"
+                kicker="Live Desk"
                 title="Service Desk"
-                description="Fast repair tracking built for counter speed and technician flow."
-                actions={<Link to="/intake" style={newRepairButtonStyle}>+ New Repair</Link>}
+                description="Run intake, triage, and status movement from one command surface."
+                actions={
+                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                        <Link to="/intake" style={newRepairButtonStyle}>+ New Repair</Link>
+                        <Link to="/queue" style={quickLinkBtnStyle}>Open Queue</Link>
+                    </div>
+                }
             />
 
             <div style={heroPanelStyle}>
@@ -121,7 +126,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <SectionCard title="Quick search and filter">
+            <SectionCard title="Triage Console" description="Search active tickets, narrow by stage, and decide what needs attention next.">
                 <div style={{ display: "grid", gap: "10px" }}>
                     <input
                         value={search}
@@ -144,6 +149,7 @@ export default function DashboardPage() {
                                 <button
                                     key={status}
                                     type="button"
+                                    onClick={() => setFilterStatus(status)}
                                     style={{
                                         ...filterChipStyle,
                                         background: active ? colors.text : colors.bg,
@@ -166,83 +172,106 @@ export default function DashboardPage() {
             {updateError ? <div style={t.errorBanner}>{updateError}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
 
-            <div style={boardGridStyle}>
-                {filteredTickets.map((ticket) => {
-                    const uiStatus = toUiStatus(ticket.status);
-                    const statusColors = QUICK_REPAIR_STATUS_COLORS[uiStatus];
-                    const updatedLabel = new Date(ticket.updated_at).toLocaleString();
-                    return (
-                        <article key={ticket.id} style={ticketCardStyle}>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "start" }}>
-                                <Link to={`/tickets/${ticket.id}`} style={{ textDecoration: "none", color: "#163731", fontWeight: 800 }}>
-                                    {ticket.ticket_number}
-                                </Link>
-                                <span style={{ borderRadius: "999px", padding: "6px 10px", background: statusColors.bg, color: statusColors.text, border: `1px solid ${statusColors.border}`, fontSize: "0.78rem", fontWeight: 700 }}>
-                                    {uiStatus}
-                                </span>
-                            </div>
-                            <div style={{ fontWeight: 700, color: "#193d35", marginTop: "8px" }}>{ticket.customer_name}</div>
-                            <div style={{ marginTop: "4px", color: "#3d5d55", fontSize: "0.9rem" }}>{ticket.device_label}</div>
-                            <div style={{ marginTop: "4px", color: "#5a726c", fontSize: "0.85rem" }}>{ticket.issue_category}</div>
-                            <div style={{ marginTop: "8px", color: "#6d807b", fontSize: "0.77rem" }}>Updated {updatedLabel}</div>
+            <div style={deskLanesStyle}>
+                <SectionCard title={`Live ticket lane (${filteredTickets.length})`} description="Most recently updated tickets first.">
+                    <div style={boardGridStyle}>
+                        {filteredTickets.map((ticket) => {
+                            const uiStatus = toUiStatus(ticket.status);
+                            const statusColors = QUICK_REPAIR_STATUS_COLORS[uiStatus];
+                            const updatedLabel = new Date(ticket.updated_at).toLocaleString();
+                            return (
+                                <article key={ticket.id} style={ticketCardStyle}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "start" }}>
+                                        <Link to={`/tickets/${ticket.id}`} style={{ textDecoration: "none", color: "#163731", fontWeight: 800 }}>
+                                            {ticket.ticket_number}
+                                        </Link>
+                                        <span style={{ borderRadius: "999px", padding: "6px 10px", background: statusColors.bg, color: statusColors.text, border: `1px solid ${statusColors.border}`, fontSize: "0.78rem", fontWeight: 700 }}>
+                                            {uiStatus}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontWeight: 700, color: "#193d35", marginTop: "8px" }}>{ticket.customer_name}</div>
+                                    <div style={{ marginTop: "4px", color: "#3d5d55", fontSize: "0.9rem" }}>{ticket.device_label}</div>
+                                    <div style={{ marginTop: "4px", color: "#5a726c", fontSize: "0.85rem" }}>{ticket.issue_category}</div>
+                                    <div style={{ marginTop: "8px", color: "#6d807b", fontSize: "0.77rem" }}>Updated {updatedLabel}</div>
 
-                            <div style={{ ...t.formActionsRow, gap: "8px", marginTop: "12px" }}>
-                                {QUICK_REPAIR_STATUSES.map((status) => (
-                                    <button
-                                        key={status}
-                                        type="button"
-                                        onClick={() => void handleQuickStatusChange(ticket, status)}
-                                        disabled={updatingTicketId === ticket.id || status === uiStatus}
-                                        style={{
-                                            ...quickActionChipStyle,
-                                            opacity: status === uiStatus ? 0.55 : 1,
-                                        }}
-                                    >
-                                        {status}
-                                    </button>
+                                    <div style={{ ...t.formActionsRow, gap: "8px", marginTop: "12px" }}>
+                                        {QUICK_REPAIR_STATUSES.map((status) => (
+                                            <button
+                                                key={status}
+                                                type="button"
+                                                onClick={() => void handleQuickStatusChange(ticket, status)}
+                                                disabled={updatingTicketId === ticket.id || status === uiStatus}
+                                                style={{
+                                                    ...quickActionChipStyle,
+                                                    opacity: status === uiStatus ? 0.55 : 1,
+                                                }}
+                                            >
+                                                {status}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                </SectionCard>
+
+                <div style={{ display: "grid", gap: "12px", alignContent: "start" }}>
+                    <SectionCard title="Fast Actions" compact tone="soft">
+                        <div style={{ ...t.formStack, gap: "8px" }}>
+                            <Link to="/tickets" style={quickWorkflowCardStyle}>Open full ticket board</Link>
+                            <Link to="/operations" style={quickWorkflowCardStyle}>Open operations hub</Link>
+                            <Link to="/hours" style={quickWorkflowCardStyle}>Open technician hours</Link>
+                            <Link to="/voicemail" style={quickWorkflowCardStyle}>Open voicemail inbox</Link>
+                        </div>
+                    </SectionCard>
+
+                    <SectionCard title="Recent Customers" compact>
+                        {metrics.recentCustomers.length === 0 ? (
+                            <p style={t.copy}>No customer activity yet.</p>
+                        ) : (
+                            <div style={recentCustomersStyle}>
+                                {metrics.recentCustomers.map((customer) => (
+                                    <div key={`${customer.name}-${customer.phone ?? "none"}`} style={recentCustomerRowStyle}>
+                                        <strong>
+                                            <Link to={`/customers/${customer.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                                                {customer.name}
+                                            </Link>
+                                        </strong>
+                                        <span>{customer.phone || "No phone on file"}</span>
+                                    </div>
                                 ))}
                             </div>
-                        </article>
-                    );
-                })}
+                        )}
+                    </SectionCard>
+                </div>
             </div>
-
-            <SectionCard title="Recent Customers">
-                {metrics.recentCustomers.length === 0 ? (
-                    <p style={t.copy}>No customer activity yet.</p>
-                ) : (
-                    <div style={recentCustomersStyle}>
-                        {metrics.recentCustomers.map((customer) => (
-                            <div key={`${customer.name}-${customer.phone ?? "none"}`} style={recentCustomerRowStyle}>
-                                <strong>
-                                    <Link to={`/customers/${customer.id}`} style={{ color: "inherit", textDecoration: "none" }}>
-                                        {customer.name}
-                                    </Link>
-                                </strong>
-                                <span>{customer.phone || "No phone on file"}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </SectionCard>
         </section>
     );
 }
 
 const newRepairButtonStyle = {
     textDecoration: "none",
-    borderRadius: "999px",
-    padding: "12px 18px",
-    background: "linear-gradient(145deg, #196352 0%, #133f35 100%)",
-    color: "#f5efe3",
+    borderRadius: "12px",
+    padding: "11px 14px",
+    background: "linear-gradient(145deg, #1e9488 0%, #156e67 100%)",
+    color: "#f5fffd",
     fontWeight: 700,
-    boxShadow: "0 10px 20px rgba(18, 52, 45, 0.24)",
+    boxShadow: "0 10px 20px rgba(17, 85, 86, 0.26)",
+};
+
+const quickLinkBtnStyle = {
+    ...newRepairButtonStyle,
+    background: "rgba(255,255,255,0.86)",
+    color: "#16414b",
+    border: "1px solid rgba(20, 67, 73, 0.18)",
+    boxShadow: "none",
 };
 
 const heroPanelStyle = {
     ...t.panel,
     padding: "14px",
-    background: "radial-gradient(circle at 16% 14%, rgba(230, 250, 241, 0.96) 0%, rgba(255, 249, 238, 0.96) 45%, rgba(248, 236, 218, 0.96) 100%)",
+    background: "radial-gradient(circle at 16% 14%, rgba(222, 252, 246, 0.92) 0%, rgba(255, 249, 238, 0.94) 45%, rgba(244, 228, 200, 0.9) 100%)",
 };
 
 const metricGridStyle = {
@@ -274,6 +303,12 @@ const boardGridStyle = {
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
 };
 
+const deskLanesStyle = {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+};
+
 const ticketCardStyle = {
     ...t.panel,
     padding: "14px",
@@ -295,7 +330,7 @@ const quickActionChipStyle = {
 const recentCustomersStyle = {
     display: "grid",
     gap: "8px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: "1fr",
 };
 
 const recentCustomerRowStyle = {
@@ -306,4 +341,13 @@ const recentCustomerRowStyle = {
     display: "grid",
     gap: "4px",
     color: "#26463f",
+};
+
+const quickWorkflowCardStyle = {
+    ...t.subCard,
+    textDecoration: "none",
+    color: "#163b46",
+    fontWeight: 700,
+    borderRadius: "12px",
+    padding: "10px 12px",
 };
