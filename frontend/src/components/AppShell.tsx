@@ -31,18 +31,18 @@ const S = {
         display: "flex" as const,
         minHeight: "100vh",
         fontFamily: '"Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif',
-        color: "#15211e",
-        background: "radial-gradient(circle at 16% 8%, #f9f2df 0%, #efe1c8 38%, #e4d3bd 100%)",
+        color: "#16302a",
+        background: "linear-gradient(135deg, #f6efe2 0%, #eadcbf 38%, #d8c08f 100%)",
         position: "relative" as const,
     },
     sidebar: {
-        width: "228px",
+        width: "252px",
         flexShrink: 0,
         display: "flex" as const,
         flexDirection: "column" as const,
-        background: "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(240,232,218,0.52) 100%)",
-        borderRight: "1px solid rgba(24, 34, 30, 0.1)",
-        backdropFilter: "blur(4px)",
+        background: "linear-gradient(180deg, #162f29 0%, #10241f 100%)",
+        borderRight: "1px solid rgba(246, 240, 224, 0.08)",
+        backdropFilter: "blur(8px)",
         position: "sticky" as const,
         top: 0,
         height: "100vh",
@@ -50,37 +50,38 @@ const S = {
         zIndex: 20,
     },
     brand: {
-        padding: "20px 18px 14px",
-        borderBottom: "1px solid rgba(24, 34, 30, 0.08)",
+        padding: "22px 18px 16px",
+        borderBottom: "1px solid rgba(246, 240, 224, 0.08)",
+        background: "linear-gradient(180deg, rgba(215, 180, 95, 0.12) 0%, rgba(16, 36, 31, 0) 100%)",
     },
     phase: {
         fontSize: "0.65rem",
         letterSpacing: "0.2em",
         textTransform: "uppercase" as const,
-        color: "#5a7268",
+        color: "#d7ba6e",
         fontWeight: 700,
         marginBottom: "6px",
     },
     appName: {
-        fontSize: "1.18rem",
+        fontSize: "1.24rem",
         fontWeight: 800,
         letterSpacing: "0.01em",
-        color: "#13312b",
+        color: "#f7f1e3",
         lineHeight: 1.2,
         margin: 0,
     },
     tagLine: {
         marginTop: "5px",
         fontSize: "0.75rem",
-        color: "#4d6760",
+        color: "#c9d5cf",
         lineHeight: 1.4,
     },
     logoutBtn: {
         marginTop: "8px",
-        border: "1px solid rgba(19, 49, 42, 0.24)",
-        borderRadius: "9px",
-        background: "rgba(255,255,255,0.76)",
-        color: "#23443d",
+        border: "1px solid rgba(246, 240, 224, 0.14)",
+        borderRadius: "10px",
+        background: "rgba(255,255,255,0.06)",
+        color: "#f8d7d3",
         cursor: "pointer",
         fontSize: "0.78rem",
         fontWeight: 700,
@@ -89,8 +90,8 @@ const S = {
     nav: {
         display: "flex" as const,
         flexDirection: "column" as const,
-        gap: "12px",
-        padding: "12px 10px 10px",
+        gap: "14px",
+        padding: "14px 10px 10px",
         flex: 1,
     },
     navGroup: {
@@ -103,14 +104,14 @@ const S = {
         letterSpacing: "0.16em",
         textTransform: "uppercase" as const,
         fontWeight: 800,
-        color: "#6b7f77",
+        color: "#aab7b2",
     },
     profileCard: {
         margin: "10px",
         padding: "10px 11px",
         borderRadius: "12px",
-        border: "1px solid rgba(19, 49, 42, 0.12)",
-        background: "rgba(255,255,255,0.72)",
+        border: "1px solid rgba(246, 240, 224, 0.12)",
+        background: "rgba(255,255,255,0.08)",
         display: "grid" as const,
         gap: "4px",
     },
@@ -118,13 +119,13 @@ const S = {
         margin: 0,
         fontSize: "0.84rem",
         fontWeight: 700,
-        color: "#1f433a",
+        color: "#f8f2e6",
         lineHeight: 1.2,
     },
     profileMeta: {
         margin: 0,
         fontSize: "0.74rem",
-        color: "#4b665f",
+        color: "#d3ddd8",
         lineHeight: 1.35,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -136,21 +137,22 @@ const S = {
         flexWrap: "wrap" as const,
     },
     profileLink: {
-        border: "1px solid rgba(19, 49, 42, 0.18)",
+        border: "1px solid rgba(246, 240, 224, 0.16)",
         borderRadius: "8px",
         padding: "5px 8px",
-        color: "#21463d",
+        color: "#f8f2e6",
         textDecoration: "none",
         fontSize: "0.74rem",
         fontWeight: 700,
+        background: "rgba(255,255,255,0.05)",
     },
     linkBase: {
         display: "flex" as const,
         alignItems: "center" as const,
-        padding: "9px 12px",
-        borderRadius: "12px",
+        padding: "10px 13px",
+        borderRadius: "13px",
         textDecoration: "none",
-        color: "#1c3830",
+        color: "#eef3ef",
         fontWeight: 600,
         fontSize: "0.92rem",
         letterSpacing: "0.01em",
@@ -160,7 +162,7 @@ const S = {
     main: {
         flex: 1,
         minWidth: 0,
-        padding: "24px 28px 36px",
+        padding: "26px 30px 38px",
     },
     mobileTopBar: {
         display: "flex" as const,
@@ -168,18 +170,18 @@ const S = {
         justifyContent: "space-between" as const,
         gap: "12px",
         border: "1px solid rgba(19, 49, 42, 0.12)",
-        borderRadius: "14px",
-        background: "rgba(255,255,255,0.58)",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.75)",
         padding: "10px 12px",
         marginBottom: "14px",
-        boxShadow: "0 8px 18px rgba(19, 47, 41, 0.09)",
+        boxShadow: "0 12px 24px rgba(19, 47, 41, 0.12)",
         backdropFilter: "blur(4px)",
     },
     menuBtn: {
-        border: "1px solid rgba(19, 49, 42, 0.2)",
+        border: "1px solid rgba(246, 240, 224, 0.16)",
         borderRadius: "10px",
-        background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
-        color: "#f4efe4",
+        background: "linear-gradient(145deg, #d9b85d 0%, #be8b2b 100%)",
+        color: "#132f29",
         cursor: "pointer",
         padding: "8px 10px",
         fontWeight: 700,
@@ -189,13 +191,13 @@ const S = {
     mobilePageTitle: {
         margin: 0,
         fontSize: "0.95rem",
-        color: "#1d3a33",
+        color: "#16302a",
         fontWeight: 700,
     },
     overlay: {
         position: "fixed" as const,
         inset: 0,
-        background: "rgba(16, 28, 24, 0.28)",
+        background: "rgba(14, 22, 19, 0.36)",
         border: "none",
         zIndex: 15,
     },
@@ -272,9 +274,9 @@ export function AppShell() {
 
             <aside style={sidebarStyle}>
                 <div style={S.brand}>
-                    <div style={S.phase}>Tech Restore Desk</div>
-                    <div style={S.appName}>Tech Restore<br />Desk</div>
-                    <div style={S.tagLine}>Local-first repair workflow</div>
+                    <div style={S.phase}>Repair Desk Mode</div>
+                    <div style={S.appName}>Tech Restore Desk</div>
+                    <div style={S.tagLine}>Fast counter workflow for real repair work</div>
                 </div>
                 <nav style={S.nav}>
                     {groupedNav.map((group) => (
@@ -288,31 +290,31 @@ export function AppShell() {
                                     style={({ isActive }) => ({
                                         ...S.linkBase,
                                         background: isActive
-                                            ? "linear-gradient(135deg, #1b5045 0%, #163f37 100%)"
+                                            ? "linear-gradient(135deg, #d9b85d 0%, #be8b2b 100%)"
                                             : item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
+                                                ? "linear-gradient(145deg, rgba(255,241,198,0.96) 0%, rgba(248, 211, 116, 0.9) 100%)"
                                                 : "transparent",
-                                        color: isActive ? "#f4efe4" : item.to === "/intake" ? "#6b4200" : "#1c3830",
+                                        color: isActive ? "#132f29" : item.to === "/intake" ? "#734d00" : "#eef3ef",
                                         boxShadow: isActive
-                                            ? "0 6px 14px rgba(17, 54, 47, 0.22)"
+                                            ? "0 8px 16px rgba(190, 139, 43, 0.28)"
                                             : item.to === "/intake"
-                                                ? "0 4px 10px rgba(138, 95, 0, 0.15)"
+                                                ? "0 6px 12px rgba(190, 139, 43, 0.18)"
                                                 : "none",
-                                        borderColor: isActive ? "#173f37" : item.to === "/intake" ? "rgba(140, 97, 0, 0.24)" : "transparent",
+                                        borderColor: isActive ? "#be8b2b" : item.to === "/intake" ? "rgba(190, 139, 43, 0.24)" : "transparent",
                                     })}
                                     onMouseEnter={(e) => {
                                         const el = e.currentTarget;
                                         if (!el.classList.contains("active")) {
                                             el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,243,217,1) 0%, rgba(246,222,180,0.95) 100%)"
-                                                : "rgba(255,255,255,0.6)";
+                                                ? "linear-gradient(145deg, rgba(255,241,198,1) 0%, rgba(248, 211, 116, 0.96) 100%)"
+                                                : "rgba(255,255,255,0.08)";
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         const el = e.currentTarget;
                                         if (!el.classList.contains("active")) {
                                             el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
+                                                ? "linear-gradient(145deg, rgba(255,241,198,0.96) 0%, rgba(248, 211, 116, 0.9) 100%)"
                                                 : "transparent";
                                         }
                                     }}

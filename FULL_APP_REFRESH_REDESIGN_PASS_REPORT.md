@@ -1,11 +1,11 @@
 # Full App Refresh Redesign Pass Report
 
-**Rollback commit SHA before this sweep:** `a8ef4724c33b2b376b3c47e209ca0e59ba1b9b0c`  
+**Rollback commit SHA before this sweep:** `6596914`  
 **Current validation:** `npm run build` ✅, `npm test -- --run` ✅ (24 files, 50 tests)
 
 ## Summary
 
-This sweep tightened the entire Tech Restore Desk frontend into a more focused repair-desk product. The app now leans harder into daily counter workflow, has a cleaner shell, denser but calmer pages, clearer shared UI primitives, and more compact high-volume surfaces like voicemail and tickets. The goal was not to turn it into a different product, but to make it feel like a newer, smoother, more intentional repair-shop system instead of a broad admin console.
+This sweep tightened the entire Tech Restore Desk frontend into a more focused repair-desk product. The app now leans harder into daily counter workflow, has a much more distinct shell, denser but calmer pages, clearer shared UI primitives, and more compact high-volume surfaces like voicemail and tickets. The second pass pushed the visual identity further so it reads less like a generic admin system and more like a purposeful shop-floor tool.
 
 ## Files Changed
 
@@ -31,7 +31,7 @@ The redesign also standardized more of the emotional tone of the UI: softer pane
 
 ## Navigation / App Shell
 
-The app shell was reorganized so the sidebar reads as a repair workflow, not an admin directory. Navigation is grouped into Core, Operations, and Admin, with Loaners and Donors moved out of the main daily path and Account/Profile moved into a user card at the bottom of the sidebar.
+The app shell was reorganized so the sidebar reads as a repair workflow, not an admin directory. Navigation is grouped into Core, Operations, and Admin, with Loaners and Donors moved out of the main daily path and Account/Profile moved into a user card at the bottom of the sidebar. The shell now uses a darker, higher-contrast sidebar with amber accents and a more editorial page chrome, making the redesign noticeably more visible across the app.
 
 The shell is also more compact and intentional: smaller nav links, clearer group labels, a simpler brand area, and a better mobile top bar with an overlay-driven drawer pattern.
 

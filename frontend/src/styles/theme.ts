@@ -7,32 +7,32 @@ import type { CSSProperties } from "react";
 
 /** Standard content panel — soft gradient card with shadow. */
 export const panel: CSSProperties = {
-    background: "linear-gradient(145deg, rgba(255, 255, 255, 0.94) 0%, rgba(243, 249, 247, 0.9) 100%)",
-    border: "1px solid rgba(29, 43, 40, 0.12)",
-    borderRadius: "18px",
-    padding: "18px",
-    boxShadow: "0 8px 18px rgba(22, 49, 42, 0.08)",
+    background: "linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 248, 240, 0.96) 100%)",
+    border: "1px solid rgba(24, 34, 30, 0.14)",
+    borderRadius: "20px",
+    padding: "18px 19px",
+    boxShadow: "0 14px 32px rgba(18, 33, 29, 0.11)",
 };
 
 /** Primary action button — deep green gradient pill. */
 export const primaryBtn: CSSProperties = {
     borderRadius: "999px",
     border: "none",
-    background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
-    color: "#f5efe3",
+    background: "linear-gradient(145deg, #173f37 0%, #0f2f29 100%)",
+    color: "#f7f1e3",
     padding: "11px 16px",
     cursor: "pointer",
     fontWeight: 700,
-    boxShadow: "0 7px 14px rgba(23, 70, 60, 0.18)",
+    boxShadow: "0 10px 20px rgba(12, 36, 31, 0.22)",
     transition: "all 180ms ease",
 };
 
 /** Secondary / utility button — white pill with thin border. */
 export const secondaryBtn: CSSProperties = {
     borderRadius: "999px",
-    border: "1px solid rgba(29, 43, 40, 0.18)",
-    background: "#ffffff",
-    color: "#1d2b28",
+    border: "1px solid rgba(24, 34, 30, 0.16)",
+    background: "rgba(255,255,255,0.82)",
+    color: "#173f37",
     padding: "11px 16px",
     cursor: "pointer",
     transition: "all 180ms ease",
@@ -41,9 +41,9 @@ export const secondaryBtn: CSSProperties = {
 /** Mini utility button — compact pill for quick-action rows. */
 export const miniBtn: CSSProperties = {
     borderRadius: "999px",
-    border: "1px solid rgba(29, 43, 40, 0.12)",
-    background: "#ffffff",
-    color: "#1d2b28",
+    border: "1px solid rgba(24, 34, 30, 0.12)",
+    background: "rgba(255,255,255,0.88)",
+    color: "#173f37",
     padding: "7px 11px",
     cursor: "pointer",
     transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
@@ -54,13 +54,13 @@ export const input: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    padding: "11px 13px",
-    borderRadius: "11px",
-    border: "1px solid rgba(29, 43, 40, 0.18)",
-    background: "#ffffff",
+    padding: "11px 14px",
+    borderRadius: "13px",
+    border: "1px solid rgba(24, 34, 30, 0.16)",
+    background: "rgba(255,255,255,0.96)",
     fontSize: "1rem",
-    fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-    transition: "border-color 160ms ease, box-shadow 160ms ease",
+    fontFamily: '"Avenir Next", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+    transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
 };
 
 /** Form field label wrapper — stacked grid with bold label text. */
@@ -74,7 +74,7 @@ export const label: CSSProperties = {
 /** Body copy — readable line-height and muted green tone. */
 export const copy: CSSProperties = {
     lineHeight: 1.6,
-    color: "#425751",
+    color: "#3d4f49",
 };
 
 /** Page intro copy — consistent spacing for page-level helper text. */
@@ -88,28 +88,28 @@ export const pageIntro: CSSProperties = {
 /** Small metadata line — muted color and slightly reduced size. */
 export const meta: CSSProperties = {
     marginTop: "6px",
-    color: "#576963",
-    fontSize: "0.92rem",
+    color: "#60706a",
+    fontSize: "0.91rem",
 };
 
 /** Error banner for inline page-level failures. */
 export const errorBanner: CSSProperties = {
     padding: "10px 13px",
-    background: "#fde8e8",
-    color: "#9b2c2c",
-    border: "1px solid #f8b4b4",
-    borderRadius: "11px",
+    background: "#fef1f1",
+    color: "#a12727",
+    border: "1px solid #f4b7b7",
+    borderRadius: "12px",
 };
 
 /** Table shell for pages that still render dense record tables. */
 export const tableShell: CSSProperties = {
     width: "100%",
     borderCollapse: "collapse",
-    backgroundColor: "white",
-    border: "1px solid #d7e0df",
-    borderRadius: "11px",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    border: "1px solid rgba(24,34,30,0.12)",
+    borderRadius: "14px",
     overflow: "hidden",
-    boxShadow: "0 8px 20px rgba(26, 46, 41, 0.08)",
+    boxShadow: "0 12px 26px rgba(18, 33, 29, 0.1)",
 };
 
 export const tableHeaderCell: CSSProperties = {
@@ -124,18 +124,18 @@ export const tableCell: CSSProperties = {
 
 /** Inline sub-card for history items, notes, and usage rows. */
 export const subCard: CSSProperties = {
-    borderRadius: "12px",
-    background: "#f6f1e8",
+    borderRadius: "14px",
+    background: "linear-gradient(180deg, #f7f1e7 0%, #f2eadc 100%)",
     padding: "12px 14px",
 };
 
 /** Policy or constraint warning notice. */
 export const warning: CSSProperties = {
     padding: "11px 13px",
-    borderRadius: "11px",
-    background: "#fff1dd",
-    color: "#8a4b00",
-    border: "1px solid #f3c481",
+    borderRadius: "12px",
+    background: "#fff5e1",
+    color: "#8a5200",
+    border: "1px solid #efc86f",
 };
 
 /** Section heading — removes top margin. */
@@ -149,10 +149,10 @@ export const statusBadge: CSSProperties = {
     alignSelf: "start",
     borderRadius: "999px",
     padding: "8px 12px",
-    background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
-    color: "#f5efe3",
+    background: "linear-gradient(145deg, #173f37 0%, #0f2f29 100%)",
+    color: "#f7f1e3",
     fontWeight: 700,
-    boxShadow: "0 7px 14px rgba(23, 70, 60, 0.18)",
+    boxShadow: "0 10px 20px rgba(12, 36, 31, 0.2)",
 };
 
 /** Responsive auto-fit grid for detail panels. */
@@ -220,23 +220,25 @@ export const pageHeader: CSSProperties = {
 
 export const pageKicker: CSSProperties = {
     margin: 0,
-    color: "#5a7268",
+    color: "#7b5f25",
     fontSize: "0.77rem",
     fontWeight: 800,
-    letterSpacing: "0.08em",
+    letterSpacing: "0.12em",
     textTransform: "uppercase",
 };
 
 export const pageTitle: CSSProperties = {
     margin: 0,
-    color: "#173f37",
-    lineHeight: 1.1,
+    color: "#132f29",
+    lineHeight: 1.05,
+    fontSize: "1.72rem",
+    fontWeight: 800,
 };
 
 export const pageDescription: CSSProperties = {
     ...copy,
     margin: 0,
-    fontSize: "0.93rem",
+    fontSize: "0.95rem",
 };
 
 export const sectionHeader: CSSProperties = {
@@ -245,19 +247,19 @@ export const sectionHeader: CSSProperties = {
     justifyContent: "space-between",
     gap: "10px",
     flexWrap: "wrap",
-    marginBottom: "12px",
+    marginBottom: "14px",
 };
 
 export const sectionTitle: CSSProperties = {
     margin: 0,
-    fontSize: "1.02rem",
-    color: "#183731",
+    fontSize: "1.05rem",
+    color: "#132f29",
 };
 
 export const sectionMeta: CSSProperties = {
     margin: 0,
-    color: "#5d716b",
-    fontSize: "0.84rem",
+    color: "#60706a",
+    fontSize: "0.85rem",
 };
 
 export const compactSurface: CSSProperties = {

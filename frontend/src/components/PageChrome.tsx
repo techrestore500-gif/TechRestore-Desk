@@ -15,7 +15,7 @@ export function PageHeader({
     actions?: ReactNode;
 }) {
     return (
-        <div style={t.pageHeader}>
+        <div style={headerShellStyle}>
             {kicker ? <p style={t.pageKicker}>{kicker}</p> : null}
             <div style={headerRowStyle}>
                 <div style={{ minWidth: 0 }}>
@@ -89,6 +89,15 @@ const headerRowStyle: CSSProperties = {
     flexWrap: "wrap",
 };
 
+const headerShellStyle: CSSProperties = {
+    ...t.panel,
+    padding: "18px 20px",
+    display: "grid",
+    gap: "8px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,241,227,0.96) 100%)",
+    borderLeft: "5px solid #be8b2b",
+};
+
 const actionsWrapStyle: CSSProperties = {
     display: "flex",
     gap: "8px",
@@ -100,6 +109,7 @@ const baseSectionStyle: CSSProperties = {
     ...t.panel,
     display: "grid",
     gap: "12px",
+    borderTop: "4px solid rgba(190, 139, 43, 0.75)",
 };
 
 const compactStyle: CSSProperties = {
@@ -113,20 +123,21 @@ const toneStyles: Record<"default" | "soft" | "accent", CSSProperties> = {
         background: "linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(247,250,248,0.95) 100%)",
     },
     accent: {
-        background: "linear-gradient(145deg, rgba(236,251,245,0.98) 0%, rgba(219,243,236,0.96) 100%)",
+        background: "linear-gradient(145deg, rgba(255,246,213,0.98) 0%, rgba(248,231,181,0.96) 100%)",
     },
 };
 
 const metricTileStyle: CSSProperties = {
     ...t.subCard,
-    background: "rgba(255,255,255,0.86)",
-    border: "1px solid rgba(29, 43, 40, 0.1)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(250,244,231,0.96) 100%)",
+    border: "1px solid rgba(24, 34, 30, 0.12)",
     display: "grid",
     gap: "4px",
+    boxShadow: "0 10px 18px rgba(18, 33, 29, 0.06)",
 };
 
 const metricLabelStyle: CSSProperties = {
-    color: "#5a7268",
+    color: "#7b5f25",
     fontSize: "0.74rem",
     fontWeight: 800,
     letterSpacing: "0.08em",
@@ -134,7 +145,7 @@ const metricLabelStyle: CSSProperties = {
 };
 
 const metricValueStyle: CSSProperties = {
-    color: "#173f37",
+    color: "#132f29",
     fontSize: "1.65rem",
     fontWeight: 800,
     lineHeight: 1.05,
