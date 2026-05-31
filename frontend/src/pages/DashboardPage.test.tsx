@@ -56,7 +56,7 @@ describe("DashboardPage", () => {
             </MemoryRouter>
         );
 
-        expect(await screen.findByText("Service Desk")).toBeInTheDocument();
+        expect(await screen.findByText("What Needs Attention")).toBeInTheDocument();
         expect(await screen.findByText("TR-00042")).toBeInTheDocument();
         expect((await screen.findAllByText("Dashboard Customer")).length).toBeGreaterThan(0);
         expect(screen.getByText("Active Repairs")).toBeInTheDocument();

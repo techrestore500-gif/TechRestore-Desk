@@ -111,6 +111,9 @@ export function InventoryPage() {
     };
 
     const handleMarkDiscontinued = async (partId: number) => {
+        if (!window.confirm("Mark this part as discontinued? It will no longer be available for active stock usage.")) {
+            return;
+        }
         try {
             setActionError(null);
             await deletePartMutation.mutateAsync(partId);
@@ -143,7 +146,7 @@ export function InventoryPage() {
                 title="Inventory"
                 description={
                     <>
-                        Manage parts stock, filter inventory, and monitor low-stock risk.
+                        Track parts, stock movements, purchases, and low-stock risk.
                         {lowStockCount > 0 ? <strong style={{ color: "#b03a2e", marginLeft: "10px" }}>{lowStockCount} low-stock {lowStockCount === 1 ? "item" : "items"}</strong> : null}
                     </>
                 }
@@ -157,7 +160,7 @@ export function InventoryPage() {
 
             <div style={{ ...t.detailGrid, gap: "1.5rem", marginBottom: "1.5rem" }}>
                 <div style={panelCardStyle}>
-                    <h3 style={{ marginTop: 0 }}>Filters</h3>
+                    <h3 style={{ marginTop: 0 }}>Parts filters</h3>
                     <form onSubmit={handleApplyFilters} style={{ ...t.formStack, gap: "0.75rem" }}>
                         <select value={inventoryFilters.category} onChange={(e) => setInventoryFilters({ category: e.target.value })} style={inputStyle}>
                             <option value="">All categories</option>
@@ -184,7 +187,7 @@ export function InventoryPage() {
                 </div>
 
                 <div style={panelCardStyle}>
-                    <h3 style={{ marginTop: 0 }}>Add Part</h3>
+                    <h3 style={{ marginTop: 0 }}>Add part</h3>
                     <form onSubmit={handleCreatePart} style={{ ...t.formStack, gap: "0.65rem" }}>
                         <input placeholder="Part number" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={inputStyle} />
                         <input placeholder="Part name" value={partName} onChange={(e) => setPartName(e.target.value)} style={inputStyle} />
@@ -243,8 +246,8 @@ export function InventoryPage() {
                                             <td style={tdStyle}>
                                                 <div style={{ ...t.formActionsRow, gap: "0.5rem" }}>
                                                     <button style={smallButtonStyle} type="button" onClick={(event) => { event.stopPropagation(); setSelectedPartId(part.id); }}>Usage</button>
-                                                    <button style={smallButtonStyle} type="button" onClick={(event) => { event.stopPropagation(); handleQuickStockAdjust(part, 1); }}>+1</button>
-                                                    <button style={smallButtonStyle} type="button" onClick={(event) => { event.stopPropagation(); handleQuickStockAdjust(part, -1); }}>-1</button>
+                                                    <button style={smallButtonStyle} type="button" onClick={(event) => { event.stopPropagation(); handleQuickStockAdjust(part, 1); }}>Add stock</button>
+                                                    <button style={smallButtonStyle} type="button" onClick={(event) => { event.stopPropagation(); handleQuickStockAdjust(part, -1); }}>Use part</button>
                                                     <button style={smallDangerStyle} type="button" onClick={(event) => { event.stopPropagation(); handleMarkDiscontinued(part.id); }}>Discontinue</button>
                                                 </div>
                                             </td>
@@ -306,7 +309,7 @@ export function InventoryPage() {
                 </div>
 
                 <div style={usagePanelStyle}>
-                    <h3 style={{ marginTop: 0 }}>Movement ledger</h3>
+                    <h3 style={{ marginTop: 0 }}>Movements</h3>
                     <p style={{ color: "#576963" }}>
                         Operational trace of stock mutations and donor harvest effects.
                     </p>
@@ -356,7 +359,7 @@ export function InventoryPage() {
                 </div>
 
                 <div style={usagePanelStyle}>
-                    <h3 style={{ marginTop: 0 }}>Purchase ledger</h3>
+                    <h3 style={{ marginTop: 0 }}>Purchases</h3>
                     <p style={{ color: "#576963" }}>
                         Shop acquisition batches with quantities, unit costs, and batch totals.
                     </p>

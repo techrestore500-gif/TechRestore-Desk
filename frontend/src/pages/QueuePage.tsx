@@ -9,6 +9,7 @@ import { ScannerInput } from '../components/ScannerInput';
 import { queryKeys } from '../hooks/queryKeys';
 import { useQueueQuery } from '../hooks/queries/useQueueQuery';
 import { useUiStore } from '../store/uiStore';
+import * as t from '../styles/theme';
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
     'Loaner Outstanding': { bg: '#fff1eb', border: '#f3c8b6', text: '#8f2f16' },
@@ -37,6 +38,8 @@ export function QueuePage() {
     const applyQueueView = useUiStore((state) => state.applyQueueView);
     const deleteQueueView = useUiStore((state) => state.deleteQueueView);
     const [assigningTicketId, setAssigningTicketId] = useState<number | null>(null);
+    const [actionMessage, setActionMessage] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const { data: queue, isLoading, error } = useQueueQuery();
 
     const assignMutation = useMutation({
@@ -44,6 +47,8 @@ export function QueuePage() {
             assignQueueTicket(ticketId, technician),
         onMutate: async ({ ticketId, technician }) => {
             setAssigningTicketId(ticketId);
+            setActionError(null);
+            setActionMessage(`Saving assignment for ticket #${ticketId}...`);
             await queryClient.cancelQueries({ queryKey: queryKeys.queue() });
             const previous = queryClient.getQueryData<TechnicianQueue>(queryKeys.queue());
 
@@ -63,12 +68,15 @@ export function QueuePage() {
             return { previous };
         },
         onError: (_error, _vars, context) => {
+            setActionMessage(null);
+            setActionError("Could not update assignment. Please try again.");
             if (context?.previous) {
                 queryClient.setQueryData(queryKeys.queue(), context.previous);
             }
         },
         onSettled: () => {
             setAssigningTicketId(null);
+            setActionMessage("Assignment updated.");
             queryClient.invalidateQueries({ queryKey: queryKeys.queue() });
         },
     });
@@ -126,7 +134,7 @@ export function QueuePage() {
                 {tickets.length === 0 ? (
                     <p style={{ color: '#7f8c8d', fontStyle: 'italic', margin: '0.4rem 0 0.2rem' }}>No tickets in this status.</p>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                         {tickets.map(ticket => (
                             <div
                                 key={ticket.id}
@@ -135,11 +143,11 @@ export function QueuePage() {
                                 style={{
                                     border: `1px solid ${color.border}`,
                                     borderRadius: '10px',
-                                    padding: '1rem',
+                                    padding: '0.62rem 0.72rem',
                                     backgroundColor: color.bg,
                                     cursor: 'pointer',
                                     transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
-                                    boxShadow: '0 4px 10px rgba(19, 47, 41, 0.05)',
+                                    boxShadow: '0 2px 8px rgba(19, 47, 41, 0.05)',
                                 }}
                                 onMouseEnter={(e) => {
                                     const node = e.currentTarget as HTMLDivElement;
@@ -161,43 +169,33 @@ export function QueuePage() {
                                     }
                                 }}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                    <div>
-                                        <strong style={{ fontSize: '1rem', color: '#17312a' }}>{ticket.ticket_number}</strong>
-                                        <p style={{ margin: '0.5rem 0 0 0', color: '#2c3e50' }}>
-                                            {ticket.customer_name || 'Unknown Customer'} · {ticket.customer_phone}
-                                        </p>
-                                        <p style={{ margin: '0.25rem 0', color: '#34495e', fontSize: '0.9rem' }}>
-                                            {ticket.manufacturer} {ticket.model_name} · {ticket.issue_category}
-                                        </p>
-                                        <div style={{ marginTop: '0.35rem', display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' as const }}>
-                                            <label style={{ color: '#7f8c8d', fontSize: '0.85rem' }}>Assigned:</label>
-                                            <select
-                                                value={ticket.assigned_technician ?? ''}
-                                                onChange={(event) => {
-                                                    assignMutation.mutate({
-                                                        ticketId: ticket.id,
-                                                        technician: event.target.value ? event.target.value : null,
-                                                    });
-                                                }}
-                                                disabled={assigningTicketId === ticket.id}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {technicianOptions.map((name) => (
-                                                    <option key={name} value={name}>{name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                <div style={{ display: 'grid', gap: '6px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
+                                        <strong style={{ fontSize: '0.95rem', color: '#17312a' }}>
+                                            {ticket.ticket_number} {ticket.manufacturer} {ticket.model_name}
+                                        </strong>
+                                        <span style={{ color: '#5d716d', fontSize: '0.8rem' }}>{new Date(ticket.intake_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        {ticket.customer_approval_limit && (
-                                            <p style={{ margin: '0', color: '#744091', fontSize: '0.88rem', fontWeight: 600 }}>
-                                                Approval limit: ${ticket.customer_approval_limit}
-                                            </p>
-                                        )}
-                                        <p style={{ margin: '0.5rem 0 0 0', color: '#7f8c8d', fontSize: '0.85rem' }}>
-                                            {new Date(ticket.intake_date).toLocaleString()}
-                                        </p>
+                                    <div style={{ color: '#2c3e50', fontSize: '0.88rem' }}>
+                                        {ticket.issue_category} · {ticket.customer_name || 'Unknown customer'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+                                        <label style={{ color: '#4f6560', fontSize: '0.8rem', fontWeight: 700 }}>Assigned</label>
+                                        <select
+                                            value={ticket.assigned_technician ?? ''}
+                                            onChange={(event) => {
+                                                assignMutation.mutate({
+                                                    ticketId: ticket.id,
+                                                    technician: event.target.value ? event.target.value : null,
+                                                });
+                                            }}
+                                            disabled={assigningTicketId === ticket.id}
+                                        >
+                                            <option value="">Unassigned</option>
+                                            {technicianOptions.map((name) => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -211,9 +209,9 @@ export function QueuePage() {
     return (
         <div>
             <PageHeader
-                kicker="Operations"
+                kicker="Queue"
                 title="Technician Queue"
-                description="Daily work queue grouped by priority. Click any ticket to open."
+                description="Compact work queue grouped by status for fast technician updates."
                 actions={
                     <button
                         onClick={handleRefresh}
@@ -236,6 +234,8 @@ export function QueuePage() {
             />
 
             <div style={{ display: 'grid', gap: '8px', marginBottom: '12px' }}>
+                {actionError ? <div style={{ ...t.errorBanner, marginBottom: '4px' }}>{actionError}</div> : null}
+                {actionMessage ? <div style={{ ...t.subCard, color: '#0f5132', borderColor: '#c7ead5', background: '#e9f9ef' }}>{actionMessage}</div> : null}
                 <ScannerInput
                     value={quickFilter}
                     onChange={setQuickFilter}

@@ -9,6 +9,12 @@ function todayIsoDate() {
     return new Date().toISOString().slice(0, 10);
 }
 
+function isoDateOffset(days: number) {
+    const next = new Date();
+    next.setDate(next.getDate() + days);
+    return next.toISOString().slice(0, 10);
+}
+
 export default function ReportsPage() {
     const [filters, setFilters] = useState({
         startDate: todayIsoDate(),
@@ -34,12 +40,18 @@ export default function ReportsPage() {
     return (
         <section style={t.pageWrap}>
             <PageHeader
-                kicker="Operations"
+                kicker="Admin"
                 title="Reports"
-                description="Revenue and throughput snapshot for a selected date range."
+                description="Repairs, revenue, and labor snapshots for a selected date range."
             />
 
             <SectionCard title="Filters" compact>
+                <div style={{ ...t.formActionsRow, gap: '8px', marginBottom: '10px' }}>
+                    <button type="button" style={t.miniBtn} onClick={() => setFilters((current) => ({ ...current, startDate: todayIsoDate(), endDate: todayIsoDate() }))}>Today</button>
+                    <button type="button" style={t.miniBtn} onClick={() => setFilters((current) => ({ ...current, startDate: isoDateOffset(-6), endDate: todayIsoDate() }))}>This week</button>
+                    <button type="button" style={t.miniBtn} onClick={() => setFilters((current) => ({ ...current, startDate: isoDateOffset(-29), endDate: todayIsoDate() }))}>This month</button>
+                    <button type="button" style={t.miniBtn} onClick={() => setFilters((current) => ({ ...current, startDate: '', endDate: '' }))}>Custom</button>
+                </div>
                 <div style={t.fieldGrid}>
                     <label style={t.label}>
                         <span>Start date</span>

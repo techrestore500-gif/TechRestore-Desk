@@ -20,17 +20,17 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 
 @router.post("/backup", response_model=BackupResponse)
-def create_backup() -> BackupResponse:
+def create_backup(_: dict = Depends(require_role("admin"))) -> BackupResponse:
     return SystemService.create_backup()
 
 
 @router.get("/history", response_model=list[SystemActivityResponse])
-def get_history() -> list[SystemActivityResponse]:
+def get_history(_: dict = Depends(require_role("admin"))) -> list[SystemActivityResponse]:
     return SystemService.list_history()
 
 
 @router.get("/export")
-def export_snapshot() -> Response:
+def export_snapshot(_: dict = Depends(require_role("admin"))) -> Response:
     file_name, payload = SystemService.export_snapshot()
     return Response(
         content=payload,
@@ -40,22 +40,28 @@ def export_snapshot() -> Response:
 
 
 @router.get("/loaner-agreement-defaults", response_model=LoanerAgreementDefaultsResponse)
-def get_loaner_agreement_defaults() -> LoanerAgreementDefaultsResponse:
+def get_loaner_agreement_defaults(_: dict = Depends(require_role("admin"))) -> LoanerAgreementDefaultsResponse:
     return SystemService.get_loaner_agreement_defaults()
 
 
 @router.patch("/loaner-agreement-defaults", response_model=LoanerAgreementDefaultsResponse)
-def patch_loaner_agreement_defaults(payload: LoanerAgreementDefaultsUpdate) -> LoanerAgreementDefaultsResponse:
+def patch_loaner_agreement_defaults(
+    payload: LoanerAgreementDefaultsUpdate,
+    _: dict = Depends(require_role("admin")),
+) -> LoanerAgreementDefaultsResponse:
     return SystemService.update_loaner_agreement_defaults(payload.model_dump(exclude_none=True))
 
 
 @router.get("/notification-templates", response_model=list[NotificationTemplate])
-def get_notification_templates() -> list[NotificationTemplate]:
+def get_notification_templates(_: dict = Depends(require_role("admin"))) -> list[NotificationTemplate]:
     return SystemService.get_notification_templates()
 
 
 @router.patch("/notification-templates", response_model=list[NotificationTemplate])
-def patch_notification_templates(payload: dict = Body(...)) -> list[NotificationTemplate]:
+def patch_notification_templates(
+    payload: dict = Body(...),
+    _: dict = Depends(require_role("admin")),
+) -> list[NotificationTemplate]:
     return SystemService.update_notification_templates(payload)
 
 

@@ -5,7 +5,7 @@ export type AuthSession = {
     user: AuthUser | null;
 };
 
-const AUTH_STORAGE_KEY = 'techRestore.auth.session';
+export const AUTH_STORAGE_KEY = 'techRestore.auth.session';
 
 export function loadSession(): AuthSession {
     try {

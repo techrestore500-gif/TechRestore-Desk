@@ -38,7 +38,7 @@ export default function AccountPage() {
             setNewPassword("");
             setConfirmPassword("");
             setMessage(response.message);
-            logout("Password changed successfully. Please sign in again.");
+            logout("Password changed. Please sign in again.");
         } catch (requestError) {
             setError(requestError instanceof Error ? requestError.message : "Unable to change password");
         } finally {
@@ -51,7 +51,7 @@ export default function AccountPage() {
             <PageHeader
                 kicker="Profile"
                 title="Account"
-                description="Review your profile, access details, and password controls."
+                description="View your account details, change password, and securely sign out."
                 actions={<button type="button" style={t.secondaryBtn} onClick={() => logout("You have been signed out.")}>Logout</button>}
             />
 
@@ -108,7 +108,7 @@ export default function AccountPage() {
                 {error ? <div style={t.errorBanner}>{error}</div> : null}
                 {message ? (
                     <div style={{ ...t.subCard, borderColor: "#34d399", background: "#ecfdf5", color: "#065f46" }}>
-                        {message}
+                        {message} Password changed. Please sign in again.
                     </div>
                 ) : null}
 

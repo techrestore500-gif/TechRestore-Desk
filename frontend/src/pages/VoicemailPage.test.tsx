@@ -76,9 +76,9 @@ describe("VoicemailPage", () => {
         );
 
         expect(await screen.findByText("Voicemail Inbox")).toBeInTheDocument();
-        expect(await screen.findByText("From: +15555550111")).toBeInTheDocument();
-        expect(await screen.findByText("Line: +18772683048")).toBeInTheDocument();
-        expect(await screen.findByText(/Duration:/)).toBeInTheDocument();
+        expect(await screen.findByText("From: +1 555-555-0111")).toBeInTheDocument();
+        expect(await screen.findByText("Line: +1 877-268-3048")).toBeInTheDocument();
+        expect(await screen.findByText("0:34")).toBeInTheDocument();
         expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
 
         const menuButton = await screen.findByRole("button", { name: "More actions for voicemail 7" });

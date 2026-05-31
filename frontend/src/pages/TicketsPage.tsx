@@ -7,6 +7,7 @@ import { ScannerInput } from "../components/ScannerInput";
 import { DataTable } from "../components/table/DataTable";
 import { PageHeader, SectionCard } from "../components/PageChrome";
 import { useTicketsQuery } from "../hooks/queries/useTicketsQuery";
+import { formatDeskDateTime, formatMoney, formatPhone } from "../lib/format";
 import { useUiStore } from "../store/uiStore";
 import * as t from "../styles/theme";
 
@@ -70,19 +71,26 @@ export default function TicketsPage() {
             header: "Customer",
             sortable: true,
             sortValue: (ticket: TicketSummary) => ticket.customer_name,
-            render: (ticket: TicketSummary) => <Link to={`/customers/${ticket.customer_id}`}>{ticket.customer_name}</Link>,
+            render: (ticket: TicketSummary) => (
+                <div>
+                    <Link to={`/customers/${ticket.customer_id}`}>{ticket.customer_name}</Link>
+                    <div style={metaStyle}>{formatPhone(ticket.customer_phone)}</div>
+                </div>
+            ),
         },
         {
             key: "device",
-            header: "Device / Issue",
+            header: "Device",
             sortable: true,
             sortValue: (ticket: TicketSummary) => ticket.device_label,
-            render: (ticket: TicketSummary) => (
-                <div>
-                    <strong>{ticket.device_label}</strong>
-                    <div style={metaStyle}>{ticket.issue_category}</div>
-                </div>
-            ),
+            render: (ticket: TicketSummary) => <strong>{ticket.device_label}</strong>,
+        },
+        {
+            key: "issue",
+            header: "Issue",
+            sortable: true,
+            sortValue: (ticket: TicketSummary) => ticket.issue_category,
+            render: (ticket: TicketSummary) => ticket.issue_category,
         },
         {
             key: "status",
@@ -92,18 +100,24 @@ export default function TicketsPage() {
             render: (ticket: TicketSummary) => ticket.status,
         },
         {
-            key: "payment_status",
-            header: "Payment",
+            key: "balance",
+            header: "Balance",
             sortable: true,
-            sortValue: (ticket: TicketSummary) => ticket.payment_status,
-            render: (ticket: TicketSummary) => ticket.payment_status,
+            sortValue: (ticket: TicketSummary) => Number(ticket.final_price ?? ticket.estimated_price ?? 0),
+            render: (ticket: TicketSummary) => {
+                const due = Math.max(Number(ticket.final_price ?? ticket.estimated_price ?? 0), 0);
+                if (ticket.payment_status === "paid") {
+                    return "Paid";
+                }
+                return formatMoney(due, "$0.00");
+            },
         },
         {
-            key: "intake_date",
-            header: "Intake",
+            key: "updated_at",
+            header: "Updated",
             sortable: true,
-            sortValue: (ticket: TicketSummary) => ticket.intake_date,
-            render: (ticket: TicketSummary) => formatDate(ticket.intake_date),
+            sortValue: (ticket: TicketSummary) => ticket.updated_at,
+            render: (ticket: TicketSummary) => formatDeskDateTime(ticket.updated_at),
         },
     ];
 
@@ -112,7 +126,7 @@ export default function TicketsPage() {
             <PageHeader
                 kicker="Ticket Management"
                 title="Tickets"
-                description="Work incoming, active, and completion-ready repairs from one triage board."
+                description="Compact ticket board for fast search, status checks, and payment follow-up."
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <Link to="/intake" style={{ ...t.primaryBtn, textDecoration: "none" }}>+ New Repair</Link>
@@ -143,7 +157,7 @@ export default function TicketsPage() {
                             value={search}
                             onChange={setSearch}
                             onScanSubmit={setSearch}
-                            placeholder="Search tickets"
+                            placeholder="Search ticket, customer, phone, device, or issue"
                         />
                         <div style={{ ...t.formActionsRow, gap: "8px" }}>
                             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={t.input}>
@@ -183,7 +197,7 @@ export default function TicketsPage() {
                             {Object.keys(ticketSavedViews).map((name) => (
                                 <div key={name} style={{ ...t.formActionsRow, gap: "4px" }}>
                                     <button type="button" style={t.miniBtn} onClick={() => applyTicketView(name)}>{name}</button>
-                                    <button type="button" style={t.miniBtn} onClick={() => deleteTicketView(name)}>x</button>
+                                    <button type="button" aria-label={`Delete saved view ${name}`} style={t.miniBtn} onClick={() => deleteTicketView(name)}>x</button>
                                 </div>
                             ))}
                         </div>
@@ -208,7 +222,7 @@ export default function TicketsPage() {
                                     style={t.miniBtn}
                                     onClick={() => {
                                         if (ticket.customer_phone) {
-                                            void navigator.clipboard?.writeText(ticket.customer_phone);
+                                            void navigator.clipboard?.writeText(formatPhone(ticket.customer_phone));
                                         }
                                     }}
                                 >
@@ -221,10 +235,6 @@ export default function TicketsPage() {
             </SectionCard>
         </section>
     );
-}
-
-function formatDate(value: string) {
-    return new Date(value).toLocaleString();
 }
 
 const metaStyle = t.meta;

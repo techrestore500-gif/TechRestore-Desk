@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 
 import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, updateVoicemail, type VoicemailRecord } from "../api/system";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { formatDeskDateTime, formatDurationSeconds, formatPhone } from "../lib/format";
 import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
+
+type VoicemailQuickFilter = "all" | "new" | "listened" | "archived" | "today" | "last7";
 
 export default function VoicemailPage() {
     const [refreshKey, setRefreshKey] = useState(0);
@@ -15,6 +18,7 @@ export default function VoicemailPage() {
     const [autoListenInFlight, setAutoListenInFlight] = useState<Record<number, boolean>>({});
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
+    const [quickFilter, setQuickFilter] = useState<VoicemailQuickFilter>("all");
 
     const [audioBlobUrls, setAudioBlobUrls] = useState<Record<number, string>>({});
     const [audioLoadErrors, setAudioLoadErrors] = useState<Record<number, string>>({});
@@ -23,6 +27,29 @@ export default function VoicemailPage() {
 
     const audioElementRefs = useRef<Record<number, HTMLAudioElement | null>>({});
     const { data: voicemails = [], error } = useAsyncData<VoicemailRecord[]>(() => fetchVoicemails(), [refreshKey]);
+
+    const filteredVoicemails = voicemails.filter((voicemail) => {
+        if (quickFilter === "all") {
+            return true;
+        }
+        if (quickFilter === "new" || quickFilter === "listened" || quickFilter === "archived") {
+            return voicemail.status === quickFilter;
+        }
+
+        const createdAt = new Date(voicemail.created_at);
+        if (Number.isNaN(createdAt.getTime())) {
+            return false;
+        }
+
+        const now = new Date();
+        if (quickFilter === "today") {
+            return createdAt.toDateString() === now.toDateString();
+        }
+
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return createdAt >= sevenDaysAgo;
+    });
 
     const prevBlobUrls = useRef<Record<number, string>>({});
     useEffect(() => {
@@ -190,7 +217,7 @@ export default function VoicemailPage() {
     }
 
     async function removeVoicemail(voicemailId: number) {
-        if (!window.confirm("Delete this voicemail permanently?")) {
+        if (!window.confirm("Delete this voicemail? This cannot be undone.")) {
             return;
         }
         try {
@@ -252,24 +279,33 @@ export default function VoicemailPage() {
                 actions={<Link to="/settings" style={backLinkStyle}>Back to Settings</Link>}
             />
 
+            <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "all" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("all")}>All</button>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "new" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("new")}>New</button>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "listened" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("listened")}>Listened</button>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "archived" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("archived")}>Done</button>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "today" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("today")}>Today</button>
+                <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "last7" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("last7")}>Last 7 days</button>
+            </div>
+
             {actionError ? <div style={t.errorBanner}>{actionError}</div> : null}
             {actionMessage ? <div style={successBannerStyle}>{actionMessage}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
 
-            {voicemails.length === 0 ? (
+            {filteredVoicemails.length === 0 ? (
                 <SectionCard compact>
-                    <p style={t.copy}>No voicemail messages yet. Once Twilio is configured, new recordings will appear here.</p>
+                    <p style={t.copy}>No voicemails for this filter. New messages will show up here.</p>
                 </SectionCard>
             ) : (
                 <div style={{ display: "grid", gap: "8px" }}>
-                    {voicemails.map((voicemail) => {
+                    {filteredVoicemails.map((voicemail) => {
                         const isExpanded = expandedVoicemailId === voicemail.id;
                         const isMenuOpen = openMenuVoicemailId === voicemail.id;
                         const isNoteEditorOpen = noteEditorVoicemailId === voicemail.id;
-                        const fromLabel = voicemail.caller_number ? `From: ${voicemail.caller_number}` : "From: Unknown";
-                        const lineLabel = voicemail.called_number ? `Line: ${voicemail.called_number}` : "Line: Unknown";
-                        const receivedLabel = formatReceived(voicemail.created_at);
-                        const durationLabel = formatDuration(voicemail.recording_duration_seconds);
+                        const fromLabel = `From: ${formatPhone(voicemail.caller_number)}`;
+                        const lineLabel = `Line: ${formatPhone(voicemail.called_number)}`;
+                        const receivedLabel = formatDeskDateTime(voicemail.created_at);
+                        const durationLabel = formatDurationSeconds(voicemail.recording_duration_seconds);
 
                         return (
                             <article key={voicemail.id} style={rowWrapStyle}>
@@ -280,8 +316,8 @@ export default function VoicemailPage() {
 
                                     <div style={fieldStyle}>{fromLabel}</div>
                                     <div style={fieldStyle}>{lineLabel}</div>
-                                    <div style={fieldStyle}>Received: {receivedLabel}</div>
-                                    <div style={fieldStyle}>Duration: {durationLabel}</div>
+                                    <div style={fieldStyle}>{receivedLabel}</div>
+                                    <div style={fieldStyle}>{durationLabel}</div>
 
                                     <button
                                         type="button"
@@ -346,7 +382,7 @@ export default function VoicemailPage() {
                                                 <div style={{ ...t.meta, marginTop: 0 }}>{audioLoadingIds[voicemail.id] ? "Loading audio..." : "Audio pending..."}</div>
                                             )
                                         ) : (
-                                            <div style={compactWarningStyle}>Recording audio not available yet.</div>
+                                            <div style={compactWarningStyle}>This voicemail is still processing. Try again in a few seconds.</div>
                                         )}
 
                                         {voicemail.notes ? <pre style={noteLogStyle}>{voicemail.notes}</pre> : null}
@@ -545,38 +581,8 @@ const backLinkStyle: React.CSSProperties = {
     fontWeight: 700,
 };
 
-function formatDuration(seconds: number | null): string {
-    const value = Number(seconds ?? 0);
-    if (!Number.isFinite(value) || value <= 0) {
-        return "0:00";
-    }
-    const total = Math.floor(value);
-    const minutes = Math.floor(total / 60);
-    const remainder = total % 60;
-    return `${minutes}:${String(remainder).padStart(2, "0")}`;
-}
-
-function formatReceived(dateValue: string): string {
-    const parsed = new Date(dateValue);
-    if (Number.isNaN(parsed.getTime())) {
-        return dateValue;
-    }
-
-    const now = new Date();
-    const sameDay =
-        parsed.getFullYear() === now.getFullYear()
-        && parsed.getMonth() === now.getMonth()
-        && parsed.getDate() === now.getDate();
-
-    const timeText = parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    if (sameDay) {
-        return `Today ${timeText}`;
-    }
-
-    return parsed.toLocaleString([], {
-        month: "numeric",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
-}
+const activeFilterStyle: React.CSSProperties = {
+    background: "#1f6657",
+    color: "#ffffff",
+    borderColor: "#1f6657",
+};

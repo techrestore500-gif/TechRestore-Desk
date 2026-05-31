@@ -84,6 +84,22 @@ export type TwilioSetupStatus = {
     last_voicemail: VoicemailRecord | null;
 };
 
+export type RuntimeDiagnostics = {
+    database_type: string;
+    database_path: string | null;
+    database_url_configured: boolean;
+    sqlite_under_var_data: boolean | null;
+    persistence_status: string;
+    warning: string | null;
+    backend_online: boolean;
+    backend_version: string | null;
+    backend_commit: string | null;
+    frontend_commit: string | null;
+    environment: string | null;
+    api_base_url: string | null;
+    twilio_configured: boolean | null;
+};
+
 export async function createDatabaseBackup(): Promise<BackupResult> {
     const response = await apiFetch('/api/system/backup', { method: 'POST' });
     if (!response.ok) {
@@ -177,6 +193,15 @@ export async function fetchTwilioSetupStatus(): Promise<TwilioSetupStatus> {
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
     }
     return (await response.json()) as TwilioSetupStatus;
+}
+
+export async function fetchRuntimeDiagnostics(): Promise<RuntimeDiagnostics> {
+    const response = await apiFetch('/api/system/runtime-diagnostics');
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
+    }
+    return (await response.json()) as RuntimeDiagnostics;
 }
 
 export async function updateTwilioSettings(payload: TwilioSettingsUpdate): Promise<TwilioSettings> {

@@ -14,6 +14,7 @@ import { createInvite, fetchInvites, resendInvite, revokeInvite } from "../api/a
 
 describe("AccessRequestsPage", () => {
     it("shows pending invites and allows revocation", async () => {
+        vi.spyOn(window, "confirm").mockReturnValue(true);
         vi.mocked(fetchInvites).mockResolvedValue([
             {
                 id: 10,

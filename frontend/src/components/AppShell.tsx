@@ -10,17 +10,21 @@ const navItems = [
     { to: "/intake", label: "New Repair" },
     { to: "/tickets", label: "Tickets" },
     { to: "/queue", label: "Queue" },
-    { to: "/operations", label: "Operations" },
-    { to: "/hours", label: "Hours" },
     { to: "/voicemail", label: "Voicemail" },
+    { to: "/inventory", label: "Inventory" },
+    { to: "/hours", label: "Hours" },
+    { to: "/operations", label: "Shop Tools" },
+    { to: "/loaners", label: "Loaners" },
+    { to: "/donors", label: "Donors" },
     { to: "/reports", label: "Reports" },
-    { to: "/users-invites", label: "Users / Invites" },
+    { to: "/users-invites", label: "Team Access" },
     { to: "/settings", label: "Settings" },
 ];
 
 const navGroups = [
-    { label: "Core", items: ["/", "/intake", "/tickets", "/queue", "/operations", "/hours", "/voicemail"] },
-    { label: "Admin", items: ["/reports", "/users-invites", "/settings"] },
+    { label: "Daily Work", items: ["/", "/intake", "/tickets", "/queue", "/voicemail", "/inventory", "/hours"] },
+    { label: "Shop Tools", items: ["/operations", "/loaners", "/donors", "/reports"] },
+    { label: "Admin", items: ["/users-invites", "/settings"] },
 ];
 
 const S = {
@@ -260,6 +264,7 @@ export function AppShell() {
         if (location.pathname === "/") return "Dashboard";
         const match = visibleNavItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
         if (match) return match.label;
+        if (location.pathname.startsWith("/users-invites")) return "Team Access";
         if (location.pathname.startsWith("/inventory")) return "Inventory";
         if (location.pathname.startsWith("/loaners")) return "Loaners";
         if (location.pathname.startsWith("/donors")) return "Donors";

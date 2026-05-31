@@ -133,6 +133,24 @@ class SystemService:
         if is_sqlite and not sqlite_under_var_data:
             warning = "SQLite database path is not under /var/data; Render redeploys may wipe data."
 
+        backend_commit = os.getenv("RENDER_GIT_COMMIT", "").strip() or None
+        frontend_commit = os.getenv("FRONTEND_GIT_COMMIT", "").strip() or backend_commit
+        backend_version = os.getenv("APP_VERSION", "").strip() or "local-dev"
+        environment = os.getenv("TECH_RESTORE_APP_ENV", "").strip() or os.getenv("APP_ENV", "").strip() or None
+        api_base_url = os.getenv("PUBLIC_API_BASE_URL", "").strip() or os.getenv("PUBLIC_BASE_URL", "").strip() or None
+
+        twilio_configured: bool | None = None
+        try:
+            from app.services.twilio import TwilioService
+
+            setup_status = TwilioService.get_setup_status()
+            twilio_configured = bool(
+                setup_status.get("twilio_credentials_configured")
+                and setup_status.get("public_webhook_base_url_configured")
+            )
+        except Exception:
+            twilio_configured = None
+
         return RuntimeDiagnosticsResponse.model_validate(
             {
                 "database_type": "sqlite",
@@ -141,5 +159,12 @@ class SystemService:
                 "sqlite_under_var_data": sqlite_under_var_data,
                 "persistence_status": persistence_status,
                 "warning": warning,
+                "backend_online": True,
+                "backend_version": backend_version,
+                "backend_commit": backend_commit,
+                "frontend_commit": frontend_commit,
+                "environment": environment,
+                "api_base_url": api_base_url,
+                "twilio_configured": twilio_configured,
             }
         )

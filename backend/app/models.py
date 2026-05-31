@@ -813,6 +813,13 @@ class RuntimeDiagnosticsResponse(BaseModel):
     sqlite_under_var_data: bool | None = None
     persistence_status: str
     warning: str | None = None
+    backend_online: bool = True
+    backend_version: str | None = None
+    backend_commit: str | None = None
+    frontend_commit: str | None = None
+    environment: str | None = None
+    api_base_url: str | None = None
+    twilio_configured: bool | None = None
 
 
 # ============================================================================

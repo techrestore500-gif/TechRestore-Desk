@@ -1,5 +1,15 @@
 import { apiFetch } from './client';
 
+function friendlyAuthError(status: number, fallback: string): string {
+    if (status === 401) {
+        return 'Your session expired. Please sign in again.';
+    }
+    if (status === 403) {
+        return 'You do not have permission for that action.';
+    }
+    return fallback;
+}
+
 export type AuthRole = 'owner' | 'admin' | 'technician' | 'front_desk' | 'viewer';
 export type AuthStatus = 'pending' | 'active' | 'denied' | 'disabled';
 export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
@@ -64,7 +74,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Login failed');
+        throw new Error(payload.detail ?? friendlyAuthError(response.status, 'Could not sign in. Please check your email and password.'));
     }
 
     return response.json() as Promise<LoginResponse>;
@@ -79,7 +89,7 @@ export async function fetchCurrentUser(accessToken: string): Promise<AuthUser> {
 
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to load session user');
+        throw new Error(payload.detail ?? friendlyAuthError(response.status, 'Could not verify your session. Please sign in again.'));
     }
 
     return response.json() as Promise<AuthUser>;
@@ -89,7 +99,7 @@ export async function fetchInvites(): Promise<AuthInvite[]> {
     const response = await apiFetch('/api/auth/invites');
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to load invites');
+        throw new Error(payload.detail ?? friendlyAuthError(response.status, 'Could not load team invites right now.'));
     }
     return response.json() as Promise<AuthInvite[]>;
 }
@@ -103,7 +113,7 @@ export async function createInvite(email: string, role: AuthRole, name?: string)
 
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to create invite');
+        throw new Error(payload.detail ?? 'Could not send this invite. Please try again.');
     }
 
     return response.json() as Promise<AuthInvite>;
@@ -115,7 +125,7 @@ export async function revokeInvite(inviteId: number): Promise<AuthInvite> {
     });
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to revoke invite');
+        throw new Error(payload.detail ?? 'Could not revoke this invite. Please try again.');
     }
     return response.json() as Promise<AuthInvite>;
 }
@@ -126,7 +136,7 @@ export async function resendInvite(inviteId: number): Promise<AuthInvite> {
     });
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to resend invite');
+        throw new Error(payload.detail ?? 'Could not resend this invite. Please try again.');
     }
     return response.json() as Promise<AuthInvite>;
 }
@@ -135,7 +145,7 @@ export async function resolveInvite(token: string): Promise<InviteResolveRespons
     const response = await apiFetch(`/api/auth/invites/${token}`);
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Invite is invalid');
+        throw new Error(payload.detail ?? 'This invite is expired. Ask an owner to send a new invite.');
     }
     return response.json() as Promise<InviteResolveResponse>;
 }
@@ -148,7 +158,7 @@ export async function acceptInvite(token: string, password: string): Promise<Aut
     });
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to accept invite');
+        throw new Error(payload.detail ?? 'Could not accept this invite. Ask an owner to send a new one.');
     }
     return response.json() as Promise<AuthDecisionResponse>;
 }
@@ -170,7 +180,7 @@ export async function changePassword(
 
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail ?? 'Unable to change password');
+        throw new Error(payload.detail ?? 'Could not change password. Please try again.');
     }
 
     return response.json() as Promise<AuthMessageResponse>;

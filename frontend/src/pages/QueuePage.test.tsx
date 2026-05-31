@@ -50,8 +50,8 @@ describe('QueuePage', () => {
             </QueryTestProvider>
         );
 
-        expect(await screen.findByText('TR-00088')).toBeInTheDocument();
-        expect(screen.getByText('Queue Customer · 555-2222')).toBeInTheDocument();
+        expect(await screen.findByText((content) => content.includes('TR-00088'))).toBeInTheDocument();
+        expect(screen.getByText((content) => content.includes('Queue Customer'))).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: '↺ Refresh' }));
 

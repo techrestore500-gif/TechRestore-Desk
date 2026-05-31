@@ -15,8 +15,22 @@ export default function AccessRequestsPage() {
     const [inviteName, setInviteName] = useState("");
     const [inviteRole, setInviteRole] = useState<AuthRole>("front_desk");
     const [creatingInvite, setCreatingInvite] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "expired">("all");
 
     const { data: invites = [], error } = useAsyncData<AuthInvite[]>(() => fetchInvites(), [refreshKey]);
+
+    const filteredInvites = invites.filter((invite) => {
+        if (statusFilter === "all") {
+            return true;
+        }
+        if (statusFilter === "active") {
+            return invite.status === "accepted";
+        }
+        if (statusFilter === "pending") {
+            return invite.status === "pending";
+        }
+        return invite.status === "expired";
+    });
 
     async function handleCreateInvite(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -43,6 +57,9 @@ export default function AccessRequestsPage() {
     }
 
     async function handleRevoke(invite: AuthInvite) {
+        if (!window.confirm(`Revoke invite for ${invite.email}? They will no longer be able to accept this invite.`)) {
+            return;
+        }
         setBusyInviteId(invite.id);
         setActionError(null);
         setActionMessage(null);
@@ -75,8 +92,15 @@ export default function AccessRequestsPage() {
     return (
         <section style={t.pageWrap}>
             <div>
-                <h2 style={{ margin: 0 }}>Users and Invites</h2>
-                <p style={{ ...t.copy, marginTop: "6px" }}>Create and send one-time email invites and manage onboarding.</p>
+                <h2 style={{ margin: 0 }}>Team Access</h2>
+                <p style={{ ...t.copy, marginTop: "6px" }}>Send invites and manage who can access the repair desk app.</p>
+            </div>
+
+            <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                <button type="button" style={statusFilter === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("all")}>All</button>
+                <button type="button" style={statusFilter === "active" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("active")}>Active users</button>
+                <button type="button" style={statusFilter === "pending" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("pending")}>Pending invites</button>
+                <button type="button" style={statusFilter === "expired" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("expired")}>Expired invites</button>
             </div>
 
             <form style={{ ...t.panel, display: "grid", gap: "10px" }} onSubmit={handleCreateInvite}>
@@ -135,11 +159,11 @@ export default function AccessRequestsPage() {
                 </div>
             ) : null}
 
-            {invites.length === 0 ? (
-                <div style={t.panel}>No invites yet.</div>
+            {filteredInvites.length === 0 ? (
+                <div style={t.panel}>No records for this filter.</div>
             ) : (
                 <div style={{ ...t.panel, display: "grid", gap: "10px" }}>
-                    {invites.map((invite) => (
+                    {filteredInvites.map((invite) => (
                         <article key={invite.id} style={{ ...t.subCard, display: "grid", gap: "8px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
                                 <strong>{invite.name || invite.email}</strong>

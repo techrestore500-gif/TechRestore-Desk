@@ -17,9 +17,9 @@ export default function OperationsPage() {
     return (
         <section style={t.pageWrap}>
             <PageHeader
-                kicker="Operations"
-                title="Operations Hub"
-                description="Run supply, loaner, and donor workflows from one coordinated control plane."
+                kicker="Shop Tools"
+                title="Shop Tools"
+                description="Quick access to inventory, loaners, donor devices, and admin reporting tasks."
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <Link to="/inventory" style={{ ...t.primaryBtn, textDecoration: "none" }}>Inventory</Link>
@@ -36,7 +36,7 @@ export default function OperationsPage() {
             </div>
 
             <div style={operationsGridStyle}>
-                <SectionCard title="Dispatch Lane" description="Where next decisions happen during live service flow.">
+                <SectionCard title="Repair Flow" description="Common desk workflows during active repair work.">
                     <div style={{ ...t.formStack, gap: "8px" }}>
                         <QuickLink title="Queue" copy="Move repairs through active statuses." to="/queue" />
                         <QuickLink title="Hours" copy="Track technician time and labor view." to="/hours" />
@@ -44,7 +44,7 @@ export default function OperationsPage() {
                     </div>
                 </SectionCard>
 
-                <SectionCard title="Asset Lane" description="Manage physical assets and replacement strategy." tone="soft">
+                <SectionCard title="Assets" description="Manage inventory, loaners, and donor stock." tone="soft">
                     <div style={{ ...t.formStack, gap: "8px" }}>
                         <QuickLink title="Inventory" copy="Parts stock, low-stock risks, and movement tracking." to="/inventory" />
                         <QuickLink title="Loaners" copy="Checkout, return, and lifecycle tracking." to="/loaners" />
@@ -52,7 +52,7 @@ export default function OperationsPage() {
                     </div>
                 </SectionCard>
 
-                <SectionCard title="Strategy Lane" description="Business-level visibility and control surfaces." tone="accent">
+                <SectionCard title="Admin" description="Reporting, settings, and voicemail review." tone="accent">
                     <div style={{ ...t.formStack, gap: "8px" }}>
                         <QuickLink title="Reports" copy="Revenue, throughput, and performance snapshots." to="/reports" />
                         <QuickLink title="Settings" copy="Workflow rules, templates, Twilio, and backups." to="/settings" />
@@ -63,9 +63,9 @@ export default function OperationsPage() {
 
             <SectionCard title="Operating Notes" compact tone="soft">
                 <div style={{ display: "grid", gap: "8px" }}>
-                    <div style={t.meta}>Use Queue for active repair status movement and assignment.</div>
-                    <div style={t.meta}>Use Hours for technician time logging and summaries.</div>
-                    <div style={t.meta}>Use Settings for workflow rules, Twilio, templates, and backups.</div>
+                    <div style={t.meta}>Keep daily flow in Dashboard, New Repair, Tickets, Queue, and Voicemail.</div>
+                    <div style={t.meta}>Use Loaners and Donors when needed, without crowding the counter workflow.</div>
+                    <div style={t.meta}>Use Settings for Twilio, templates, workflow policy, and backups.</div>
                 </div>
             </SectionCard>
         </section>

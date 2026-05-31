@@ -4,7 +4,7 @@ import { fetchCurrentUser, login, type AuthUser } from "../api/auth";
 import { setAuthTokenProvider, setUnauthorizedHandler } from "../api/client";
 import { queryClient } from "../lib/queryClient";
 import { AUTH_ENABLED } from "./config";
-import { clearSession, loadSession, saveSession } from "./session";
+import { AUTH_STORAGE_KEY, clearSession, loadSession, saveSession } from "./session";
 
 type AuthContextValue = {
     authEnabled: boolean;
@@ -90,6 +90,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             active = false;
         };
     }, [initialSession.accessToken]);
+
+    useEffect(() => {
+        if (!AUTH_ENABLED) {
+            return;
+        }
+
+        function handleStorageSync(event: StorageEvent) {
+            if (event.key !== AUTH_STORAGE_KEY) {
+                return;
+            }
+
+            const nextSession = loadSession();
+            const nextToken = nextSession.accessToken?.trim() || null;
+            if (!nextToken) {
+                setAccessToken(null);
+                setUser(null);
+                setAuthMessage("Your session ended in another tab. Please sign in again.");
+                queryClient.clear();
+                return;
+            }
+
+            setAccessToken(nextToken);
+            setUser(nextSession.user ?? null);
+            setAuthMessage(null);
+        }
+
+        window.addEventListener("storage", handleStorageSync);
+        return () => {
+            window.removeEventListener("storage", handleStorageSync);
+        };
+    }, []);
 
     async function loginWithCredentials(email: string, password: string) {
         const nextEmail = email.trim();

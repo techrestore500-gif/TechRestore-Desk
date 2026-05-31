@@ -12,6 +12,7 @@ import {
     type TicketSummary,
 } from "../api/tickets";
 import { QUICK_REPAIR_STATUSES, QUICK_REPAIR_STATUS_COLORS } from "../lib/repairFlow";
+import { normalizePhoneInput } from "../lib/format";
 import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
@@ -38,6 +39,8 @@ const initialState: QuickFormState = {
     paymentStatus: "unpaid",
     repairStatus: "New Intake",
 };
+
+const COMMON_ISSUE_CHIPS = ["Screen", "Hinge", "Earpiece", "Battery", "SIM", "Charging", "Speaker", "Software"];
 
 export default function IntakePage() {
     const navigate = useNavigate();
@@ -159,6 +162,12 @@ export default function IntakePage() {
             return;
         }
 
+        const estimatedCharge = form.estimatedCharge.trim();
+        if (estimatedCharge.length > 0 && (Number.isNaN(Number(estimatedCharge)) || Number(estimatedCharge) < 0)) {
+            setError("Estimated charge must be a valid positive number.");
+            return;
+        }
+
         setSubmitting(true);
         setError(null);
 
@@ -171,7 +180,7 @@ export default function IntakePage() {
                 device_model: form.deviceModel,
                 issue_problem: form.issueProblem,
                 optional_notes: form.optionalNotes,
-                estimated_charge: form.estimatedCharge.trim() ? Number(form.estimatedCharge) : null,
+                estimated_charge: estimatedCharge ? Number(estimatedCharge) : null,
                 payment_status: form.paymentStatus,
                 repair_status: form.repairStatus,
             });
@@ -207,8 +216,8 @@ export default function IntakePage() {
         <section style={t.pageWrap}>
             <PageHeader
                 kicker="Intake"
-                title="Quick New Repair"
-                description="Single-screen intake built for walk-ins. Tab through fields and press Ctrl+Enter to create."
+                title="New Repair"
+                description="Fast walk-in intake. Required fields first, optional details second."
                 actions={<div style={{ fontSize: "0.84rem", color: "#4b635d", fontWeight: 700 }}>Target: under 15 seconds</div>}
             />
 
@@ -257,10 +266,10 @@ export default function IntakePage() {
                                 </label>
 
                                 <label style={labelStyle}>
-                                    <span>Phone number</span>
+                                    <span>Phone number *</span>
                                     <input
                                         value={form.phoneNumber}
-                                        onChange={(event) => setForm((current) => ({ ...current, phoneNumber: event.target.value }))}
+                                        onChange={(event) => setForm((current) => ({ ...current, phoneNumber: normalizePhoneInput(event.target.value) }))}
                                         placeholder="(555) 555-1234"
                                         style={inputStyle}
                                         inputMode="tel"
@@ -273,7 +282,7 @@ export default function IntakePage() {
                             <div style={sectionTitleStyle}>Device</div>
                             <div style={twoColumnGridStyle}>
                                 <label style={labelStyle}>
-                                    <span>Device brand</span>
+                                    <span>Device brand *</span>
                                     <input
                                         value={form.deviceBrand}
                                         onChange={(event) => setForm((current) => ({ ...current, deviceBrand: event.target.value }))}
@@ -291,7 +300,7 @@ export default function IntakePage() {
                                 </label>
 
                                 <label style={labelStyle}>
-                                    <span>Device model</span>
+                                    <span>Device model *</span>
                                     <input
                                         value={form.deviceModel}
                                         onChange={(event) => setForm((current) => ({ ...current, deviceModel: event.target.value }))}
@@ -311,7 +320,7 @@ export default function IntakePage() {
                         <section style={formSectionStyle}>
                             <div style={sectionTitleStyle}>Repair Issue</div>
                             <label style={labelStyle}>
-                                <span>Issue/problem</span>
+                                <span>Issue/problem *</span>
                                 <textarea
                                     value={form.issueProblem}
                                     onChange={(event) => setForm((current) => ({ ...current, issueProblem: event.target.value }))}
@@ -319,74 +328,101 @@ export default function IntakePage() {
                                     style={{ ...inputStyle, minHeight: "84px", resize: "vertical" }}
                                 />
                             </label>
-                        </section>
-
-                        <section style={{ ...formSectionStyle, ...secondarySectionStyle }}>
-                            <div style={sectionTitleStyle}>Optional Notes</div>
-                            <label style={labelStyle}>
-                                <span>Optional notes</span>
-                                <textarea
-                                    value={form.optionalNotes}
-                                    onChange={(event) => setForm((current) => ({ ...current, optionalNotes: event.target.value }))}
-                                    placeholder="Any quick context from customer conversation"
-                                    style={{ ...inputStyle, ...secondaryInputStyle, minHeight: "66px", resize: "vertical" }}
-                                />
-                            </label>
-                        </section>
-
-                        <section style={formSectionStyle}>
-                            <div style={sectionTitleStyle}>Billing & Status</div>
-                            <div style={twoColumnGridStyle}>
-                                <label style={labelStyle}>
-                                    <span>Estimated charge</span>
-                                    <input
-                                        value={form.estimatedCharge}
-                                        onChange={(event) => setForm((current) => ({ ...current, estimatedCharge: event.target.value }))}
-                                        placeholder="89.00"
-                                        style={inputStyle}
-                                        inputMode="decimal"
-                                    />
-                                </label>
-
-                                <label style={labelStyle}>
-                                    <span>Payment status</span>
-                                    <select
-                                        value={form.paymentStatus}
-                                        onChange={(event) => setForm((current) => ({ ...current, paymentStatus: event.target.value as PaymentStatus }))}
-                                        style={inputStyle}
-                                    >
-                                        <option value="unpaid">Unpaid</option>
-                                        <option value="partial">Partially Paid</option>
-                                        <option value="paid">Paid</option>
-                                    </select>
-                                </label>
-                            </div>
-
-                            <div style={{ ...labelStyle, marginTop: "4px" }}>
-                                <span>Repair status</span>
-                                <div style={statusRowStyle}>
-                                    {QUICK_REPAIR_STATUSES.map((status) => {
-                                        const colors = QUICK_REPAIR_STATUS_COLORS[status];
-                                        const active = form.repairStatus === status;
-                                        return (
-                                            <button
-                                                key={status}
-                                                type="button"
-                                                onClick={() => setForm((current) => ({ ...current, repairStatus: status }))}
-                                                style={{
-                                                    ...statusChipStyle,
-                                                    background: active ? colors.text : colors.bg,
-                                                    color: active ? "#ffffff" : colors.text,
-                                                    borderColor: active ? colors.text : colors.border,
-                                                }}
-                                            >
-                                                {status}
-                                            </button>
-                                        );
-                                    })}
+                            <div style={{ ...labelStyle, marginTop: "2px" }}>
+                                <span>Quick issue chips</span>
+                                <div style={issueChipRowStyle}>
+                                    {COMMON_ISSUE_CHIPS.map((issue) => (
+                                        <button
+                                            key={issue}
+                                            type="button"
+                                            style={issueChipStyle}
+                                            onClick={() => {
+                                                setForm((current) => ({
+                                                    ...current,
+                                                    issueProblem: current.issueProblem.trim()
+                                                        ? `${current.issueProblem.trim()}${current.issueProblem.trim().endsWith(",") ? " " : ", "}${issue}`
+                                                        : issue,
+                                                }));
+                                            }}
+                                        >
+                                            {issue}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </section>
+
+                        <details style={optionalWrapStyle}>
+                            <summary style={optionalSummaryStyle}>Optional details (notes, estimate, payment, status)</summary>
+                            <div style={{ ...t.formStack, marginTop: "12px", gap: "14px" }}>
+                                <section style={{ ...formSectionStyle, ...secondarySectionStyle }}>
+                                    <div style={sectionTitleStyle}>Optional notes</div>
+                                    <label style={labelStyle}>
+                                        <span>Notes</span>
+                                        <textarea
+                                            value={form.optionalNotes}
+                                            onChange={(event) => setForm((current) => ({ ...current, optionalNotes: event.target.value }))}
+                                            placeholder="Any quick context from customer conversation"
+                                            style={{ ...inputStyle, ...secondaryInputStyle, minHeight: "66px", resize: "vertical" }}
+                                        />
+                                    </label>
+                                </section>
+
+                                <section style={formSectionStyle}>
+                                    <div style={sectionTitleStyle}>Billing and status</div>
+                                    <div style={twoColumnGridStyle}>
+                                        <label style={labelStyle}>
+                                            <span>Estimated charge</span>
+                                            <input
+                                                value={form.estimatedCharge}
+                                                onChange={(event) => setForm((current) => ({ ...current, estimatedCharge: event.target.value }))}
+                                                placeholder="89.00"
+                                                style={inputStyle}
+                                                inputMode="decimal"
+                                            />
+                                        </label>
+
+                                        <label style={labelStyle}>
+                                            <span>Payment status</span>
+                                            <select
+                                                value={form.paymentStatus}
+                                                onChange={(event) => setForm((current) => ({ ...current, paymentStatus: event.target.value as PaymentStatus }))}
+                                                style={inputStyle}
+                                            >
+                                                <option value="unpaid">Unpaid</option>
+                                                <option value="partial">Partially Paid</option>
+                                                <option value="paid">Paid</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <div style={{ ...labelStyle, marginTop: "4px" }}>
+                                        <span>Repair status</span>
+                                        <div style={statusRowStyle}>
+                                            {QUICK_REPAIR_STATUSES.map((status) => {
+                                                const colors = QUICK_REPAIR_STATUS_COLORS[status];
+                                                const active = form.repairStatus === status;
+                                                return (
+                                                    <button
+                                                        key={status}
+                                                        type="button"
+                                                        onClick={() => setForm((current) => ({ ...current, repairStatus: status }))}
+                                                        style={{
+                                                            ...statusChipStyle,
+                                                            background: active ? colors.text : colors.bg,
+                                                            color: active ? "#ffffff" : colors.text,
+                                                            borderColor: active ? colors.text : colors.border,
+                                                        }}
+                                                    >
+                                                        {status}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </details>
                     </div>
 
                     {error ? <div style={t.errorBanner}>{error}</div> : null}
@@ -394,7 +430,7 @@ export default function IntakePage() {
                     <div style={{ ...t.formActionsRow, justifyContent: "space-between" }}>
                         <div style={{ fontSize: "0.82rem", color: "#5b726c" }}>Keyboard: Tab through fields, Ctrl+Enter to submit.</div>
                         <button type="submit" disabled={submitting} style={primaryButtonStyle}>
-                            {submitting ? "Creating repair..." : "Create Repair Ticket"}
+                            {submitting ? "Creating repair..." : "Create Repair"}
                         </button>
                     </div>
                 </form>
@@ -483,4 +519,27 @@ const statusChipStyle = {
     fontWeight: 700,
     cursor: "pointer",
     fontSize: "0.84rem",
+};
+
+const issueChipRowStyle = {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap" as const,
+    marginTop: "6px",
+};
+
+const issueChipStyle = {
+    ...t.miniBtn,
+    fontWeight: 700,
+};
+
+const optionalWrapStyle = {
+    ...t.subCard,
+    padding: "12px",
+};
+
+const optionalSummaryStyle = {
+    cursor: "pointer",
+    fontWeight: 700,
+    color: "#23463e",
 };

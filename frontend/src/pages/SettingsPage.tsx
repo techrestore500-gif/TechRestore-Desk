@@ -20,6 +20,7 @@ import {
     fetchLoanerAgreementDefaults,
     fetchNotificationTemplates,
     fetchSystemActivityHistory,
+    fetchRuntimeDiagnostics,
     fetchTwilioSetupStatus,
     fetchTwilioSettings,
     clearTwilioSettings,
@@ -28,6 +29,7 @@ import {
     updateTwilioSettings,
     type LoanerAgreementDefaults,
     type NotificationTemplate,
+    type RuntimeDiagnostics,
     type SystemActivity,
     type TwilioSettings,
     type TwilioSetupStatus,
@@ -118,6 +120,10 @@ export default function SettingsPage() {
     const { data: systemHistory = [], error: systemHistoryError } = useAsyncData<SystemActivity[]>(
         () => fetchSystemActivityHistory(),
         [systemHistoryRefreshKey]
+    );
+    const { data: runtimeDiagnostics, error: runtimeDiagnosticsError } = useAsyncData<RuntimeDiagnostics>(
+        () => fetchRuntimeDiagnostics(),
+        [systemHistoryRefreshKey, twilioRefreshKey]
     );
     const { data: supportedModels = [], error: supportedModelsError } = useAsyncData<SupportedModel[]>(() => fetchSupportedModels(), []);
     const { data: pricingRules, error: pricingRulesError } = useAsyncData<PricingRules>(() => fetchPricingRules(), [pricingRulesRefreshKey]);
@@ -456,30 +462,30 @@ export default function SettingsPage() {
         <section style={t.pageWrap}>
             <PageHeader
                 kicker="Administration"
-                title="Settings Control Center"
-                description="Manage shop configuration, communication channels, workflow policy, and system safety tools in focused lanes."
+                title="Settings"
+                description="Business info, phone and voicemail, workflow policy, templates, and system backup tools."
             />
 
-            <SectionCard title="Control lanes" compact>
+            <SectionCard title="Settings sections" compact>
                 <div style={{ ...t.formStack, gap: "10px" }}>
                     <div style={{ ...t.formActionsRow, justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div>
                             <strong style={{ color: "#153d47" }}>Focused mode</strong>
-                            <div style={{ ...t.meta, marginTop: "4px" }}>Show one lane at a time for faster admin operations.</div>
+                            <div style={{ ...t.meta, marginTop: "4px" }}>Show one section at a time for faster admin work.</div>
                         </div>
                         <div style={{ ...t.formActionsRow, gap: "8px" }}>
                             <button type="button" style={settingsFocus === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("all")}>All</button>
-                            <button type="button" style={settingsFocus === "business" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("business")}>Business</button>
-                            <button type="button" style={settingsFocus === "communications" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("communications")}>Communications</button>
-                            <button type="button" style={settingsFocus === "workflow" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("workflow")}>Workflow</button>
-                            <button type="button" style={settingsFocus === "system" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("system")}>System</button>
+                            <button type="button" style={settingsFocus === "business" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("business")}>Business Info</button>
+                            <button type="button" style={settingsFocus === "communications" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("communications")}>Phone / Voicemail</button>
+                            <button type="button" style={settingsFocus === "workflow" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("workflow")}>Ticket Workflow</button>
+                            <button type="button" style={settingsFocus === "system" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("system")}>System / Backup</button>
                         </div>
                     </div>
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                        <a href="#settings-business" style={{ ...t.miniBtn, textDecoration: "none" }}>Business lane</a>
-                        <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Communications lane</a>
-                        <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Workflow lane</a>
-                        <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System lane</a>
+                        <a href="#settings-business" style={{ ...t.miniBtn, textDecoration: "none" }}>Business info</a>
+                        <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Phone / voicemail</a>
+                        <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Ticket workflow</a>
+                        <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System / backup</a>
                     </div>
                 </div>
                 <div style={t.fieldGridTwoCompact}>
@@ -502,7 +508,7 @@ export default function SettingsPage() {
                 </div>
             </SectionCard>
 
-            {showSection("business") ? <div id="settings-business" style={sectionLabelStyle}>Business Profile</div> : null}
+            {showSection("business") ? <div id="settings-business" style={sectionLabelStyle}>Business Info</div> : null}
 
             {/* ── Shop Info ── */}
             {showSection("business") ? <div style={panelStyle}>
@@ -529,7 +535,7 @@ export default function SettingsPage() {
 
             {showSection("communications") ? <div style={t.detailGrid}>
                 <div>
-                    <div id="settings-communications" style={sectionLabelStyle}>Communications</div>
+                    <div id="settings-communications" style={sectionLabelStyle}>Phone / Voicemail</div>
                     <p style={{ ...t.meta, marginTop: 0, marginBottom: "10px" }}>Twilio voice setup and customer messaging templates.</p>
                 </div>
             </div> : null}
@@ -645,6 +651,18 @@ export default function SettingsPage() {
                                 <div style={t.meta}>Loading setup status…</div>
                             )}
                             {twilioSetupStatusError ? <div style={{ ...t.meta, color: "#9b2c2c" }}>{twilioSetupStatusError}</div> : null}
+                            {twilioSetupStatus?.voice_webhook_url ? (
+                                <button
+                                    type="button"
+                                    style={{ ...t.miniBtn, justifySelf: "start" }}
+                                    onClick={() => {
+                                        void navigator.clipboard?.writeText(twilioSetupStatus.voice_webhook_url);
+                                        setTwilioMessage("Voice webhook URL copied.");
+                                    }}
+                                >
+                                    Copy voice webhook URL
+                                </button>
+                            ) : null}
                         </div>
 
                         {twilioError ? <div style={t.errorBanner}>{twilioError}</div> : null}
@@ -695,7 +713,7 @@ export default function SettingsPage() {
                 </form>
             </div> : null}
 
-            {showSection("workflow") ? <div id="settings-workflow" style={sectionLabelStyle}>Repair Operations</div> : null}
+            {showSection("workflow") ? <div id="settings-workflow" style={sectionLabelStyle}>Ticket Workflow</div> : null}
 
             {/* ── Pricing Defaults ── */}
             {showSection("workflow") ? <div style={panelStyle}>
@@ -748,7 +766,28 @@ export default function SettingsPage() {
                 </div>
             </div> : null}
 
-            {showSection("system") ? <div id="settings-system" style={sectionLabelStyle}>System Safety</div> : null}
+            {showSection("system") ? <div id="settings-system" style={sectionLabelStyle}>System / Backup</div> : null}
+
+            {showSection("system") ? (
+                <div style={panelStyle}>
+                    <h3 style={{ marginTop: 0 }}>System status</h3>
+                    <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
+                        Quick diagnostics for persistence, deployment version, API base URL, and Twilio readiness.
+                    </p>
+                    {runtimeDiagnostics ? (
+                        <div style={t.detailGrid}>
+                            <div style={t.subCard}><strong>Backend</strong><div style={t.meta}>Online: {runtimeDiagnostics.backend_online ? "Yes" : "No"}</div><div style={t.meta}>Version: {runtimeDiagnostics.backend_version ?? "Unknown"}</div><div style={t.meta}>Commit: {runtimeDiagnostics.backend_commit ?? "Unknown"}</div></div>
+                            <div style={t.subCard}><strong>Frontend</strong><div style={t.meta}>Commit: {runtimeDiagnostics.frontend_commit ?? "Unknown"}</div><div style={t.meta}>Environment: {runtimeDiagnostics.environment ?? "Unknown"}</div><div style={{ ...t.meta, wordBreak: "break-word" }}>API URL: {runtimeDiagnostics.api_base_url ?? "Unknown"}</div></div>
+                            <div style={t.subCard}><strong>Database</strong><div style={t.meta}>Type: {runtimeDiagnostics.database_type}</div><div style={t.meta}>Persistence: {runtimeDiagnostics.persistence_status === "persistent_disk" ? "Persistent disk" : "Ephemeral or unknown"}</div><div style={{ ...t.meta, wordBreak: "break-word" }}>Path: {runtimeDiagnostics.database_path ?? "Unknown"}</div></div>
+                            <div style={t.subCard}><strong>Twilio</strong><div style={t.meta}>Configured: {runtimeDiagnostics.twilio_configured ? "Yes" : "No"}</div><div style={t.meta}>Webhook ready: {twilioReady ? "Yes" : "No"}</div></div>
+                        </div>
+                    ) : (
+                        <p style={t.copy}>Loading runtime diagnostics...</p>
+                    )}
+                    {runtimeDiagnostics?.warning ? <div style={{ ...constraintChip, marginTop: "10px" }}>{runtimeDiagnostics.warning}</div> : null}
+                    {runtimeDiagnosticsError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "10px" }}>{runtimeDiagnosticsError}</p> : null}
+                </div>
+            ) : null}
 
             {showSection("system") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Backup & export</h3>

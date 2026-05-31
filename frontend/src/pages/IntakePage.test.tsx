@@ -33,8 +33,8 @@ describe("IntakePage", () => {
             </MemoryRouter>
         );
 
-        expect(screen.getByText("Quick New Repair")).toBeInTheDocument();
-        expect(screen.getByLabelText("Issue/problem")).toBeInTheDocument();
+        expect(screen.getByText("New Repair")).toBeInTheDocument();
+        expect(screen.getByLabelText("Issue/problem *")).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText("Customer name"), { target: { value: "Al" } });
 

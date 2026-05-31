@@ -81,6 +81,14 @@ export default function DashboardPage() {
         return { activeRepairs, completedToday, waitingForParts, unpaidRepairs, recentCustomers };
     }, [tickets]);
 
+    const latestUpdatedAt = useMemo(() => {
+        if (tickets.length === 0) {
+            return null;
+        }
+        const newest = [...tickets].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+        return newest?.updated_at ?? null;
+    }, [tickets]);
+
     async function handleQuickStatusChange(ticket: TicketSummary, targetStatus: (typeof QUICK_REPAIR_STATUSES)[number]) {
         setUpdatingTicketId(ticket.id);
         setUpdateError(null);
@@ -106,16 +114,20 @@ export default function DashboardPage() {
     return (
         <section style={t.pageWrap}>
             <PageHeader
-                kicker="Live Desk"
-                title="Service Desk"
-                description="Run intake, triage, and status movement from one command surface."
+                kicker="Today"
+                title="What Needs Attention"
+                description="See urgent repairs, unpaid tickets, and fresh activity in one counter-friendly view."
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <Link to="/intake" style={newRepairButtonStyle}>+ New Repair</Link>
-                        <Link to="/queue" style={quickLinkBtnStyle}>Open Queue</Link>
+                        <Link to="/voicemail" style={quickLinkBtnStyle}>Check Voicemail</Link>
                     </div>
                 }
             />
+
+            <div style={{ ...t.meta, marginTop: "-2px" }}>
+                Last updated: {latestUpdatedAt ? new Date(latestUpdatedAt).toLocaleString() : "No ticket activity yet"}
+            </div>
 
             <div style={heroPanelStyle}>
                 <div style={metricGridStyle}>
@@ -126,7 +138,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <SectionCard title="Triage Console" description="Search active tickets, narrow by stage, and decide what needs attention next.">
+            <SectionCard title="Desk Filters" description="Search active tickets, narrow by stage, and decide what to handle next.">
                 <div style={{ display: "grid", gap: "10px" }}>
                     <input
                         value={search}
@@ -173,7 +185,7 @@ export default function DashboardPage() {
             {error ? <div style={t.errorBanner}>{error}</div> : null}
 
             <div style={deskLanesStyle}>
-                <SectionCard title={`Live ticket lane (${filteredTickets.length})`} description="Most recently updated tickets first.">
+                <SectionCard title={`Live tickets (${filteredTickets.length})`} description="Most recently updated tickets first.">
                     <div style={boardGridStyle}>
                         {filteredTickets.map((ticket) => {
                             const uiStatus = toUiStatus(ticket.status);
@@ -219,10 +231,10 @@ export default function DashboardPage() {
                 <div style={{ display: "grid", gap: "12px", alignContent: "start" }}>
                     <SectionCard title="Fast Actions" compact tone="soft">
                         <div style={{ ...t.formStack, gap: "8px" }}>
-                            <Link to="/tickets" style={quickWorkflowCardStyle}>Open full ticket board</Link>
-                            <Link to="/operations" style={quickWorkflowCardStyle}>Open operations hub</Link>
-                            <Link to="/hours" style={quickWorkflowCardStyle}>Open technician hours</Link>
-                            <Link to="/voicemail" style={quickWorkflowCardStyle}>Open voicemail inbox</Link>
+                            <Link to="/tickets" style={quickWorkflowCardStyle}>Search Tickets</Link>
+                            <Link to="/queue" style={quickWorkflowCardStyle}>Ready for Pickup Queue</Link>
+                            <Link to="/voicemail" style={quickWorkflowCardStyle}>Open Voicemail Inbox</Link>
+                            <Link to="/operations" style={quickWorkflowCardStyle}>Open Shop Tools</Link>
                         </div>
                     </SectionCard>
 
