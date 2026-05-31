@@ -57,8 +57,8 @@ describe("DashboardPage", () => {
         );
 
         expect(await screen.findByText("Service Desk")).toBeInTheDocument();
-        expect(screen.getByText("TR-00042")).toBeInTheDocument();
-        expect(screen.getAllByText("Dashboard Customer").length).toBeGreaterThan(0);
+        expect(await screen.findByText("TR-00042")).toBeInTheDocument();
+        expect((await screen.findAllByText("Dashboard Customer")).length).toBeGreaterThan(0);
         expect(screen.getByText("Active Repairs")).toBeInTheDocument();
     });
 });

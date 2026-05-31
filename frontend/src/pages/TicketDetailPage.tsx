@@ -153,6 +153,35 @@ export default function TicketDetailPage() {
 
             <div style={t.panel}>
                 <h3 style={{ ...t.heading, marginBottom: "10px" }}>One-Click Status</h3>
+                <p style={{ ...t.meta, marginTop: 0, marginBottom: "10px" }}>
+                    Fast actions for common outcomes, plus full status progression controls below.
+                </p>
+                <div style={{ ...t.formActionsRow, gap: "8px", marginBottom: "10px" }}>
+                    <button
+                        type="button"
+                        onClick={() => void moveToStatus("Ready for Pickup")}
+                        disabled={updatingStatus !== null || uiStatus === "Ready for Pickup"}
+                        style={t.secondaryBtn}
+                    >
+                        Mark Ready for Pickup
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void moveToStatus("Completed")}
+                        disabled={updatingStatus !== null || uiStatus === "Completed"}
+                        style={t.primaryBtn}
+                    >
+                        Complete Ticket
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void moveToStatus("Canceled")}
+                        disabled={updatingStatus !== null || uiStatus === "Canceled"}
+                        style={t.secondaryBtn}
+                    >
+                        Cancel Ticket
+                    </button>
+                </div>
                 <div style={{ ...t.formActionsRow, gap: "8px" }}>
                     {QUICK_REPAIR_STATUSES.map((status) => {
                         const colors = QUICK_REPAIR_STATUS_COLORS[status];

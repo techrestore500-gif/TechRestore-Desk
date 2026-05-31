@@ -63,6 +63,7 @@ function saveSetting<T>(key: string, value: T) {
 const DEFAULT_ROSTER = ["Mattis"];
 
 export default function SettingsPage() {
+    const [settingsFocus, setSettingsFocus] = useState<"all" | "business" | "communications" | "workflow" | "system">("all");
     // Shop info
     const [shopName, setShopName] = useState(() => loadSetting<string>("techRestore.shopName", "Tech Restore", ["tag.shopName"]));
     const [shopPhone, setShopPhone] = useState(() => loadSetting<string>("techRestore.shopPhone", "", ["tag.shopPhone"]));
@@ -449,6 +450,7 @@ export default function SettingsPage() {
     );
     const activeCategoryCount = managedRepairCategories.filter((category) => category.active).length;
     const workflowRuleCount = Object.keys(workflowTransitionsDraft).length;
+    const showSection = (section: "business" | "communications" | "workflow" | "system") => settingsFocus === "all" || settingsFocus === section;
 
     return (
         <section style={t.pageWrap}>
@@ -463,6 +465,13 @@ export default function SettingsPage() {
                     <div>
                         <strong style={{ color: "#173f37" }}>Quick jump</strong>
                         <div style={{ ...t.meta, marginTop: "4px" }}>Jump directly to the area you need during front-desk operations.</div>
+                    </div>
+                    <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                        <button type="button" style={settingsFocus === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("all")}>All</button>
+                        <button type="button" style={settingsFocus === "business" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("business")}>Business</button>
+                        <button type="button" style={settingsFocus === "communications" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("communications")}>Communications</button>
+                        <button type="button" style={settingsFocus === "workflow" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("workflow")}>Workflow</button>
+                        <button type="button" style={settingsFocus === "system" ? t.primaryBtn : t.miniBtn} onClick={() => setSettingsFocus("system")}>System</button>
                     </div>
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <a href="#settings-business" style={{ ...t.miniBtn, textDecoration: "none" }}>Business</a>
@@ -491,10 +500,10 @@ export default function SettingsPage() {
                 </div>
             </SectionCard>
 
-            <div id="settings-business" style={sectionLabelStyle}>Business Profile</div>
+            {showSection("business") ? <div id="settings-business" style={sectionLabelStyle}>Business Profile</div> : null}
 
             {/* ── Shop Info ── */}
-            <div style={panelStyle}>
+            {showSection("business") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Shop info</h3>
                 <form onSubmit={handleSaveShop} style={t.formStack}>
                     <label style={t.label}>
@@ -514,16 +523,16 @@ export default function SettingsPage() {
                         {shopSaved && <span style={savedChip}>Saved!</span>}
                     </div>
                 </form>
-            </div>
+            </div> : null}
 
-            <div style={t.detailGrid}>
+            {showSection("communications") ? <div style={t.detailGrid}>
                 <div>
                     <div id="settings-communications" style={sectionLabelStyle}>Communications</div>
                     <p style={{ ...t.meta, marginTop: 0, marginBottom: "10px" }}>Twilio voice setup and customer messaging templates.</p>
                 </div>
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("communications") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Phone / Twilio</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Connect a Twilio number to receive unanswered calls and store voicemail recordings inside Tech Restore.
@@ -650,10 +659,10 @@ export default function SettingsPage() {
                 ) : (
                     <p style={t.copy}>Loading Twilio settings…</p>
                 )}
-            </div>
+            </div> : null}
 
             {/* ── Technician Roster ── */}
-            <div style={panelStyle}>
+            {showSection("business") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Technician roster</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     These names populate the Hours log dropdown and will appear in Queue assignment in a future phase.
@@ -682,12 +691,12 @@ export default function SettingsPage() {
                     <button type="submit" style={t.secondaryBtn} disabled={!newTech.trim()}>Add</button>
                     {rosterSaved && <span style={savedChip}>Saved!</span>}
                 </form>
-            </div>
+            </div> : null}
 
-            <div id="settings-workflow" style={sectionLabelStyle}>Repair Operations</div>
+            {showSection("workflow") ? <div id="settings-workflow" style={sectionLabelStyle}>Repair Operations</div> : null}
 
             {/* ── Pricing Defaults ── */}
-            <div style={panelStyle}>
+            {showSection("workflow") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Pricing defaults</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     These values are used as starting points in the pricing calculator. Individual ticket prices can still be adjusted.
@@ -726,20 +735,20 @@ export default function SettingsPage() {
                     </div>
                 </form>
                 {pricingError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "10px" }}>{pricingError}</p> : null}
-            </div>
+            </div> : null}
 
             {/* ── Phase constraints ── */}
-            <div style={panelStyle}>
+            {showSection("workflow") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Phase 1 service constraints</h3>
                 <div style={{ ...t.formActionsRow, gap: "8px" }}>
                     <span style={constraintChip}>No soldering-based charging-port repair in standard v1</span>
                     <span style={constraintChip}>No soldering-based microphone repair in standard v1</span>
                 </div>
-            </div>
+            </div> : null}
 
-            <div id="settings-system" style={sectionLabelStyle}>System Safety</div>
+            {showSection("system") ? <div id="settings-system" style={sectionLabelStyle}>System Safety</div> : null}
 
-            <div style={panelStyle}>
+            {showSection("system") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Backup & export</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Create a local SQLite backup or export the current database snapshot as JSON.
@@ -776,9 +785,9 @@ export default function SettingsPage() {
                         </div>
                     )}
                 </div>
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("workflow") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Device & repair catalog</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Reference the seeded supported-device list and repair categories from one place while broader settings management is still in progress.
@@ -822,9 +831,9 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("workflow") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Repair category management</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Add categories and enable or disable them for intake, pricing, and repair-action selection.
@@ -891,9 +900,9 @@ export default function SettingsPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("workflow") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Status workflow editor</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Configure allowed status transitions and enforcement guardrails used by ticket updates.
@@ -992,9 +1001,9 @@ export default function SettingsPage() {
                 </form>
                 {workflowError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "12px" }}>{workflowError}</p> : null}
                 {workflowMessage ? <p style={{ ...t.copy, color: "#065f46", marginTop: "12px" }}>{workflowMessage}</p> : null}
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("communications") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Loaner agreement defaults</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Edit default acknowledgement copy used by the printable loaner agreement page.
@@ -1046,9 +1055,9 @@ export default function SettingsPage() {
                 )}
                 {loanerDefaultsError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "12px" }}>{loanerDefaultsError}</p> : null}
                 {loanerDefaultsMessage ? <p style={{ ...t.copy, color: "#065f46", marginTop: "12px" }}>{loanerDefaultsMessage}</p> : null}
-            </div>
+            </div> : null}
 
-            <div style={panelStyle}>
+            {showSection("communications") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Notification templates</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Customize the message text sent to customers for various repair status updates.
@@ -1087,10 +1096,10 @@ export default function SettingsPage() {
                 )}
                 {notificationTemplatesError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "12px" }}>{notificationTemplatesError}</p> : null}
                 {notificationTemplatesMessage ? <p style={{ ...t.copy, color: "#065f46", marginTop: "12px" }}>{notificationTemplatesMessage}</p> : null}
-            </div>
+            </div> : null}
 
             {/* ── Roadmap ── */}
-            <div style={panelStyle}>
+            {showSection("system") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Roadmap focus</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
                     Planned next improvements for Settings after MVP stabilization.
@@ -1100,7 +1109,7 @@ export default function SettingsPage() {
                         <span key={item} style={roadmapChip}>{item}</span>
                     ))}
                 </div>
-            </div>
+            </div> : null}
         </section>
     );
 }

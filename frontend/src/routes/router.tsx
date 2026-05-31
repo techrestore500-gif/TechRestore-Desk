@@ -15,6 +15,7 @@ import LoginStatePage from "../pages/LoginStatePage";
 import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
 import LoanersPage from "../pages/LoanersPage";
 import InviteAcceptPage from "../pages/InviteAcceptPage";
+import OperationsPage from "../pages/OperationsPage";
 import { QueuePage } from "../pages/QueuePage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
@@ -70,6 +71,10 @@ export const router = createBrowserRouter([
             {
                 path: "queue",
                 element: <QueuePage />,
+            },
+            {
+                path: "operations",
+                element: <OperationsPage />,
             },
             {
                 path: "hours",

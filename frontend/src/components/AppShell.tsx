@@ -10,19 +10,16 @@ const navItems = [
     { to: "/intake", label: "New Repair" },
     { to: "/tickets", label: "Tickets" },
     { to: "/queue", label: "Queue" },
+    { to: "/operations", label: "Operations" },
     { to: "/hours", label: "Hours" },
-    { to: "/inventory", label: "Inventory" },
     { to: "/voicemail", label: "Voicemail" },
-    { to: "/loaners", label: "Loaners" },
-    { to: "/donors", label: "Donors" },
     { to: "/reports", label: "Reports" },
     { to: "/users-invites", label: "Users / Invites" },
     { to: "/settings", label: "Settings" },
 ];
 
 const navGroups = [
-    { label: "Core", items: ["/", "/intake", "/tickets", "/queue", "/hours", "/voicemail"] },
-    { label: "Operations", items: ["/inventory", "/loaners", "/donors"] },
+    { label: "Core", items: ["/", "/intake", "/tickets", "/queue", "/operations", "/hours", "/voicemail"] },
     { label: "Admin", items: ["/reports", "/users-invites", "/settings"] },
 ];
 
@@ -226,7 +223,11 @@ export function AppShell() {
     const pageLabel = (() => {
         if (location.pathname === "/") return "Dashboard";
         const match = visibleNavItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
-        return match ? match.label : "Tech Restore Desk";
+        if (match) return match.label;
+        if (location.pathname.startsWith("/inventory")) return "Inventory";
+        if (location.pathname.startsWith("/loaners")) return "Loaners";
+        if (location.pathname.startsWith("/donors")) return "Donors";
+        return "Tech Restore Desk";
     })();
 
     useEffect(() => {
