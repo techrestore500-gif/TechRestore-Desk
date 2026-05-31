@@ -81,3 +81,29 @@ export function buildTransitionPath(
 
     return [];
 }
+
+export function getWorkflowAwareUiActions(
+    currentStatus: string,
+    transitions: Record<string, string[]>
+): Array<{ status: QuickRepairStatus; pathLength: number }> {
+    const currentUiStatus = toUiStatus(currentStatus);
+
+    const ranked = QUICK_REPAIR_STATUSES
+        .filter((status) => status !== currentUiStatus)
+        .map((status) => {
+            const path = buildTransitionPath(currentStatus, status, transitions);
+            return {
+                status,
+                pathLength: path.length,
+            };
+        })
+        .filter((entry) => entry.pathLength > 0)
+        .sort((left, right) => {
+            if (left.pathLength !== right.pathLength) {
+                return left.pathLength - right.pathLength;
+            }
+            return QUICK_REPAIR_STATUSES.indexOf(left.status) - QUICK_REPAIR_STATUSES.indexOf(right.status);
+        });
+
+    return ranked;
+}

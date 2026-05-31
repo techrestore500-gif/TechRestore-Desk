@@ -66,51 +66,51 @@ export default function AccountPage() {
             <SectionCard title="Change Password" description="Use your current password, then set a new password.">
                 <form style={{ display: "grid", gap: "12px" }} onSubmit={handleChangePassword}>
 
-                <label style={t.label} htmlFor="account-current-password">
-                    Current password
-                    <input
-                        id="account-current-password"
-                        type="password"
-                        autoComplete="current-password"
-                        style={t.input}
-                        value={currentPassword}
-                        onChange={(event) => setCurrentPassword(event.target.value)}
-                        disabled={busy}
-                    />
-                </label>
+                    <label style={t.label} htmlFor="account-current-password">
+                        Current password
+                        <input
+                            id="account-current-password"
+                            type="password"
+                            autoComplete="current-password"
+                            style={t.input}
+                            value={currentPassword}
+                            onChange={(event) => setCurrentPassword(event.target.value)}
+                            disabled={busy}
+                        />
+                    </label>
 
-                <label style={t.label} htmlFor="account-new-password">
-                    New password
-                    <input
-                        id="account-new-password"
-                        type="password"
-                        autoComplete="new-password"
-                        style={t.input}
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        disabled={busy}
-                    />
-                </label>
+                    <label style={t.label} htmlFor="account-new-password">
+                        New password
+                        <input
+                            id="account-new-password"
+                            type="password"
+                            autoComplete="new-password"
+                            style={t.input}
+                            value={newPassword}
+                            onChange={(event) => setNewPassword(event.target.value)}
+                            disabled={busy}
+                        />
+                    </label>
 
-                <label style={t.label} htmlFor="account-confirm-password">
-                    Confirm new password
-                    <input
-                        id="account-confirm-password"
-                        type="password"
-                        autoComplete="new-password"
-                        style={t.input}
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        disabled={busy}
-                    />
-                </label>
+                    <label style={t.label} htmlFor="account-confirm-password">
+                        Confirm new password
+                        <input
+                            id="account-confirm-password"
+                            type="password"
+                            autoComplete="new-password"
+                            style={t.input}
+                            value={confirmPassword}
+                            onChange={(event) => setConfirmPassword(event.target.value)}
+                            disabled={busy}
+                        />
+                    </label>
 
-                {error ? <div style={t.errorBanner}>{error}</div> : null}
-                {message ? (
-                    <div style={{ ...t.subCard, borderColor: "#34d399", background: "#ecfdf5", color: "#065f46" }}>
-                        {message} Password changed. Please sign in again.
-                    </div>
-                ) : null}
+                    {error ? <div style={t.errorBanner}>{error}</div> : null}
+                    {message ? (
+                        <div style={{ ...t.subCard, borderColor: "#34d399", background: "#ecfdf5", color: "#065f46" }}>
+                            {message} Password changed. Please sign in again.
+                        </div>
+                    ) : null}
 
                     <div style={t.formActionsRow}>
                         <button type="submit" style={t.primaryBtn} disabled={busy}>

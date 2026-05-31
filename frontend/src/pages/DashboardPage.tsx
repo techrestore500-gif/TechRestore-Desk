@@ -9,7 +9,8 @@ import {
     type TicketSummary,
 } from "../api/tickets";
 import { useAsyncData } from "../hooks/useAsyncData";
-import { buildTransitionPath, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
+import { formatPhone } from "../lib/format";
+import { buildTransitionPath, getWorkflowAwareUiActions, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
 import { MetricTile, PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
@@ -39,6 +40,7 @@ export default function DashboardPage() {
     const [reloadCounter, setReloadCounter] = useState(0);
     const [updatingTicketId, setUpdatingTicketId] = useState<number | null>(null);
     const [updateError, setUpdateError] = useState<string | null>(null);
+    const [openOverflowTicketId, setOpenOverflowTicketId] = useState<number | null>(null);
 
     const { data: tickets = [], error } = useAsyncData<TicketSummary[]>(() => fetchTickets(), [reloadCounter]);
     const { data: statusRules } = useAsyncData<StatusWorkflowRules>(() => fetchStatusWorkflowRules(), []);
@@ -91,6 +93,7 @@ export default function DashboardPage() {
 
     async function handleQuickStatusChange(ticket: TicketSummary, targetStatus: (typeof QUICK_REPAIR_STATUSES)[number]) {
         setUpdatingTicketId(ticket.id);
+        setOpenOverflowTicketId(null);
         setUpdateError(null);
         try {
             const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
@@ -105,7 +108,14 @@ export default function DashboardPage() {
 
             setReloadCounter((value) => value + 1);
         } catch (requestError) {
-            setUpdateError(requestError instanceof Error ? requestError.message : "Could not update ticket status");
+            const message = requestError instanceof Error ? requestError.message : "";
+            if (/final price/i.test(message)) {
+                setUpdateError("Set a final price before moving this ticket to pickup or closeout.");
+            } else if (/loaner/i.test(message)) {
+                setUpdateError("Close out any active loaner before moving this ticket to pickup or closeout.");
+            } else {
+                setUpdateError("Could not update ticket status right now. Refresh and try again.");
+            }
         } finally {
             setUpdatingTicketId(null);
         }
@@ -191,6 +201,11 @@ export default function DashboardPage() {
                             const uiStatus = toUiStatus(ticket.status);
                             const statusColors = QUICK_REPAIR_STATUS_COLORS[uiStatus];
                             const updatedLabel = new Date(ticket.updated_at).toLocaleString();
+                            const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
+                            const rankedActions = getWorkflowAwareUiActions(ticket.status, transitions);
+                            const primaryActions = rankedActions.slice(0, 2);
+                            const overflowActions = rankedActions.slice(2);
+                            const isOverflowOpen = openOverflowTicketId === ticket.id;
                             return (
                                 <article key={ticket.id} style={ticketCardStyle}>
                                     <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "start" }}>
@@ -207,20 +222,48 @@ export default function DashboardPage() {
                                     <div style={{ marginTop: "8px", color: "#6d807b", fontSize: "0.77rem" }}>Updated {updatedLabel}</div>
 
                                     <div style={{ ...t.formActionsRow, gap: "8px", marginTop: "12px" }}>
-                                        {QUICK_REPAIR_STATUSES.map((status) => (
+                                        {primaryActions.map(({ status }) => (
                                             <button
                                                 key={status}
                                                 type="button"
                                                 onClick={() => void handleQuickStatusChange(ticket, status)}
-                                                disabled={updatingTicketId === ticket.id || status === uiStatus}
-                                                style={{
-                                                    ...quickActionChipStyle,
-                                                    opacity: status === uiStatus ? 0.55 : 1,
-                                                }}
+                                                disabled={updatingTicketId === ticket.id}
+                                                style={quickActionChipStyle}
                                             >
                                                 {status}
                                             </button>
                                         ))}
+                                        {overflowActions.length > 0 ? (
+                                            <div style={{ position: "relative" }}>
+                                                <button
+                                                    type="button"
+                                                    aria-label="More status actions"
+                                                    onClick={() => setOpenOverflowTicketId(isOverflowOpen ? null : ticket.id)}
+                                                    disabled={updatingTicketId === ticket.id}
+                                                    style={overflowToggleButtonStyle}
+                                                >
+                                                    ⋮
+                                                </button>
+                                                {isOverflowOpen ? (
+                                                    <div style={overflowMenuStyle}>
+                                                        {overflowActions.map(({ status }) => (
+                                                            <button
+                                                                key={status}
+                                                                type="button"
+                                                                onClick={() => void handleQuickStatusChange(ticket, status)}
+                                                                disabled={updatingTicketId === ticket.id}
+                                                                style={overflowMenuItemStyle}
+                                                            >
+                                                                {status}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                        {primaryActions.length === 0 && overflowActions.length === 0 ? (
+                                            <span style={{ ...t.meta, fontSize: "0.78rem" }}>No next status action</span>
+                                        ) : null}
                                     </div>
                                 </article>
                             );
@@ -250,7 +293,7 @@ export default function DashboardPage() {
                                                 {customer.name}
                                             </Link>
                                         </strong>
-                                        <span>{customer.phone || "No phone on file"}</span>
+                                        <span>{customer.phone ? formatPhone(customer.phone) : "No phone on file"}</span>
                                     </div>
                                 ))}
                             </div>
@@ -336,6 +379,44 @@ const quickActionChipStyle = {
     padding: "6px 9px",
     fontWeight: 700,
     fontSize: "0.73rem",
+    cursor: "pointer",
+};
+
+const overflowToggleButtonStyle = {
+    borderRadius: "10px",
+    border: "1px solid rgba(29, 43, 40, 0.16)",
+    background: "#ffffff",
+    color: "#17342d",
+    padding: "4px 9px",
+    fontWeight: 800,
+    fontSize: "1rem",
+    lineHeight: 1,
+    cursor: "pointer",
+};
+
+const overflowMenuStyle = {
+    position: "absolute" as const,
+    top: "110%",
+    right: 0,
+    minWidth: "180px",
+    borderRadius: "10px",
+    border: "1px solid rgba(29, 43, 40, 0.16)",
+    background: "#ffffff",
+    boxShadow: "0 8px 18px rgba(19, 45, 40, 0.15)",
+    zIndex: 10,
+    display: "grid",
+    padding: "6px",
+    gap: "4px",
+};
+
+const overflowMenuItemStyle = {
+    borderRadius: "8px",
+    border: "1px solid transparent",
+    background: "#f5f8f7",
+    color: "#183831",
+    textAlign: "left" as const,
+    padding: "8px 9px",
+    fontWeight: 600,
     cursor: "pointer",
 };
 

@@ -12,7 +12,7 @@ import {
     type TicketDetail,
 } from "../api/tickets";
 import { useAsyncData } from "../hooks/useAsyncData";
-import { buildTransitionPath, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
+import { buildTransitionPath, getWorkflowAwareUiActions, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
 import * as t from "../styles/theme";
 
 const DEFAULT_TRANSITIONS: Record<string, string[]> = {
@@ -41,6 +41,7 @@ export default function TicketDetailPage() {
     const [statusNote, setStatusNote] = useState("");
     const [updatingStatus, setUpdatingStatus] = useState<null | string>(null);
     const [error, setError] = useState<string | null>(null);
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
 
     const { data: ticket, error: ticketLoadError } = useAsyncData<TicketDetail>(() => fetchTicket(ticketId), [ticketId, refreshKey]);
     const { data: statusRules } = useAsyncData<StatusWorkflowRules>(() => fetchStatusWorkflowRules(), []);
@@ -56,6 +57,14 @@ export default function TicketDetailPage() {
     );
 
     const uiStatus = ticket ? toUiStatus(ticket.status) : "Diagnosing";
+    const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
+    const rankedStatusActions = ticket ? getWorkflowAwareUiActions(ticket.status, transitions).map((entry) => entry.status) : [];
+    const preferredOrder: (typeof QUICK_REPAIR_STATUSES)[number][] = ["Ready for Pickup", "Completed", "Canceled"];
+    const prioritizedActions = preferredOrder.filter((status) => rankedStatusActions.includes(status));
+    const secondaryActions = rankedStatusActions.filter((status) => !prioritizedActions.includes(status));
+    const orderedActions = [...prioritizedActions, ...secondaryActions];
+    const primaryActions = orderedActions.slice(0, 3);
+    const overflowActions = orderedActions.slice(3);
 
     const timeline = useMemo(() => {
         if (!ticket) {
@@ -85,10 +94,10 @@ export default function TicketDetailPage() {
         }
 
         setUpdatingStatus(target);
+        setStatusMenuOpen(false);
         setError(null);
 
         try {
-            const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
             const path = buildTransitionPath(ticket.status, target, transitions);
             if (path.length === 0 && toUiStatus(ticket.status) !== target) {
                 throw new Error("No valid transition path found for this status.");
@@ -103,7 +112,14 @@ export default function TicketDetailPage() {
             setStatusNote("");
             setRefreshKey((current) => current + 1);
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : "Unable to update status");
+            const message = requestError instanceof Error ? requestError.message : "";
+            if (/final price/i.test(message)) {
+                setError("Set a final price before moving this ticket to pickup or closeout.");
+            } else if (/loaner/i.test(message)) {
+                setError("Close out any active loaner before moving this ticket to pickup or closeout.");
+            } else {
+                setError("Unable to update status right now. Refresh and try again.");
+            }
         } finally {
             setUpdatingStatus(null);
         }
@@ -154,58 +170,51 @@ export default function TicketDetailPage() {
             <div style={t.panel}>
                 <h3 style={{ ...t.heading, marginBottom: "10px" }}>One-Click Status</h3>
                 <p style={{ ...t.meta, marginTop: 0, marginBottom: "10px" }}>
-                    Fast actions for common outcomes, plus full status progression controls below.
+                    Primary next actions are shown first. Less common valid moves are available in More actions.
                 </p>
                 <div style={{ ...t.formActionsRow, gap: "8px", marginBottom: "10px" }}>
-                    <button
-                        type="button"
-                        onClick={() => void moveToStatus("Ready for Pickup")}
-                        disabled={updatingStatus !== null || uiStatus === "Ready for Pickup"}
-                        style={t.secondaryBtn}
-                    >
-                        Mark Ready for Pickup
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void moveToStatus("Completed")}
-                        disabled={updatingStatus !== null || uiStatus === "Completed"}
-                        style={t.primaryBtn}
-                    >
-                        Complete Ticket
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void moveToStatus("Canceled")}
-                        disabled={updatingStatus !== null || uiStatus === "Canceled"}
-                        style={t.secondaryBtn}
-                    >
-                        Cancel Ticket
-                    </button>
-                </div>
-                <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                    {QUICK_REPAIR_STATUSES.map((status) => {
-                        const colors = QUICK_REPAIR_STATUS_COLORS[status];
-                        const active = status === uiStatus;
-                        return (
+                    {primaryActions.map((status) => (
+                        <button
+                            key={status}
+                            type="button"
+                            onClick={() => void moveToStatus(status)}
+                            disabled={updatingStatus !== null}
+                            style={status === "Completed" ? t.primaryBtn : t.secondaryBtn}
+                        >
+                            {updatingStatus === status ? "Updating..." : status}
+                        </button>
+                    ))}
+                    {overflowActions.length > 0 ? (
+                        <div style={{ position: "relative" }}>
                             <button
-                                key={status}
                                 type="button"
-                                onClick={() => void moveToStatus(status)}
-                                disabled={active || updatingStatus !== null}
-                                style={{
-                                    borderRadius: "999px",
-                                    border: `1px solid ${active ? colors.text : colors.border}`,
-                                    background: active ? colors.text : colors.bg,
-                                    color: active ? "#ffffff" : colors.text,
-                                    padding: "8px 12px",
-                                    fontWeight: 700,
-                                    cursor: active ? "default" : "pointer",
-                                }}
+                                aria-label="More status actions"
+                                onClick={() => setStatusMenuOpen((open) => !open)}
+                                disabled={updatingStatus !== null}
+                                style={overflowToggleButtonStyle}
                             >
-                                {updatingStatus === status ? "Updating..." : status}
+                                ⋮
                             </button>
-                        );
-                    })}
+                            {statusMenuOpen ? (
+                                <div style={overflowMenuStyle}>
+                                    {overflowActions.map((status) => (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => void moveToStatus(status)}
+                                            disabled={updatingStatus !== null}
+                                            style={overflowMenuItemStyle}
+                                        >
+                                            {status}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {primaryActions.length === 0 && overflowActions.length === 0 ? (
+                        <span style={t.meta}>No valid next status actions from the current stage.</span>
+                    ) : null}
                 </div>
                 <div style={{ ...t.fieldGridTwoCompact, marginTop: "12px" }}>
                     <input
@@ -360,4 +369,42 @@ const timelineRowStyle = {
     border: "1px solid rgba(29,43,40,0.12)",
     background: "#f8f3ea",
     padding: "8px 12px",
+};
+
+const overflowToggleButtonStyle = {
+    borderRadius: "10px",
+    border: "1px solid rgba(29, 43, 40, 0.16)",
+    background: "#ffffff",
+    color: "#17342d",
+    padding: "4px 9px",
+    fontWeight: 800,
+    fontSize: "1rem",
+    lineHeight: 1,
+    cursor: "pointer",
+};
+
+const overflowMenuStyle = {
+    position: "absolute" as const,
+    top: "110%",
+    right: 0,
+    minWidth: "180px",
+    borderRadius: "10px",
+    border: "1px solid rgba(29, 43, 40, 0.16)",
+    background: "#ffffff",
+    boxShadow: "0 8px 18px rgba(19, 45, 40, 0.15)",
+    zIndex: 10,
+    display: "grid",
+    padding: "6px",
+    gap: "4px",
+};
+
+const overflowMenuItemStyle = {
+    borderRadius: "8px",
+    border: "1px solid transparent",
+    background: "#f5f8f7",
+    color: "#183831",
+    textAlign: "left" as const,
+    padding: "8px 9px",
+    fontWeight: 600,
+    cursor: "pointer",
 };

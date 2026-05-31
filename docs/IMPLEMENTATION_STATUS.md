@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-05-31 Dashboard/Ticket status-transition UI fix complete: status actions now render from workflow-valid reachable transitions only (with primary actions + overflow menu), preventing frontend-offered actions that backend rejects; dashboard recent-customer phone display now uses shared phone formatter
 - 2026-05-31 UX redo phase 2 complete: page-level IA reshaped on Dashboard, Operations, Tickets, and Settings into workflow-lane command surfaces; full frontend build and tests remain green
 - 2026-05-31 Full frontend UX redo foundation complete: replaced global visual language, shared token system, AppShell, shared page chrome, and shared DataTable presentation for a distinct new product feel while preserving existing route/workflow behavior and test coverage
 - 2026-05-28 SMTP invite delivery hardening complete: added SMTP mode toggles (`SMTP_USE_SSL`, `SMTP_STARTTLS`) and timeout control (`SMTP_TIMEOUT_SECONDS`), added safe SMTP diagnostics that log mode/host/port without credentials, and added protected bootstrap invite resend endpoint (`POST /api/auth/bootstrap/resend` with `X-Bootstrap-Key`) to recover first-admin onboarding without database reset
