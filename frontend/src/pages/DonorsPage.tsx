@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { PageHeader } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
 import {
@@ -143,12 +144,11 @@ export function DonorsPage() {
 
     return (
         <section style={{ ...t.pageWrap, gap: "20px" }}>
-            <div>
-                <h2 style={{ margin: 0 }}>Donor Devices</h2>
-                <p style={{ color: "#60756f", marginTop: "6px", marginBottom: 0, lineHeight: 1.5 }}>
-                    Track donor lifecycle and harvested parts for inventory support.
-                </p>
-            </div>
+            <PageHeader
+                kicker="Parts Harvesting"
+                title="Donor Devices"
+                description="Track donor lifecycle and harvested parts for inventory support."
+            />
 
             {error && (
                 <div style={{ padding: "10px 14px", background: "#fde8e8", color: "#9b2c2c", border: "1px solid #f8b4b4", borderRadius: "12px", marginBottom: "8px" }}>

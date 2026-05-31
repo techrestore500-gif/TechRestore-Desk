@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "../components/PageChrome";
 import * as t from "../styles/theme";
 import { useAsyncData } from "../hooks/useAsyncData";
 
@@ -149,10 +150,11 @@ export default function LoanersPage() {
 
     return (
         <section style={t.pageWrap}>
-            <div>
-                <h2 style={{ margin: 0 }}>Loaners</h2>
-                <p style={{ ...copyStyle, marginTop: "4px", marginBottom: 0, fontSize: "0.9rem" }}>Phase 2 loaner lifecycle: inventory, checkout, return, deposit tracking, and status handling.</p>
-            </div>
+            <PageHeader
+                kicker="Device Lifecycle"
+                title="Loaners"
+                description="Phase 2 loaner lifecycle: inventory, checkout, return, deposit tracking, and status handling."
+            />
 
             <div style={panelStyle}>
                 <div style={t.formActionsRow}>

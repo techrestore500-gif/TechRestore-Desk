@@ -10,7 +10,7 @@ export const panel: CSSProperties = {
     background: "linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(243, 249, 247, 0.88) 100%)",
     border: "1px solid rgba(29, 43, 40, 0.12)",
     borderRadius: "20px",
-    padding: "20px",
+    padding: "16px 18px",
     boxShadow: "0 10px 20px rgba(22, 49, 42, 0.08)",
 };
 
@@ -20,10 +20,10 @@ export const primaryBtn: CSSProperties = {
     border: "none",
     background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
     color: "#f5efe3",
-    padding: "12px 18px",
+    padding: "9px 18px",
     cursor: "pointer",
     fontWeight: 700,
-    boxShadow: "0 8px 16px rgba(23, 70, 60, 0.2)",
+    boxShadow: "0 6px 12px rgba(23, 70, 60, 0.18)",
     transition: "all 180ms ease",
 };
 
@@ -33,7 +33,7 @@ export const secondaryBtn: CSSProperties = {
     border: "1px solid rgba(29, 43, 40, 0.18)",
     background: "#ffffff",
     color: "#1d2b28",
-    padding: "12px 18px",
+    padding: "9px 18px",
     cursor: "pointer",
     transition: "all 180ms ease",
 };
@@ -44,7 +44,8 @@ export const miniBtn: CSSProperties = {
     border: "1px solid rgba(29, 43, 40, 0.12)",
     background: "#ffffff",
     color: "#1d2b28",
-    padding: "8px 12px",
+    padding: "6px 11px",
+    fontSize: "0.83rem",
     cursor: "pointer",
     transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
 };
@@ -54,7 +55,7 @@ export const input: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    padding: "12px 14px",
+    padding: "9px 12px",
     borderRadius: "12px",
     border: "1px solid rgba(29, 43, 40, 0.18)",
     background: "#ffffff",
@@ -94,11 +95,37 @@ export const meta: CSSProperties = {
 
 /** Error banner for inline page-level failures. */
 export const errorBanner: CSSProperties = {
-    padding: "10px 14px",
+    padding: "9px 14px",
     background: "#fde8e8",
     color: "#9b2c2c",
     border: "1px solid #f8b4b4",
     borderRadius: "12px",
+};
+
+/** Success banner for confirmations and saved states. */
+export const successBanner: CSSProperties = {
+    padding: "9px 14px",
+    background: "#e8f6ee",
+    color: "#1f6a3f",
+    border: "1px solid #b3dfc4",
+    borderRadius: "12px",
+};
+
+/** Inline muted notice — for tips, explanations, non-critical info. */
+export const notice: CSSProperties = {
+    padding: "9px 14px",
+    background: "rgba(240,242,239,0.8)",
+    color: "#465954",
+    border: "1px solid rgba(29,43,40,0.1)",
+    borderRadius: "12px",
+    fontSize: "0.88rem",
+};
+
+/** Section divider line within a panel. */
+export const sectionDivider: CSSProperties = {
+    border: "none",
+    borderTop: "1px solid rgba(29,43,40,0.08)",
+    margin: "16px 0",
 };
 
 /** Table shell for pages that still render dense record tables. */
@@ -126,7 +153,7 @@ export const tableCell: CSSProperties = {
 export const subCard: CSSProperties = {
     borderRadius: "14px",
     background: "#f6f1e8",
-    padding: "14px 16px",
+    padding: "10px 14px",
 };
 
 /** Policy or constraint warning notice. */
@@ -148,11 +175,11 @@ export const heading: CSSProperties = {
 export const statusBadge: CSSProperties = {
     alignSelf: "start",
     borderRadius: "999px",
-    padding: "10px 14px",
+    padding: "7px 14px",
     background: "linear-gradient(145deg, #1f6657 0%, #184e42 100%)",
     color: "#f5efe3",
     fontWeight: 700,
-    boxShadow: "0 8px 16px rgba(23, 70, 60, 0.2)",
+    boxShadow: "0 4px 10px rgba(23, 70, 60, 0.16)",
 };
 
 /** Responsive auto-fit grid for detail panels. */
@@ -190,7 +217,7 @@ export const fieldGridTwoCompact: CSSProperties = {
 /** Vertical stack for form sections and card content. */
 export const formStack: CSSProperties = {
     display: "grid",
-    gap: "14px",
+    gap: "12px",
     minWidth: 0,
 };
 
@@ -198,7 +225,7 @@ export const formStack: CSSProperties = {
 export const formActionsRow: CSSProperties = {
     display: "flex",
     flexWrap: "wrap",
-    gap: "10px",
+    gap: "8px",
     alignItems: "center",
     minWidth: 0,
 };
@@ -206,7 +233,7 @@ export const formActionsRow: CSSProperties = {
 /** Page-level wrapper — fills the main content column with a vertical grid. */
 export const pageWrap: CSSProperties = {
     display: "grid",
-    gap: "18px",
+    gap: "16px",
     width: "100%",
     maxWidth: "1280px",
     margin: "0 auto",

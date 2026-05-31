@@ -311,7 +311,7 @@ const headerStyle = {
 
 const detailGridStyle = {
     display: "grid",
-    gap: "12px",
+    gap: "10px",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
 };
 
@@ -319,15 +319,16 @@ const invoiceLinkStyle = {
     textDecoration: "none",
     borderRadius: "999px",
     border: "1px solid rgba(29,43,40,0.14)",
-    padding: "8px 12px",
+    padding: "7px 12px",
     color: "#163731",
     background: "#ffffff",
     fontWeight: 700,
+    display: "inline-block",
 };
 
 const timelineRowStyle = {
     borderRadius: "12px",
     border: "1px solid rgba(29,43,40,0.12)",
     background: "#f8f3ea",
-    padding: "10px 12px",
+    padding: "8px 12px",
 };

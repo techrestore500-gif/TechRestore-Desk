@@ -1166,11 +1166,14 @@ const roadmapChip: React.CSSProperties = {
 };
 
 const sectionLabelStyle: React.CSSProperties = {
-    fontSize: "0.78rem",
+    fontSize: "0.72rem",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     fontWeight: 800,
     color: "#1b4f45",
+    paddingBottom: "6px",
+    borderBottom: "2px solid rgba(27, 79, 69, 0.12)",
+    marginTop: "4px",
 };
 
 const statusTileStyle: React.CSSProperties = {

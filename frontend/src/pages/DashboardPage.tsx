@@ -234,8 +234,8 @@ export default function DashboardPage() {
 function MetricCard(props: { label: string; value: number; accent: string }) {
     return (
         <div style={{ ...metricCardStyle, borderColor: `${props.accent}33` }}>
-            <div style={{ fontSize: "0.78rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#5d746e", fontWeight: 700 }}>{props.label}</div>
-            <div style={{ fontSize: "2rem", color: props.accent, fontWeight: 800, marginTop: "6px" }}>{props.value}</div>
+            <div style={{ fontSize: "0.72rem", letterSpacing: "0.07em", textTransform: "uppercase", color: "#5d746e", fontWeight: 700 }}>{props.label}</div>
+            <div style={{ fontSize: "1.75rem", color: props.accent, fontWeight: 800, marginTop: "4px", lineHeight: 1.15 }}>{props.value}</div>
         </div>
     );
 }
@@ -243,22 +243,22 @@ function MetricCard(props: { label: string; value: number; accent: string }) {
 const newRepairButtonStyle = {
     textDecoration: "none",
     borderRadius: "999px",
-    padding: "12px 18px",
+    padding: "9px 18px",
     background: "linear-gradient(145deg, #196352 0%, #133f35 100%)",
     color: "#f5efe3",
     fontWeight: 700,
-    boxShadow: "0 10px 20px rgba(18, 52, 45, 0.24)",
+    boxShadow: "0 6px 14px rgba(18, 52, 45, 0.2)",
 };
 
 const heroPanelStyle = {
     ...t.panel,
-    padding: "16px",
+    padding: "14px 16px",
     background: "radial-gradient(circle at 16% 14%, rgba(230, 250, 241, 0.96) 0%, rgba(255, 249, 238, 0.96) 45%, rgba(248, 236, 218, 0.96) 100%)",
 };
 
 const metricGridStyle = {
     display: "grid",
-    gap: "10px",
+    gap: "8px",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
 };
 
@@ -266,7 +266,7 @@ const metricCardStyle = {
     border: "1px solid rgba(29, 43, 40, 0.1)",
     borderRadius: "16px",
     background: "rgba(255,255,255,0.85)",
-    padding: "14px 16px",
+    padding: "12px 14px",
 };
 
 const filterChipStyle = {
@@ -274,7 +274,7 @@ const filterChipStyle = {
     border: "1px solid rgba(29,43,40,0.12)",
     background: "#ffffff",
     color: "#18342e",
-    padding: "8px 11px",
+    padding: "6px 11px",
     fontWeight: 700,
     fontSize: "0.82rem",
     cursor: "pointer",
@@ -288,15 +288,15 @@ const activeFilterChipStyle = {
 
 const boardGridStyle = {
     display: "grid",
-    gap: "12px",
+    gap: "10px",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
 };
 
 const ticketCardStyle = {
     ...t.panel,
-    padding: "14px",
+    padding: "12px 14px",
     borderRadius: "16px",
-    boxShadow: "0 12px 20px rgba(26, 46, 41, 0.08)",
+    boxShadow: "0 8px 16px rgba(26, 46, 41, 0.07)",
 };
 
 const quickActionChipStyle = {
@@ -304,7 +304,7 @@ const quickActionChipStyle = {
     border: "1px solid rgba(29, 43, 40, 0.15)",
     background: "#ffffff",
     color: "#17342d",
-    padding: "6px 9px",
+    padding: "5px 9px",
     fontWeight: 700,
     fontSize: "0.73rem",
     cursor: "pointer",

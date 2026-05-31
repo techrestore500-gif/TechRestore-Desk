@@ -409,24 +409,24 @@ const primaryButtonStyle = t.primaryBtn;
 
 const quickPanelStyle = {
     ...t.panel,
-    borderRadius: "24px",
+    borderRadius: "20px",
     background: "linear-gradient(158deg, rgba(255,255,255,0.96) 0%, rgba(244,250,247,0.95) 48%, rgba(238,248,245,0.92) 100%)",
 };
 
 const quickFormLayoutStyle = {
     display: "grid",
-    gap: "16px",
+    gap: "14px",
     minWidth: 0,
 };
 
 const formSectionStyle = {
     display: "grid",
-    gap: "12px",
+    gap: "10px",
     minWidth: 0,
 };
 
 const sectionTitleStyle = {
-    fontSize: "0.77rem",
+    fontSize: "0.73rem",
     letterSpacing: "0.04em",
     textTransform: "uppercase" as const,
     color: "#56706a",
@@ -436,7 +436,7 @@ const sectionTitleStyle = {
 const twoColumnGridStyle = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "16px 18px",
+    gap: "12px 16px",
     minWidth: 0,
 };
 
@@ -479,8 +479,8 @@ const statusRowStyle = {
 const statusChipStyle = {
     borderRadius: "999px",
     border: "1px solid transparent",
-    padding: "10px 12px",
+    padding: "7px 12px",
     fontWeight: 700,
     cursor: "pointer",
-    fontSize: "0.84rem",
+    fontSize: "0.82rem",
 };

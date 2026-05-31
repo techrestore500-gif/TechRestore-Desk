@@ -7,6 +7,7 @@ import {
     type Part,
 } from "../api/tickets";
 import { LoadingBoundary } from "../components/LoadingBoundary";
+import { PageHeader } from "../components/PageChrome";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useCreatePartMutation, useDeletePartMutation, useUpdatePartMutation } from "../hooks/mutations/useInventoryMutations";
 import { useInventoryMovementsQuery, useLowStockPartsQuery, usePartUsageQuery, usePartsQuery } from "../hooks/queries/useInventoryQueries";
@@ -137,13 +138,16 @@ export function InventoryPage() {
 
     return (
         <section style={{ ...t.pageWrap, gap: "20px" }}>
-            <div>
-                <h2 style={{ margin: 0 }}>Inventory</h2>
-                <p style={{ color: "#60756f", marginTop: "6px", marginBottom: 0, lineHeight: 1.5 }}>
-                    Manage parts stock, filter inventory, and monitor low-stock risk.
-                    {lowStockCount > 0 ? <strong style={{ color: "#b03a2e", marginLeft: "10px" }}>{lowStockCount} low-stock {lowStockCount === 1 ? "item" : "items"}</strong> : null}
-                </p>
-            </div>
+            <PageHeader
+                kicker="Inventory"
+                title="Inventory"
+                description={
+                    <>
+                        Manage parts stock, filter inventory, and monitor low-stock risk.
+                        {lowStockCount > 0 ? <strong style={{ color: "#b03a2e", marginLeft: "10px" }}>{lowStockCount} low-stock {lowStockCount === 1 ? "item" : "items"}</strong> : null}
+                    </>
+                }
+            />
 
             {visibleError && (
                 <div style={{ padding: "10px 14px", background: "#fde8e8", color: "#9b2c2c", border: "1px solid #f8b4b4", borderRadius: "12px", marginBottom: "8px" }}>

@@ -1,24 +1,31 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+﻿import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, Link } from "react-router-dom";
 
 import { CommandPalette } from "./CommandPalette";
 import { useAuth } from "../auth/AuthProvider";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
-const navItems = [
+type NavItem = { to: string; label: string; adminOnly?: boolean };
+
+const CORE_NAV: NavItem[] = [
     { to: "/", label: "Dashboard" },
     { to: "/intake", label: "New Repair" },
     { to: "/tickets", label: "Tickets" },
     { to: "/queue", label: "Queue" },
     { to: "/hours", label: "Hours" },
-    { to: "/reports", label: "Reports" },
-    { to: "/inventory", label: "Inventory" },
-    { to: "/donors", label: "Donors" },
-    { to: "/loaners", label: "Loaners" },
     { to: "/voicemail", label: "Voicemail" },
-    { to: "/users-invites", label: "Users / Invites" },
+    { to: "/inventory", label: "Inventory" },
+];
+
+const OPERATIONS_NAV: NavItem[] = [
+    { to: "/loaners", label: "Loaners" },
+    { to: "/donors", label: "Donors" },
+];
+
+const ADMIN_NAV: NavItem[] = [
+    { to: "/reports", label: "Reports" },
+    { to: "/users-invites", label: "Team Access", adminOnly: true },
     { to: "/settings", label: "Settings" },
-    { to: "/account", label: "Account" },
 ];
 
 const S = {
@@ -45,7 +52,7 @@ const S = {
         zIndex: 20,
     },
     brand: {
-        padding: "22px 18px 16px",
+        padding: "16px 16px 12px",
         borderBottom: "1px solid rgba(24, 34, 30, 0.08)",
     },
     phase: {
@@ -54,10 +61,10 @@ const S = {
         textTransform: "uppercase" as const,
         color: "#5a7268",
         fontWeight: 700,
-        marginBottom: "6px",
+        marginBottom: "4px",
     },
     appName: {
-        fontSize: "1.22rem",
+        fontSize: "1.1rem",
         fontWeight: 800,
         letterSpacing: "0.01em",
         color: "#13312b",
@@ -65,32 +72,32 @@ const S = {
         margin: 0,
     },
     tagLine: {
-        marginTop: "5px",
+        marginTop: "3px",
         fontSize: "0.75rem",
         color: "#4d6760",
         lineHeight: 1.4,
-    },
-    logoutBtn: {
-        marginTop: "10px",
-        border: "1px solid rgba(19, 49, 42, 0.24)",
-        borderRadius: "9px",
-        background: "rgba(255,255,255,0.76)",
-        color: "#23443d",
-        cursor: "pointer",
-        fontSize: "0.78rem",
-        fontWeight: 700,
-        padding: "6px 10px",
     },
     nav: {
         display: "flex" as const,
         flexDirection: "column" as const,
         gap: "2px",
-        padding: "12px 10px",
+        padding: "10px 8px",
         flex: 1,
+    },
+    navGroup: {
+        marginBottom: "4px",
+    },
+    navGroupLabel: {
+        padding: "8px 8px 4px",
+        fontSize: "0.62rem",
+        letterSpacing: "0.15em",
+        textTransform: "uppercase" as const,
+        fontWeight: 700,
+        color: "#7a9490",
     },
     profileCard: {
         margin: "10px",
-        padding: "10px 11px",
+        padding: "9px 11px",
         borderRadius: "12px",
         border: "1px solid rgba(19, 49, 42, 0.12)",
         background: "rgba(255,255,255,0.72)",
@@ -99,7 +106,7 @@ const S = {
     },
     profileName: {
         margin: 0,
-        fontSize: "0.84rem",
+        fontSize: "0.82rem",
         fontWeight: 700,
         color: "#1f433a",
         lineHeight: 1.2,
@@ -113,7 +120,7 @@ const S = {
         textOverflow: "ellipsis",
     },
     profileActions: {
-        marginTop: "6px",
+        marginTop: "8px",
         display: "flex" as const,
         gap: "6px",
         flexWrap: "wrap" as const,
@@ -121,21 +128,32 @@ const S = {
     profileLink: {
         border: "1px solid rgba(19, 49, 42, 0.18)",
         borderRadius: "8px",
-        padding: "5px 8px",
+        padding: "5px 9px",
         color: "#21463d",
         textDecoration: "none",
         fontSize: "0.74rem",
         fontWeight: 700,
+        background: "rgba(255,255,255,0.5)",
+    },
+    logoutBtn: {
+        border: "1px solid rgba(19, 49, 42, 0.2)",
+        borderRadius: "8px",
+        background: "transparent",
+        color: "#5b1a1a",
+        cursor: "pointer",
+        fontSize: "0.74rem",
+        fontWeight: 700,
+        padding: "5px 9px",
     },
     linkBase: {
         display: "flex" as const,
         alignItems: "center" as const,
-        padding: "9px 14px",
-        borderRadius: "12px",
+        padding: "7px 10px",
+        borderRadius: "10px",
         textDecoration: "none",
         color: "#1c3830",
         fontWeight: 600,
-        fontSize: "0.92rem",
+        fontSize: "0.88rem",
         letterSpacing: "0.01em",
         transition: "background 140ms ease, color 140ms ease, box-shadow 140ms ease",
         border: "1px solid transparent",
@@ -143,7 +161,7 @@ const S = {
     main: {
         flex: 1,
         minWidth: 0,
-        padding: "28px 32px 40px",
+        padding: "22px 28px 36px",
     },
     mobileTopBar: {
         display: "flex" as const,
@@ -191,12 +209,13 @@ export function AppShell() {
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960);
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 960);
     const canManageInvites = user?.role === "owner" || user?.role === "admin";
-    const visibleNavItems = navItems.filter((item) => item.to !== "/users-invites" || canManageInvites);
 
-    // Derive current page label for mobile top bar
+    const visibleAdminNav = ADMIN_NAV.filter((item) => !item.adminOnly || canManageInvites);
+
     const pageLabel = (() => {
         if (location.pathname === "/") return "Dashboard";
-        const match = visibleNavItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
+        const allItems = [...CORE_NAV, ...OPERATIONS_NAV, ...ADMIN_NAV, { to: "/account", label: "Account" }];
+        const match = allItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
         return match ? match.label : "Tech Restore Desk";
     })();
 
@@ -206,37 +225,27 @@ export function AppShell() {
             setIsMobile(mobile);
             setSidebarOpen(!mobile);
         }
-
         window.addEventListener("resize", handleResize);
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        };
+        return () => { window.removeEventListener("resize", handleResize); };
     }, []);
 
     useEffect(() => {
-        if (isMobile) {
-            setSidebarOpen(false);
-        }
+        if (isMobile) { setSidebarOpen(false); }
     }, [location.pathname, isMobile]);
 
     const sidebarStyle = {
         ...S.sidebar,
-        ...(isMobile
-            ? {
-                position: "fixed" as const,
-                left: 0,
-                top: 0,
-                transform: sidebarOpen ? "translateX(0)" : "translateX(-108%)",
-                transition: "transform 180ms ease",
-                boxShadow: sidebarOpen ? "0 16px 32px rgba(19, 47, 41, 0.24)" : "none",
-            }
-            : null),
+        ...(isMobile ? {
+            position: "fixed" as const,
+            left: 0,
+            top: 0,
+            transform: sidebarOpen ? "translateX(0)" : "translateX(-108%)",
+            transition: "transform 180ms ease",
+            boxShadow: sidebarOpen ? "0 16px 32px rgba(19, 47, 41, 0.24)" : "none",
+        } : null),
     };
 
-    const mainStyle = {
-        ...S.main,
-        ...(isMobile ? { padding: "14px 14px 24px" } : null),
-    };
+    const mainStyle = isMobile ? { ...S.main, padding: "14px 14px 24px" } : S.main;
 
     return (
         <div style={S.root}>
@@ -246,68 +255,22 @@ export function AppShell() {
             <aside style={sidebarStyle}>
                 <div style={S.brand}>
                     <div style={S.phase}>Tech Restore Desk</div>
-                    <div style={S.appName}>Tech Restore<br />Desk</div>
-                    <div style={S.tagLine}>Local-first repair workflow</div>
+                    <div style={S.appName}>Tech Restore Desk</div>
+                    <div style={S.tagLine}>Repair workflow</div>
                 </div>
                 <nav style={S.nav}>
-                    {visibleNavItems.map((item) => (
-                        <NavLink
-                            key={item.to}
-                            to={item.to}
-                            end={item.to === "/"}
-                            style={({ isActive }) => ({
-                                ...S.linkBase,
-                                background: isActive
-                                    ? "linear-gradient(135deg, #1b5045 0%, #163f37 100%)"
-                                    : item.to === "/intake"
-                                        ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
-                                        : "transparent",
-                                color: isActive ? "#f4efe4" : item.to === "/intake" ? "#6b4200" : "#1c3830",
-                                boxShadow: isActive
-                                    ? "0 6px 14px rgba(17, 54, 47, 0.22)"
-                                    : item.to === "/intake"
-                                        ? "0 4px 10px rgba(138, 95, 0, 0.15)"
-                                        : "none",
-                                borderColor: isActive ? "#173f37" : item.to === "/intake" ? "rgba(140, 97, 0, 0.24)" : "transparent",
-                            })}
-                            onMouseEnter={(e) => {
-                                const el = e.currentTarget;
-                                if (!el.classList.contains("active")) {
-                                    el.style.background = item.to === "/intake"
-                                        ? "linear-gradient(145deg, rgba(255,243,217,1) 0%, rgba(246,222,180,0.95) 100%)"
-                                        : "rgba(255,255,255,0.6)";
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                const el = e.currentTarget;
-                                if (!el.classList.contains("active")) {
-                                    el.style.background = item.to === "/intake"
-                                        ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
-                                        : "transparent";
-                                }
-                            }}
-                            onClick={() => {
-                                if (isMobile) {
-                                    setSidebarOpen(false);
-                                }
-                            }}
-                        >
-                            {item.label}
-                        </NavLink>
-                    ))}
+                    <NavGroup label="Core" items={CORE_NAV} isMobile={isMobile} onNavigate={() => isMobile && setSidebarOpen(false)} />
+                    <NavGroup label="Operations" items={OPERATIONS_NAV} isMobile={isMobile} onNavigate={() => isMobile && setSidebarOpen(false)} />
+                    <NavGroup label="Admin" items={visibleAdminNav} isMobile={isMobile} onNavigate={() => isMobile && setSidebarOpen(false)} />
                 </nav>
                 {authEnabled && isAuthenticated && user ? (
                     <div style={S.profileCard}>
                         <p style={S.profileName}>{user.name}</p>
                         <p style={S.profileMeta}>{user.email}</p>
-                        <p style={S.profileMeta}>Role: {user.role ?? "none"}</p>
+                        <p style={S.profileMeta} title={user.role ?? "none"}>{user.role ?? "none"}</p>
                         <div style={S.profileActions}>
-                            <NavLink to="/account" style={S.profileLink}>
-                                View account
-                            </NavLink>
-                            <button type="button" style={S.logoutBtn} onClick={() => logout("You have been signed out.")}>
-                                Logout
-                            </button>
+                            <Link to="/account" style={S.profileLink}>Account</Link>
+                            <button type="button" style={S.logoutBtn} onClick={() => logout("You have been signed out.")}>Sign out</button>
                         </div>
                     </div>
                 ) : null}
@@ -324,6 +287,61 @@ export function AppShell() {
                 ) : null}
                 <Outlet />
             </main>
+        </div>
+    );
+}
+
+function NavGroup({ label, items, isMobile, onNavigate }: {
+    label: string;
+    items: NavItem[];
+    isMobile: boolean;
+    onNavigate: () => void;
+}) {
+    if (items.length === 0) return null;
+    return (
+        <div style={S.navGroup}>
+            <div style={S.navGroupLabel}>{label}</div>
+            {items.map((item) => (
+                <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    style={({ isActive }) => ({
+                        ...S.linkBase,
+                        background: isActive
+                            ? "linear-gradient(135deg, #1b5045 0%, #163f37 100%)"
+                            : item.to === "/intake"
+                                ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
+                                : "transparent",
+                        color: isActive ? "#f4efe4" : item.to === "/intake" ? "#6b4200" : "#1c3830",
+                        boxShadow: isActive
+                            ? "0 4px 10px rgba(17, 54, 47, 0.18)"
+                            : item.to === "/intake"
+                                ? "0 3px 8px rgba(138, 95, 0, 0.12)"
+                                : "none",
+                        borderColor: isActive ? "#173f37" : item.to === "/intake" ? "rgba(140, 97, 0, 0.24)" : "transparent",
+                    })}
+                    onMouseEnter={(e) => {
+                        const el = e.currentTarget;
+                        if (!el.classList.contains("active")) {
+                            el.style.background = item.to === "/intake"
+                                ? "linear-gradient(145deg, rgba(255,243,217,1) 0%, rgba(246,222,180,0.95) 100%)"
+                                : "rgba(255,255,255,0.55)";
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        const el = e.currentTarget;
+                        if (!el.classList.contains("active")) {
+                            el.style.background = item.to === "/intake"
+                                ? "linear-gradient(145deg, rgba(255,243,217,0.92) 0%, rgba(246,222,180,0.86) 100%)"
+                                : "transparent";
+                        }
+                    }}
+                    onClick={onNavigate}
+                >
+                    {item.label}
+                </NavLink>
+            ))}
         </div>
     );
 }
