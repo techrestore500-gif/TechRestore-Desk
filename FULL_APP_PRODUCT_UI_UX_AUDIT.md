@@ -486,3 +486,606 @@ Until explicit approval:
 ---
 
 Overall recommendation: proceed with a focused UX/IA optimization pass, not a rewrite. Preserve current functional breadth, reduce visual and navigational weight, and center the product around fast repair-desk operations first.
+
+## 16. Deep-Dive Scorecard
+
+Scoring scale: 1 (poor) to 10 (excellent)
+
+| Category | Score | Why |
+|---|---:|---|
+| Product-market fit for local repair desk | 8 | Core tasks are present and practical; app already supports real shop operation. |
+| Navigation clarity | 6 | Route labels are mostly clear, but first-level nav is too broad for fast counter use. |
+| Visual consistency | 6 | Good baseline visual language, but density and component behavior drift between pages. |
+| Workflow speed | 7 | Quick intake/status updates are good; long pages reduce effective throughput. |
+| Form usability | 6 | Functional forms, but optional/required weighting and validation messaging are uneven. |
+| Data confidence and freshness | 6 | Data appears generally accurate, but stale-state cues and recency indicators are weak. |
+| Error prevention and safety | 6 | Some confirmations and guardrails exist, but destructive/critical actions need stronger UX safety. |
+| Mobile/responsive behavior | 5 | Several pages degrade in density and scanability on smaller widths. |
+| Operational reliability UX | 7 | Good Twilio/setup diagnostics and backup/export UI; persistence and stale-state messaging can improve. |
+| Production readiness from UX perspective | 7 | Substantial groundwork is complete; IA and workflow polish are the biggest blockers to “pleasant” daily use. |
+
+Overall weighted score: 6.5 / 10
+
+Interpretation: the app is capable and usable, but requires IA and density refinement to feel “fast, simple, spacious, pleasant” in a busy repair desk setting.
+
+## 17. Role-Based Journey Walkthroughs
+
+### Front Desk (highest-frequency user)
+
+Primary jobs:
+- Create quick intake.
+- Check ticket status quickly.
+- Process voicemails and callbacks.
+- Handle loaner checkout/return when needed.
+
+Current friction points:
+- Sidebar includes too many non-daily destinations.
+- Ticket Detail and Settings introduce scroll fatigue.
+- Loaner workflows rely on ID entry, increasing cognitive and input load.
+
+Best-path optimization:
+- Core nav first, advanced nav second.
+- “Compact mode” defaults for ticket and voicemail lists.
+- Replace ID-driven loaner actions with searchable selectors.
+
+### Technician
+
+Primary jobs:
+- Work queue triage.
+- Update status quickly.
+- Log parts usage and hours.
+
+Current friction points:
+- Queue cards are spacious but not compact enough for rapid scanning.
+- Ticket Detail requires long vertical travel between status, parts, and notes.
+- Hours flow is capable but spread across several large sections.
+
+Best-path optimization:
+- Compact queue cards and assignment controls.
+- Ticket Detail section anchors + sticky action rail.
+- Hours page tab sections: Live Session, Manual Entry, History.
+
+### Owner/Admin
+
+Primary jobs:
+- Configure shop/system settings.
+- Manage users/invites.
+- Monitor backups and Twilio setup.
+
+Current friction points:
+- Settings is powerful but too long and mixed in persistence model.
+- Invite management is card-heavy and not filter-first.
+
+Best-path optimization:
+- Split settings routes.
+- Add filter/search/table view for invites.
+- Add explicit “Local only” vs “Shared persisted” tags for each config block.
+
+## 18. Information Architecture Deep Recommendation
+
+### Proposed primary nav (daily-first)
+
+1. Dashboard
+2. Intake
+3. Tickets
+4. Queue
+5. Hours
+6. Voicemail
+7. Inventory
+
+### Proposed secondary grouped nav
+
+- Operations:
+  - Loaners
+  - Donors
+- Admin:
+  - Team Access (Users/Invites)
+  - Settings
+  - Reports
+
+### Account/Profile placement
+
+- Move from main nav to profile card menu in sidebar footer/topbar.
+
+### Why this structure is better
+
+- Aligns app chrome with role frequency.
+- Reduces time-to-target for top 6 daily actions.
+- Preserves current features without deleting modules.
+
+## 19. Component-Level UX Findings
+
+### App shell and navigation
+
+Observed:
+- Mixed strong gradients + high-contrast active states increase visual load.
+- Mobile menu behavior works but feels heavy when switching frequently.
+
+Recommendations:
+- Minimal: reduce sidebar visual contrast by one intensity step.
+- Nicer: add route grouping headers and collapsible Advanced section.
+- Best long-term: adaptive density mode with compact default for desk stations.
+
+### DataTable component
+
+Observed:
+- Good baseline sorting/paging/selection.
+- Limited row density controls.
+- No “column priority” behavior for mobile.
+
+Recommendations:
+- Minimal: compact row mode and sticky header option.
+- Nicer: column visibility toggles + persisted table layout per page.
+- Best long-term: responsive column model (critical columns always visible, secondary in popover/details).
+
+### Command palette
+
+Observed:
+- Helpful for power users, but discoverability/shortcut education is limited.
+
+Recommendations:
+- Minimal: first-run helper line in sidebar/footer.
+- Nicer: include command groups (Navigate, Create, Actions).
+- Best long-term: contextual commands based on current route/selection.
+
+### Theme and style system
+
+Observed:
+- Useful shared token file exists, but heavy inline style usage creates drift.
+
+Recommendations:
+- Minimal: refactor top 5 pages to shared style objects.
+- Nicer: add semantic UI primitives (PageHeader, SectionCard, CompactListRow).
+- Best long-term: CSS variable theme + density scale + reusable component library.
+
+## 20. Detailed Forms and Fields Rationalization
+
+### Intake form (keep required fast lane)
+
+Required fields (always visible):
+- Customer name
+- Phone number
+- Device brand
+- Device model
+- Issue/problem
+
+Optional fields (collapsed by default):
+- Optional notes
+- Estimated charge
+- Payment status override
+- Non-default repair status
+
+Field-level improvements:
+- Phone: normalize and validate format at input and submit.
+- Estimated charge: enforce numeric and non-negative.
+- Issue/problem: add helper examples and min-length warning.
+
+### Loaner forms
+
+Current state: functional but too admin-like for front desk flow.
+
+Improvements:
+- Replace loaner ID/ticket ID/customer ID free input with searchable selectors.
+- Provide checkout wizard: Select Loaner -> Link Ticket -> Condition/Deposit -> Confirm.
+- Provide return wizard: Find Active Loaner -> Inspect -> Refund/Deduct -> Confirm.
+
+### Donor form/actions
+
+Improvements:
+- Add donor quick search by identifier/model.
+- Add stronger state badges for available vs harvested.
+- Add “harvest summary” confirmation before commit.
+
+### Settings forms
+
+Improvements:
+- Add section banners: Local browser state or Shared system state.
+- Add unsaved changes indicator per section.
+- Add “test action” buttons for Twilio and template previews.
+
+## 21. Spacing and Density Deep Audit
+
+Global density target:
+- Keep comfortable spacing but optimize for one-screen decision making.
+- Target 20-30% more information per viewport on high-frequency pages without feeling cramped.
+
+Specific density corrections:
+- Dashboard: reduce card padding and chip spread in ticket cards.
+- Tickets: compact table row option and reduced control row wrapping.
+- Queue: tighter card internals and cleaner assignment row.
+- Voicemail: fixed compact grid rows with controlled expansion.
+- Settings: section chunking with route split; avoid mega-scroll single page.
+
+Anti-patterns to avoid:
+- Giant full-width cards for short data points.
+- Overuse of pill controls where compact text buttons suffice.
+- Long single-column forms where grouped two-column layout is clearer.
+
+## 22. Accuracy and Reliability UX Risks
+
+### Potential accuracy confusion points
+
+- Unknown caller/called line in voicemail needs stronger fallback language and filterability.
+- Ticket/queue freshness is not always explicit to users.
+- Mixed persistence (localStorage + DB) in settings can cause expectation mismatch.
+
+### Reliability communication gaps
+
+- Limited explicit stale-state messaging after auth/session transitions.
+- Some mutating actions rely on quiet refreshes without robust “saved/failed with retry” patterns.
+
+### Recommended UX guardrails
+
+- Add “Last synced/updated at” stamps where decisions are time-sensitive.
+- Add standardized save result banners with retry CTA.
+- Add explicit conflict/stale hints when expected data changed.
+
+## 23. Production Readiness UX Addendum
+
+What is solid:
+- Invite-based auth onboarding.
+- Twilio setup diagnostics and callback plumbing visibility.
+- Backup/export controls in settings.
+
+What still feels risky from user standpoint:
+- Persistence assumptions are still easy to misunderstand without explicit status display in-app.
+- Session model edge behavior across tabs can feel inconsistent.
+- Admin controls are broad; accidental misconfiguration risk remains.
+
+UX actions before major rollout:
+- Add “System State” panel in Settings: DB mode, persistence status, last backup timestamp.
+- Add cross-tab auth/session sync and explicit session expiry warning.
+- Add high-risk action confirmations for settings that can disrupt call/voicemail flow.
+
+## 24. Implementation-Ready Acceptance Criteria
+
+### Phase 1 acceptance criteria
+
+- Primary sidebar reduced to core routes only.
+- Loaners and Donors accessible from secondary grouping, not first-level list.
+- Account removed from first-level sidebar and reachable from profile menu.
+- No regression in route access/permissions.
+
+### Phase 2 acceptance criteria
+
+- Voicemail rows render without uncontrolled wrapping at desktop/tablet/mobile breakpoints.
+- Ticket Detail has section anchors and measurable scroll reduction for top actions.
+- Tickets filters and page state are URL-synced and back-button safe.
+
+### Phase 3 acceptance criteria
+
+- Settings split into route-level sections with clear persistence labels.
+- Reports moved to admin/secondary nav and include export action.
+- Auth pages auto-handle logged-in /login visits and cross-tab logout sync.
+
+### Quality guardrails for all phases
+
+- No Twilio webhook/auth weakening.
+- No invite/public-signup regression.
+- No loss of existing working flows.
+- Maintain current backend role protections.
+
+## 25. Recommended First Change Set (If You Approve)
+
+If you approve implementation, the highest-value first batch is:
+
+1. Nav IA adjustment (core vs advanced) with no route deletions.
+2. Voicemail compact grid row refactor (Option B).
+3. Ticket Detail sectioning and jump links.
+4. Tickets URL filter/pagination sync.
+5. Settings persistence-scope labels and route split scaffolding.
+
+Expected result after this first batch:
+- Faster daily navigation.
+- Better counter-speed triage.
+- Less scroll fatigue.
+- Clearer confidence in what changed/saved.
+- Stronger perception of a focused repair desk product.
+
+## 26. Every Little Detail Audit
+
+This section is intentionally microscopic and is meant to be used as a QA + UX punch list before and during implementation.
+
+### A. Microcopy and Wording Details
+
+Global:
+- Keep wording short, direct, and repair-desk specific.
+- Prefer action labels over generic labels.
+- Avoid admin-panel phrasing for front-desk actions.
+
+Examples to improve:
+- Change New Repair variations to one canonical term across all pages.
+- Use Team Access instead of Users / Invites if clarity tests better.
+- Replace technical or passive messages with active instruction.
+
+Acceptance checks:
+- Every primary button starts with an action verb.
+- Empty states explain what to do next in one sentence.
+- Error text tells the user what to correct, not just what failed.
+
+### B. Button, Field, and Control Consistency
+
+Buttons:
+- Primary button style, size, and placement should be predictable across pages.
+- Secondary buttons should not visually compete with primary actions.
+- Destructive actions must be visually distinct and require confirmation when risk is high.
+
+Fields:
+- Required fields visibly marked and validated before submit.
+- Optional fields clearly marked and grouped lower.
+- Numeric fields enforce min, max, and format on input and submit.
+
+Acceptance checks:
+- No page has multiple visually equal primary actions unless intentional.
+- Required validation appears inline before network request when possible.
+- Cancel behavior is clear and reversible where appropriate.
+
+### C. Spacing, Density, and Vertical Rhythm
+
+Rules:
+- Use a stable spacing scale and avoid ad hoc one-off gaps.
+- Dense data pages should default to compact rows, not oversized cards.
+- Keep section headers close to related controls and content.
+
+High-priority pages:
+- Tickets, Voicemail, Queue, Ticket Detail, Settings.
+
+Acceptance checks:
+- Top 5 pages show at least one additional content row/block per viewport after density pass.
+- No uncontrolled wrapping of primary row content at common desktop widths.
+- Scroll depth for key tasks decreases measurably.
+
+### D. State Design (Loading, Empty, Error, Success)
+
+Loading:
+- Use skeleton or concise loading copy where action context matters.
+- Avoid large layout shifts while loading.
+
+Empty:
+- Explain why data may be empty.
+- Provide a clear first action.
+
+Error:
+- Include clear reason and immediate next step.
+- Offer retry where safe and meaningful.
+
+Success:
+- Use consistent success confirmation style and timing.
+- Keep success messages close to the action area.
+
+Acceptance checks:
+- Every async panel has all four states handled.
+- No silent failures on mutations.
+- No success state that can be mistaken for stale data.
+
+### E. Navigation and Orientation Details
+
+Rules:
+- Users should always know where they are and what comes next.
+- Primary nav should reflect frequency, not feature count.
+- Secondary routes should not clutter first-level workflow.
+
+Acceptance checks:
+- Breadcrumb/back paths exist for all deep workflows.
+- Profile/account controls are discoverable but not in core task path.
+- Advanced modules are reachable without polluting core navigation.
+
+### F. Table and List Behavior Details
+
+Rules:
+- Keep key columns visible at all relevant widths.
+- Secondary data can collapse behind detail toggles.
+- Preserve sort/filter/pagination state in URL where practical.
+
+Acceptance checks:
+- Back button returns to same table state.
+- High-volume list pages remain scannable at 1000+ records.
+- Row actions are compact and not prone to accidental clicks.
+
+### G. Form Flow Details
+
+Rules:
+- Minimize front-desk keystrokes.
+- Keep required fields in the first visible group.
+- Collapse advanced options unless needed.
+
+Acceptance checks:
+- Intake happy path can be completed rapidly without scrolling through optional fields.
+- Loaner and donor flows avoid raw ID entry where possible.
+- Settings sections clearly indicate save scope and persistence type.
+
+### H. Voicemail Micro Details
+
+Checklist:
+- Caller and called line always visible in compact row.
+- Menu trigger remains visible and stable at all widths.
+- Playback and notes only expand on demand.
+- Unknown caller/line is displayed clearly without noisy text.
+- Date and duration formats are concise and human-readable.
+
+Acceptance checks:
+- No row wraps into a visually broken multi-line layout on common breakpoints.
+- Menu never renders off-screen.
+- Bulk triage actions are available or intentionally deferred with rationale.
+
+### I. Auth and Session Micro Details
+
+Checklist:
+- Session-expired messaging is clear and immediate.
+- Logged-in visit to login route behaves predictably.
+- Logout in one tab updates other tabs promptly.
+- Password-change flow confirms outcome and next step cleanly.
+
+Acceptance checks:
+- No stale authenticated shell remains visible after token invalidation.
+- No confusing back-navigation behavior into protected screens.
+- Invite accept flow handles expired/invalid token gracefully with clear guidance.
+
+### J. Data Formatting and Confidence Details
+
+Rules:
+- Use consistent formatting for phone, currency, dates, and status labels.
+- Show data freshness indicators where decisions are time-sensitive.
+- Prefer explicit unknown over ambiguous blanks.
+
+Acceptance checks:
+- Currency formatting is consistent across dashboard, ticket detail, invoice, and reports.
+- Timestamp format and timezone behavior are consistent.
+- Unknown values are intentional and styled consistently.
+
+### K. Accessibility and Keyboard Details
+
+Checklist:
+- Visible focus states for all interactive controls.
+- Logical tab order in forms and menu systems.
+- ARIA labels for icon-only controls.
+- Contrast compliance for status chips and muted text.
+
+Acceptance checks:
+- Core daily workflows are keyboard-completable.
+- No critical action requires pointer-only interaction.
+- Screen-reader labels exist for compact/icon controls.
+
+### L. Mobile and Responsive Details
+
+Rules:
+- Mobile must be usable, even if desktop-first.
+- Avoid uncontrolled horizontal overflow.
+- Convert dense rows into intentional compact stacks, not accidental wraps.
+
+Acceptance checks:
+- Tickets, Queue, Voicemail, and Intake remain usable on narrow widths.
+- Primary actions remain visible without excessive scrolling.
+- Menus, popovers, and modals stay within viewport.
+
+### M. Reliability UX and Safe Operations Details
+
+Checklist:
+- Destructive actions require confirmation and clear consequence text.
+- Save operations provide explicit success/failure feedback.
+- Backup/export and system diagnostics are understandable to non-technical admin users.
+
+Acceptance checks:
+- No high-risk operation is one-click destructive without guardrails.
+- Users can distinguish local browser settings from shared persisted settings.
+- Operational status pages clearly show if system is healthy or needs action.
+
+### N. Detail-Level Page Punch Lists
+
+Dashboard:
+- Ensure metrics include recency cue.
+- Reduce visual noise in quick status actions.
+- Keep New Repair CTA dominant but not oversized.
+
+Tickets:
+- Compact control bar and prevent overflow wrapping.
+- Add URL state sync for filters/paging/sort.
+- Keep row actions concise and low-error.
+
+Intake:
+- Keep required group first and visible.
+- Collapse optional notes and advanced billing controls.
+- Strengthen phone and currency validation.
+
+Ticket Detail:
+- Add jump links and persistent section context.
+- Keep status controls near top and always discoverable.
+- Reduce repeated or redundant information blocks.
+
+Queue:
+- Tighten card spacing and assignment control behavior.
+- Confirm assignment updates with lightweight feedback.
+- Preserve filter state while navigating.
+
+Hours:
+- Separate live session, manual adjustment, and history visually.
+- Validate impossible time entries.
+- Keep log table readable in compact mode.
+
+Inventory:
+- Split into sub-sections for parts, movements, and purchases.
+- Reduce micro-action clutter on each row.
+- Improve reconciliation discoverability.
+
+Voicemail:
+- Implement fixed compact row grid.
+- Keep details collapsed by default.
+- Add date/status quick filters for rapid triage.
+
+Settings:
+- Route-split into manageable sections.
+- Add clear Local or Shared persistence tags.
+- Add higher-friction confirmations for high-impact settings.
+
+Users/Invites:
+- Add search/filter for invite state.
+- Reduce card verbosity with compact metadata layout.
+- Keep resend/revoke actions safe and obvious.
+
+Loaners:
+- Replace ID entry with searchable selection.
+- Keep checkout/return as guided short flows.
+- Reduce oversized form blocks above inventory list.
+
+Donors:
+- Add quick search and compact action layout.
+- Clarify part-state transitions with stronger labels.
+- Consider future merge under Inventory advanced tools.
+
+### O. Done Criteria for This Detail Section
+
+This detail section is complete when:
+- All micro-level checklist items have owner and status in implementation tracking.
+- Every high-priority page has passed density, state, and action-safety review.
+- Core front-desk flows feel faster without sacrificing clarity or accuracy.
+- Advanced modules remain available but no longer dominate primary day-to-day navigation.
+
+## 27. Final Audit Summary (Decision Snapshot)
+
+This section is the one-page executive summary to guide implementation decisions.
+
+### What the app is doing well right now
+
+- Core repair desk workflow exists end-to-end: intake, tickets, status progression, queue, hours, voicemail, inventory, settings, invites.
+- Backend guardrails for critical status flow and auth boundaries are meaningful.
+- Twilio voicemail integration and diagnostics are operationally useful.
+- Print and backup/export capabilities are already present.
+
+### Biggest problems to solve first
+
+- Navigation is too broad at first level for a fast counter workflow.
+- High-traffic pages (Ticket Detail, Voicemail, Queue, Settings) need density and structure improvements.
+- Form consistency and validation feedback are uneven across modules.
+- Session, stale-state, and persistence clarity need stronger UX messaging.
+
+### Strong recommendation on Loaners and Donors
+
+- Loaners: keep feature and routes, but remove from primary nav now (secondary/advanced access).
+- Donors: keep feature and routes, but remove from primary nav now (secondary/advanced access; likely future Inventory merge).
+- Do not delete either module until usage data validates removal.
+
+### Best implementation sequence
+
+1. IA and nav cleanup (Core vs Advanced/Admin).
+2. Voicemail compact row/grid refactor and triage filters.
+3. Ticket Detail sectioning + jump navigation.
+4. Tickets URL state sync and table behavior polish.
+5. Settings split + persistence-scope labeling.
+
+### Expected outcomes after first implementation wave
+
+- Faster daily operation at front desk.
+- Less scroll fatigue and fewer missed actions.
+- Better confidence in data freshness and save state.
+- Cleaner product feel: repair desk tool, not generic admin panel.
+
+### Risks to avoid during implementation
+
+- Do not weaken auth boundaries or session protections.
+- Do not alter Twilio public webhook flow in a way that breaks callbacks.
+- Do not break current working workflows while improving density and IA.
+- Do not remove Loaners/Donors code yet.
+
+### Final recommendation
+
+Proceed with focused UX/IA optimization, not a rewrite. Keep existing functional breadth, reduce top-level complexity, and optimize for the fastest practical front-desk path. Prioritize nav simplification and high-frequency page density before any larger architectural changes.
