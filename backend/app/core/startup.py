@@ -17,6 +17,11 @@ def _is_set(name: str) -> bool:
     return value is not None and bool(value.strip())
 
 
+def _is_truthy(name: str, *, default: str = "false") -> bool:
+    raw = os.getenv(name, default)
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _log_production_env_warnings() -> None:
     required_any = {
         "SECRET_KEY": ["SECRET_KEY", "TECH_RESTORE_JWT_SECRET"],
@@ -74,7 +79,9 @@ def initialize_app() -> None:
     initialize_monitoring(settings)
     initialize_database()
     try:
-        AuthService.ensure_bootstrap_admin_invite_from_env()
+        AuthService.ensure_bootstrap_admin_invite_from_env(
+            send_email=_is_truthy("ADMIN_INVITE_BOOTSTRAP_AUTOSEND", default="false")
+        )
     except ValueError as error:
         logger.warning("Bootstrap admin invite was not sent: %s", error)
     register_job_handlers()

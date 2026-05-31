@@ -12,6 +12,7 @@ Typical local backend values:
 - ADMIN_EMAIL=owner@example.com
 - ADMIN_NAME=Tech Restore Owner
 - ADMIN_INVITE_BOOTSTRAP=true
+- ADMIN_INVITE_BOOTSTRAP_AUTOSEND=false
 - ADMIN_INVITE_ROLE=owner
 - ADMIN_INVITE_BOOTSTRAP_KEY=local-bootstrap-key
 - DATABASE_URL=./data/tech_restore_desk.sqlite
@@ -40,6 +41,7 @@ Required:
 - REPAIR_DESK_AUTH_ENABLED
 - ADMIN_EMAIL
 - ADMIN_INVITE_BOOTSTRAP
+- ADMIN_INVITE_BOOTSTRAP_AUTOSEND
 - ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
 - SECRET_KEY
@@ -98,6 +100,7 @@ Backend required (core app):
 - REPAIR_DESK_AUTH_ENABLED
 - ADMIN_EMAIL
 - ADMIN_INVITE_BOOTSTRAP
+- ADMIN_INVITE_BOOTSTRAP_AUTOSEND
 - ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
 - SECRET_KEY
@@ -125,7 +128,8 @@ Frontend conditionally required:
 
 - Main production auth model is invite-only login (`/api/auth/login`) with admin/owner-controlled invite creation and acceptance (`/api/auth/invites/*`).
 - `REPAIR_DESK_PASSWORD` remains as an optional fallback mode only. If enabled with `REPAIR_DESK_AUTH_ENABLED=true`, backend still accepts shared-password logins.
-- First admin/owner bootstrap sends an emailed invite at startup when no users exist and `ADMIN_INVITE_BOOTSTRAP=true`.
+- Bootstrap invite creation is enabled by `ADMIN_INVITE_BOOTSTRAP=true` when no users/admins exist.
+- Startup email delivery is controlled separately by `ADMIN_INVITE_BOOTSTRAP_AUTOSEND` (recommended `false` in production to avoid invite spam on redeploys).
 - Emergency bootstrap resend endpoint exists at `POST /api/auth/bootstrap/resend` and requires `X-Bootstrap-Key` matching `ADMIN_INVITE_BOOTSTRAP_KEY`.
 
 ## SMTP Configuration (Render)

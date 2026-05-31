@@ -427,7 +427,7 @@ class AuthService:
         return user
 
     @staticmethod
-    def ensure_bootstrap_admin_invite_from_env() -> dict | None:
+    def ensure_bootstrap_admin_invite_from_env(*, send_email: bool = True) -> dict | None:
         bootstrap_enabled = os.getenv("ADMIN_INVITE_BOOTSTRAP", "false").strip().lower() in {"1", "true", "yes", "on"}
         if not bootstrap_enabled:
             return None
@@ -444,7 +444,13 @@ class AuthService:
         if pending:
             return pending[0]
 
-        invite, _ = AuthService.create_invite(email=admin_email, name=admin_name, role=admin_role, created_by=0, send_email=True)
+        invite, _ = AuthService.create_invite(
+            email=admin_email,
+            name=admin_name,
+            role=admin_role,
+            created_by=0,
+            send_email=send_email,
+        )
 
         AuditService.log_event(
             admin_action(
@@ -456,6 +462,7 @@ class AuthService:
                     "email": invite["email"],
                     "role": invite["role"],
                     "expires_at": invite["expires_at"],
+                    "email_sent": send_email,
                 },
             )
         )

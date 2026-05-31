@@ -398,6 +398,19 @@ class TestAuthApi:
         assert second["status"] == "pending"
         assert len(sent) == 1
 
+    def test_bootstrap_invite_can_be_created_without_email(self, client, monkeypatch):
+        sent = self._capture_invite_emails(monkeypatch)
+        monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
+        monkeypatch.setenv("ADMIN_NAME", "Mattis Klein")
+        monkeypatch.setenv("ADMIN_INVITE_BOOTSTRAP", "true")
+        monkeypatch.setenv("ADMIN_INVITE_ROLE", "owner")
+
+        invite = AuthService.ensure_bootstrap_admin_invite_from_env(send_email=False)
+        assert invite is not None
+        assert invite["email"] == "mattiskleinbh@gmail.com"
+        assert invite["status"] == "pending"
+        assert len(sent) == 0
+
     def test_bootstrap_resend_requires_valid_bootstrap_key(self, client, monkeypatch):
         self._capture_invite_emails(monkeypatch)
         monkeypatch.setenv("ADMIN_EMAIL", "mattiskleinbh@gmail.com")
