@@ -11,7 +11,7 @@ import {
     type HoursClockSession,
     type HoursLog,
     type HoursSummary,
-} from '../api/tickets';
+} from '../api/hours';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { PageHeader } from '../components/PageChrome';
 import * as t from '../styles/theme';

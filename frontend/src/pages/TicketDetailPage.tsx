@@ -3,14 +3,13 @@ import { Link, useParams } from "react-router-dom";
 
 import {
     addTicketNote,
-    fetchRepairActionPartUsage,
     fetchStatusWorkflowRules,
     fetchTicket,
     updateTicketStatus,
-    type PartUsage,
     type StatusWorkflowRules,
     type TicketDetail,
 } from "../api/tickets";
+import { fetchRepairActionPartUsage, type PartUsage } from "../api/inventory";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { buildTransitionPath, getWorkflowAwareUiActions, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
 import * as t from "../styles/theme";

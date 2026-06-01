@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { fetchDonors, fetchLoaners, fetchLowStockParts, type DonorDevice, type LoanerPhone, type Part } from "../api/tickets";
+import { fetchDonors, fetchLowStockParts, type DonorDevice, type Part } from "../api/inventory";
+import { fetchLoaners, type LoanerPhone } from "../api/tickets";
 import { PageHeader, SectionCard, MetricTile } from "../components/PageChrome";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";

@@ -11,7 +11,7 @@ import {
     updateDonor,
     type DonorDevice,
     type Part,
-} from "../api/tickets";
+} from "../api/inventory";
 
 export function DonorsPage() {
     const [refreshKey, setRefreshKey] = useState(0);

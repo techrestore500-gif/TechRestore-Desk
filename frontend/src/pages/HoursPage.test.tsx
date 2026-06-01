@@ -7,10 +7,10 @@ import {
     fetchActiveClockSession,
     fetchHours,
     fetchHoursSummary,
-} from '../api/tickets';
+} from '../api/hours';
 import { HoursPage } from './HoursPage';
 
-vi.mock('../api/tickets', () => ({
+vi.mock('../api/hours', () => ({
     clockIn: vi.fn(),
     clockOut: vi.fn(),
     fetchActiveClockSession: vi.fn(),

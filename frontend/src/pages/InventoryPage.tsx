@@ -5,7 +5,7 @@ import {
     type InventoryMovement,
     type InventoryPurchase,
     type Part,
-} from "../api/tickets";
+} from "../api/inventory";
 import { LoadingBoundary } from "../components/LoadingBoundary";
 import { PageHeader } from "../components/PageChrome";
 import { useAsyncData } from "../hooks/useAsyncData";

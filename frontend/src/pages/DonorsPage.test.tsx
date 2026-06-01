@@ -6,9 +6,9 @@ import {
     fetchDonors,
     fetchParts,
     updateDonor,
-} from '../api/tickets';
+} from '../api/inventory';
 
-vi.mock('../api/tickets', () => ({
+vi.mock('../api/inventory', () => ({
     fetchDonors: vi.fn(),
     fetchParts: vi.fn(),
     createDonor: vi.fn(),

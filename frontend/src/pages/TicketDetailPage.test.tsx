@@ -2,15 +2,19 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import { fetchRepairActionPartUsage, fetchStatusWorkflowRules, fetchTicket } from "../api/tickets";
+import { fetchRepairActionPartUsage } from "../api/inventory";
+import { fetchStatusWorkflowRules, fetchTicket } from "../api/tickets";
 import TicketDetailPage from "./TicketDetailPage";
 
 vi.mock("../api/tickets", () => ({
     fetchTicket: vi.fn(),
     fetchStatusWorkflowRules: vi.fn(),
-    fetchRepairActionPartUsage: vi.fn(),
     addTicketNote: vi.fn(),
     updateTicketStatus: vi.fn(),
+}));
+
+vi.mock("../api/inventory", () => ({
+    fetchRepairActionPartUsage: vi.fn(),
 }));
 
 describe("TicketDetailPage", () => {

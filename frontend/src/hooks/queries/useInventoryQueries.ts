@@ -6,7 +6,7 @@ import {
     fetchLowStockParts,
     fetchPartUsage,
     fetchParts,
-} from "../../api/tickets";
+} from "../../api/inventory";
 import { queryKeys } from "../queryKeys";
 
 export function usePartsQuery(filters: { category?: string; status?: string; lowStockOnly?: boolean }) {

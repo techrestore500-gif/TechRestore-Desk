@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchDonors, fetchLoaners, fetchParts, fetchTickets } from "../../api/tickets";
+import { fetchDonors, fetchParts } from "../../api/inventory";
+import { fetchLoaners, fetchTickets } from "../../api/tickets";
 
 type GlobalSearchItem = {
     id: number;

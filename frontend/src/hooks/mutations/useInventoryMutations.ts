@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createPart, deletePart, updatePart, type Part } from "../../api/tickets";
+import { createPart, deletePart, updatePart, type Part } from "../../api/inventory";
 import { queryKeys } from "../queryKeys";
 
 type PartsSnapshot = Array<readonly [readonly unknown[], Part[] | undefined]>;
