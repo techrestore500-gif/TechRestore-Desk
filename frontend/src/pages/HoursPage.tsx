@@ -13,7 +13,7 @@ import {
     type HoursSummary,
 } from '../api/hours';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { PageHeader } from '../components/PageChrome';
+import { InlineState, PageHeader, SectionCard } from '../components/PageChrome';
 import * as t from '../styles/theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -42,6 +42,14 @@ function loadRoster(): string[] {
 
 function todayIsoDate() {
     return new Date().toISOString().split('T')[0];
+}
+
+function formatDate(value: string) {
+    return new Date(value).toLocaleDateString();
+}
+
+function formatDateTime(value: string) {
+    return new Date(value).toLocaleString();
 }
 
 export function HoursPage() {
@@ -172,30 +180,84 @@ export function HoursPage() {
         refreshData();
     }
 
+    function handleResetFilters() {
+        setFilterStartDate('');
+        setFilterEndDate('');
+        setFilterTechnician(defaultTechnician);
+        setAppliedStartDate('');
+        setAppliedEndDate('');
+        setAppliedTechnician(defaultTechnician);
+        refreshData();
+    }
+
+    const totalHours = summary?.total_hours ?? 0;
+    const technicianBreakdown = summary ? Object.entries(summary.by_technician) : [];
+    const activeTechnicians = summary ? Object.keys(summary.by_technician).length : 0;
+    const latestEntryDate = hours.length > 0 ? formatDate(hours[0].work_date) : 'No entries yet';
+    const logCountLabel = `${hours.length} ${hours.length === 1 ? 'entry' : 'entries'}`;
+    const activeSessionElapsed = activeSession ? `${activeSession.elapsed_hours.toFixed(2)}h` : '0.00h';
+    const activeTicket = activeSession?.ticket_id ? `#${activeSession.ticket_id}` : 'None';
+    const appliedRangeLabel = appliedStartDate || appliedEndDate
+        ? `${appliedStartDate || 'Start'} -> ${appliedEndDate || 'Now'}`
+        : 'All time';
+
     return (
         <section style={t.pageWrap}>
             <PageHeader
                 kicker="Time Tracking"
                 title="Hours"
-                description="Track your time as Mattis with a live clock session, then review or correct past hours from the same screen."
+                description="Control live sessions, corrections, and reporting from one operations board."
             />
 
-            {visibleError ? <div style={t.errorBanner}>{visibleError}</div> : null}
+            {visibleError ? <InlineState tone="error">{visibleError}</InlineState> : null}
 
-            <div style={t.detailGrid}>
-                <div style={{ ...t.panel, background: 'linear-gradient(145deg, #ecfbf5 0%, #d8f2e6 100%)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'start' }}>
-                        <div>
-                            <h3 style={t.heading}>Clock Session</h3>
-                            <p style={{ ...t.copy, marginTop: 0, marginBottom: '12px' }}>
-                                Start a session when you begin work and clock out when you are done. The app will write the completed time into your hours log.
-                            </p>
-                        </div>
-                        <div style={{ ...t.statusBadge, background: activeSession ? 'linear-gradient(145deg, #1f6657 0%, #184e42 100%)' : '#ffffff', color: activeSession ? '#f5efe3' : '#1d2b28', border: activeSession ? 'none' : '1px solid rgba(29, 43, 40, 0.18)', boxShadow: 'none' }}>
-                            {activeSession ? 'Clocked In' : 'Clocked Out'}
-                        </div>
+            <section
+                style={{
+                    ...t.panel,
+                    padding: '20px',
+                    background: 'linear-gradient(120deg, rgba(12,57,66,0.94) 0%, rgba(22,103,99,0.9) 45%, rgba(241,174,77,0.86) 100%)',
+                    color: '#f5fffd',
+                    border: '1px solid rgba(9,38,47,0.25)',
+                }}
+            >
+                <div style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                    <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.13)', padding: '14px', border: '1px solid rgba(255,255,255,0.22)' }}>
+                        <div style={{ fontSize: '0.74rem', letterSpacing: '0.09em', textTransform: 'uppercase', opacity: 0.85 }}>Total Time</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, lineHeight: 1.05, marginTop: '6px' }}>{totalHours}h</div>
+                        <div style={{ marginTop: '5px', fontSize: '0.86rem', opacity: 0.85 }}>Total: {totalHours} hours</div>
                     </div>
+                    <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.13)', padding: '14px', border: '1px solid rgba(255,255,255,0.22)' }}>
+                        <div style={{ fontSize: '0.74rem', letterSpacing: '0.09em', textTransform: 'uppercase', opacity: 0.85 }}>Clock State</div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: '8px' }}>{activeSession ? 'Clocked In' : 'Clocked Out'}</div>
+                        <div style={{ marginTop: '4px', fontSize: '0.86rem', opacity: 0.85 }}>Elapsed {activeSessionElapsed}</div>
+                    </div>
+                    <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.13)', padding: '14px', border: '1px solid rgba(255,255,255,0.22)' }}>
+                        <div style={{ fontSize: '0.74rem', letterSpacing: '0.09em', textTransform: 'uppercase', opacity: 0.85 }}>Current Ticket</div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: '8px' }}>{activeTicket}</div>
+                        <div style={{ marginTop: '4px', fontSize: '0.86rem', opacity: 0.85 }}>{activeSession?.work_description || 'No ticket note yet'}</div>
+                    </div>
+                    <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.13)', padding: '14px', border: '1px solid rgba(255,255,255,0.22)' }}>
+                        <div style={{ fontSize: '0.74rem', letterSpacing: '0.09em', textTransform: 'uppercase', opacity: 0.85 }}>Filter Window</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '8px' }}>{appliedRangeLabel}</div>
+                        <div style={{ marginTop: '4px', fontSize: '0.86rem', opacity: 0.85 }}>{logCountLabel} · {activeTechnicians} techs</div>
+                    </div>
+                </div>
+            </section>
 
+            <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'minmax(280px, 1fr) minmax(280px, 1fr)' }}>
+                <section
+                    style={{
+                        ...t.panel,
+                        padding: '18px',
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(232,248,245,0.9) 100%)',
+                        borderTop: '5px solid #128377',
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0 }}>Live Session Control</h3>
+                        <span style={{ color: '#2f5f63', fontSize: '0.86rem' }}>{activeSession ? `Started ${formatDateTime(activeSession.clocked_in_at)}` : 'No active session right now'}</span>
+                    </div>
+                    <p style={{ ...t.copy, marginTop: '8px', marginBottom: '12px' }}>Run active timing from here and convert the session into history with one click.</p>
                     <div style={t.fieldGrid}>
                         <label style={t.label}>
                             <span>Technician</span>
@@ -213,80 +275,88 @@ export function HoursPage() {
                             <input value={clockDescription} onChange={(event) => setClockDescription(event.target.value)} placeholder="Bench diagnostics, battery swap, etc." style={t.input} />
                         </label>
                     </div>
-
-                    <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
-                        <div style={t.subCard}>
-                            <strong>{activeSession ? `Started ${new Date(activeSession.clocked_in_at).toLocaleString()}` : 'No active session right now.'}</strong>
-                            <div style={t.meta}>
-                                {activeSession
-                                    ? `${activeSession.elapsed_hours.toFixed(2)} hours so far${activeSession.ticket_id ? ` · Ticket #${activeSession.ticket_id}` : ''}`
-                                    : 'Clock in to start tracking a repair block.'}
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            <button type="button" style={t.primaryBtn} disabled={Boolean(activeSession) || saving !== null} onClick={handleClockIn}>
-                                {saving === 'clock-in' ? 'Clocking In...' : 'Clock In'}
-                            </button>
-                            <button type="button" style={t.secondaryBtn} disabled={!activeSession || saving !== null} onClick={handleClockOut}>
-                                {saving === 'clock-out' ? 'Clocking Out...' : 'Clock Out'}
-                            </button>
-                        </div>
+                    <div style={{ ...t.formActionsRow, marginTop: '14px' }}>
+                        <button type="button" style={t.primaryBtn} disabled={Boolean(activeSession) || saving !== null} onClick={handleClockIn}>
+                            {saving === 'clock-in' ? 'Clocking In...' : 'Clock In'}
+                        </button>
+                        <button type="button" style={t.secondaryBtn} disabled={!activeSession || saving !== null} onClick={handleClockOut}>
+                            {saving === 'clock-out' ? 'Clocking Out...' : 'Clock Out'}
+                        </button>
                     </div>
-                </div>
+                </section>
 
-                <div style={{ display: 'grid', gap: '18px' }}>
-                    <div style={{ ...t.panel, background: 'linear-gradient(145deg, #ecfbf5 0%, #d8f2e6 100%)' }}>
-                        <h3 style={{ ...t.heading, color: '#1f6d4f' }}>Summary</h3>
-                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px', color: '#1f6d4f' }}>
-                            Total: {summary?.total_hours ?? 0} hours
-                        </p>
-                        {summary && Object.keys(summary.by_technician).length > 0 ? (
-                            <div style={{ display: 'grid', gap: '8px' }}>
-                                {Object.entries(summary.by_technician).map(([name, loggedHours]) => (
-                                    <div key={name} style={t.subCard}>
-                                        <strong>{name}</strong>
-                                        <div style={t.meta}>{loggedHours} hours in the selected range</div>
-                                    </div>
-                                ))}
-                            </div>
+                <section
+                    style={{
+                        ...t.panel,
+                        padding: '18px',
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,239,224,0.93) 100%)',
+                        borderTop: '5px solid #d6842f',
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0 }}>Summary Board</h3>
+                        <span style={{ color: '#6d5437', fontSize: '0.86rem' }}>Latest entry: {latestEntryDate}</span>
+                    </div>
+                    <div style={{ marginTop: '12px', display: 'grid', gap: '9px' }}>
+                        {technicianBreakdown.length > 0 ? (
+                            technicianBreakdown.map(([name, loggedHours]) => (
+                                <div
+                                    key={name}
+                                    style={{
+                                        borderRadius: '12px',
+                                        padding: '10px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '10px',
+                                        background: 'rgba(255,255,255,0.82)',
+                                        border: '1px solid rgba(116,85,43,0.18)',
+                                    }}
+                                >
+                                    <strong>{name}</strong>
+                                    <span style={{ color: '#5f4729', fontWeight: 700 }}>{loggedHours}h</span>
+                                </div>
+                            ))
                         ) : (
-                            <p style={t.copy}>No hours recorded in the current range.</p>
+                            <InlineState tone="info">No hours recorded in the current range.</InlineState>
                         )}
                     </div>
-
-                    <div style={t.panel}>
-                        <h3 style={t.heading}>Filters</h3>
-                        <form onSubmit={handleFilter} style={{ display: 'grid', gap: '16px' }}>
-                            <div style={t.fieldGrid}>
-                                <label style={t.label}>
-                                    <span>Start date</span>
-                                    <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)} style={t.input} />
-                                </label>
-                                <label style={t.label}>
-                                    <span>End date</span>
-                                    <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)} style={t.input} />
-                                </label>
-                                <label style={t.label}>
-                                    <span>Technician</span>
-                                    <input value={filterTechnician} onChange={(event) => setFilterTechnician(event.target.value)} style={t.input} list="filter-tech-roster" />
-                                    <datalist id="filter-tech-roster">
-                                        {roster.map((name) => <option key={name} value={name} />)}
-                                    </datalist>
-                                </label>
-                            </div>
-                            <button type="submit" style={t.primaryBtn}>Apply Filters</button>
-                        </form>
-                    </div>
-                </div>
+                </section>
             </div>
 
-            <div style={t.detailGrid}>
-                <div style={t.panel}>
-                    <h3 style={t.heading}>Manual Adjustment</h3>
-                    <p style={{ ...t.copy, marginTop: 0, marginBottom: '12px' }}>
-                        Use this when you need to backfill a missed entry or correct a finished block without using the live timer.
-                    </p>
-                    <form onSubmit={handleAddHours} style={{ display: 'grid', gap: '16px' }}>
+            <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'minmax(280px, 0.95fr) minmax(280px, 1.05fr)' }}>
+                <section style={{ ...t.panel, padding: '18px' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '6px' }}>Filter History</h3>
+                    <p style={{ ...t.meta, marginTop: 0, marginBottom: '10px' }}>Target specific dates and technicians for reporting.</p>
+                    <form onSubmit={handleFilter} style={t.formStack}>
+                        <div style={t.fieldGrid}>
+                            <label style={t.label}>
+                                <span>Start date</span>
+                                <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)} style={t.input} />
+                            </label>
+                            <label style={t.label}>
+                                <span>End date</span>
+                                <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)} style={t.input} />
+                            </label>
+                            <label style={t.label}>
+                                <span>Technician</span>
+                                <input value={filterTechnician} onChange={(event) => setFilterTechnician(event.target.value)} style={t.input} list="filter-tech-roster" />
+                                <datalist id="filter-tech-roster">
+                                    {roster.map((name) => <option key={name} value={name} />)}
+                                </datalist>
+                            </label>
+                        </div>
+                        <div style={t.formActionsRow}>
+                            <button type="submit" style={t.primaryBtn}>Apply Filters</button>
+                            <button type="button" style={t.secondaryBtn} onClick={handleResetFilters}>Reset Filters</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section style={{ ...t.panel, padding: '18px' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '6px' }}>Manual Adjustment</h3>
+                    <p style={{ ...t.meta, marginTop: 0, marginBottom: '10px' }}>Backfill missed work blocks or correct completed sessions.</p>
+                    <form onSubmit={handleAddHours} style={t.formStack}>
                         <div style={t.fieldGrid}>
                             <label style={t.label}>
                                 <span>Work date</span>
@@ -309,48 +379,55 @@ export function HoursPage() {
                             {saving === 'manual' ? 'Saving...' : 'Log Manual Hours'}
                         </button>
                     </form>
-                </div>
-
-                <div style={t.panel}>
-                    <h3 style={t.heading}>Hours Log</h3>
-                    {loading ? (
-                        <LoadingSpinner size="sm" message="Loading hours…" />
-                    ) : hours.length === 0 ? (
-                        <p style={t.copy}>No hours logged yet.</p>
-                    ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={t.tableShell}>
-                                <thead style={{ backgroundColor: '#1f4a41', color: '#f7f5ee' }}>
-                                    <tr>
-                                        <th style={t.tableHeaderCell}>Date</th>
-                                        <th style={t.tableHeaderCell}>Technician</th>
-                                        <th style={t.tableHeaderCell}>Hours</th>
-                                        <th style={t.tableHeaderCell}>Ticket</th>
-                                        <th style={t.tableHeaderCell}>Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {hours.map((log, index) => (
-                                        <tr key={log.id} style={{ borderBottom: '1px solid #ebf1ef', backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fbfa' }}>
-                                            <td style={t.tableCell}>{new Date(log.work_date).toLocaleDateString()}</td>
-                                            <td style={t.tableCell}>{log.technician}</td>
-                                            <td style={{ ...t.tableCell, fontWeight: 700, color: '#1f5e4f' }}>{log.hours_worked}</td>
-                                            <td style={t.tableCell}>
-                                                {log.ticket_id ? (
-                                                    <Link to={`/tickets/${log.ticket_id}`} style={{ color: '#1b5a8a', fontWeight: 600, textDecoration: 'none' }}>
-                                                        #{log.ticket_id}
-                                                    </Link>
-                                                ) : '-'}
-                                            </td>
-                                            <td style={{ ...t.tableCell, color: '#576963' }}>{log.work_description || '-'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                </section>
             </div>
+
+            <SectionCard title="Hours Timeline" description="Newest records first, with quick context and direct ticket links." tone="soft">
+                {loading ? (
+                    <LoadingSpinner size="sm" message="Loading hours..." />
+                ) : hours.length === 0 ? (
+                    <InlineState tone="info">No hours logged yet.</InlineState>
+                ) : (
+                    <div style={{ display: 'grid', gap: '11px' }}>
+                        {hours.map((log) => (
+                            <article
+                                key={log.id}
+                                style={{
+                                    borderRadius: '16px',
+                                    border: '1px solid rgba(28,65,72,0.14)',
+                                    background: 'linear-gradient(145deg, rgba(255,255,255,0.97) 0%, rgba(236,244,246,0.9) 100%)',
+                                    boxShadow: '0 10px 20px rgba(15,42,47,0.07)',
+                                    padding: '12px 14px',
+                                    display: 'grid',
+                                    gap: '8px',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+                                        <span style={{ borderRadius: '999px', background: '#113f49', color: '#eafcff', padding: '4px 10px', fontWeight: 700, fontSize: '0.82rem' }}>{formatDate(log.work_date)}</span>
+                                        <strong>{log.technician}</strong>
+                                    </div>
+                                    <div style={{ fontWeight: 800, color: '#0f5865', fontSize: '1.05rem' }}>{log.hours_worked}h</div>
+                                </div>
+                                <div style={{ display: 'grid', gap: '5px', gridTemplateColumns: 'minmax(130px, 170px) 1fr', alignItems: 'start' }}>
+                                    <div style={{ ...t.meta, marginTop: 0 }}>Ticket</div>
+                                    <div style={{ ...t.copy, margin: 0 }}>
+                                        {log.ticket_id ? (
+                                            <Link to={`/tickets/${log.ticket_id}`} style={{ color: '#1b5a8a', fontWeight: 700, textDecoration: 'none' }}>
+                                                #{log.ticket_id}
+                                            </Link>
+                                        ) : 'Unlinked'}
+                                    </div>
+                                    <div style={{ ...t.meta, marginTop: 0 }}>Description</div>
+                                    <div style={{ ...t.copy, margin: 0 }}>{log.work_description || 'No work description provided.'}</div>
+                                    <div style={{ ...t.meta, marginTop: 0 }}>Logged At</div>
+                                    <div style={{ ...t.copy, margin: 0 }}>{formatDateTime(log.created_at)}</div>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </SectionCard>
         </section>
     );
 }
