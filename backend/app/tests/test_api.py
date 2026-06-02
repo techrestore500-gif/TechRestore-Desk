@@ -401,6 +401,35 @@ class TestHours:
         assert active_after_resp.status_code == 200
         assert active_after_resp.json() is None
 
+    def test_date_filters_handle_datetime_like_work_date_values(self, client):
+        create_resp = client.post(
+            "/api/hours/",
+            json={
+                "technician": "Mattis",
+                "work_date": "2026-05-27T13:20:00Z",
+                "hours_worked": 1.3333333333,
+                "work_description": "Date normalization regression test",
+            },
+        )
+        assert create_resp.status_code == 201
+
+        list_resp = client.get(
+            "/api/hours/",
+            params={"start_date": "2026-05-27", "end_date": "2026-05-27", "technician": "Mattis"},
+        )
+        assert list_resp.status_code == 200
+        entries = list_resp.json()
+        assert len(entries) >= 1
+        assert all(item["work_date"] == "2026-05-27" for item in entries)
+
+        summary_resp = client.get(
+            "/api/hours/summary",
+            params={"start_date": "2026-05-27", "end_date": "2026-05-27", "technician": "Mattis"},
+        )
+        assert summary_resp.status_code == 200
+        summary = summary_resp.json()
+        assert summary["total_hours"] >= 1.33
+
 
 class TestDashboard:
     def test_summary_and_alerts(self, client):

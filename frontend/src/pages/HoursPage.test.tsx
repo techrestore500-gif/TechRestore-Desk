@@ -75,11 +75,13 @@ describe('HoursPage', () => {
         );
 
         await waitFor(() => {
-            expect(fetchHours).toHaveBeenCalledTimes(1);
+            expect(fetchHours).toHaveBeenCalled();
         });
 
         expect(screen.getAllByDisplayValue('Mattis')).toHaveLength(2);
-        expect(screen.getByText('Total: 2:30')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('Total: 2:30')).toBeInTheDocument();
+        });
 
         fireEvent.click(screen.getByRole('button', { name: 'Clock In' }));
 

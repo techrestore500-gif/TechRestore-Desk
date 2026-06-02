@@ -3288,6 +3288,18 @@ def log_hours(payload: dict) -> dict:
     """
     timestamp = utc_now()
     ticket_id = payload.get("ticket_id")
+    raw_work_date = str(payload["work_date"]).strip()
+
+    # Accept either YYYY-MM-DD or full ISO datetime and store normalized date only.
+    if not raw_work_date:
+        raise ValueError("work_date is required")
+    try:
+        if "T" in raw_work_date:
+            parsed_work_date = datetime.fromisoformat(raw_work_date.replace("Z", "+00:00")).date().isoformat()
+        else:
+            parsed_work_date = raw_work_date[:10]
+    except ValueError as exc:
+        raise ValueError("work_date must be a valid date or ISO datetime") from exc
     
     # Validate ticket if provided
     if ticket_id:
@@ -3310,7 +3322,7 @@ def log_hours(payload: dict) -> dict:
             (
                 ticket_id,
                 payload["technician"],
-                payload["work_date"],
+                parsed_work_date,
                 float(payload["hours_worked"]),
                 payload.get("work_description"),
                 timestamp,
@@ -3327,7 +3339,7 @@ def get_hours_entry(hours_id: int) -> dict | None:
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT id, ticket_id, technician, work_date, hours_worked,
+            SELECT id, ticket_id, technician, DATE(work_date) AS work_date, hours_worked,
                    work_description, created_at, updated_at
             FROM technician_hours
             WHERE id = ?
@@ -3491,11 +3503,11 @@ def list_hours(
     parameters: list = []
     
     if start_date:
-        where_clauses.append("work_date >= ?")
+        where_clauses.append("DATE(work_date) >= DATE(?)")
         parameters.append(start_date)
     
     if end_date:
-        where_clauses.append("work_date <= ?")
+        where_clauses.append("DATE(work_date) <= DATE(?)")
         parameters.append(end_date)
     
     if technician:
@@ -3507,11 +3519,11 @@ def list_hours(
     with get_connection() as connection:
         rows = connection.execute(
             f"""
-            SELECT id, ticket_id, technician, work_date, hours_worked,
+            SELECT id, ticket_id, technician, DATE(work_date) AS work_date, hours_worked,
                    work_description, created_at, updated_at
             FROM technician_hours
             WHERE {where_clause}
-            ORDER BY work_date DESC, technician ASC, id DESC
+            ORDER BY DATE(work_date) DESC, technician ASC, id DESC
             """,
             parameters,
         ).fetchall()
@@ -3537,11 +3549,11 @@ def get_hours_summary(
     parameters: list = []
     
     if start_date:
-        where_clauses.append("work_date >= ?")
+        where_clauses.append("DATE(work_date) >= DATE(?)")
         parameters.append(start_date)
     
     if end_date:
-        where_clauses.append("work_date <= ?")
+        where_clauses.append("DATE(work_date) <= DATE(?)")
         parameters.append(end_date)
 
     if technician:

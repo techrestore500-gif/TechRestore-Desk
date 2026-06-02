@@ -40,7 +40,7 @@ function loadRoster(): string[] {
 }
 
 function todayIsoDate() {
-    return new Date().toISOString().split('T')[0];
+    return toIsoDate(new Date());
 }
 
 function parseIsoDate(value: string): Date {
@@ -74,18 +74,33 @@ function monthLabel(value: Date): string {
     return value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
-function FullCalendar({ selectedDate, onSelectDate }: { selectedDate: string; onSelectDate: (iso: string) => void }) {
-    const [visibleMonth, setVisibleMonth] = useState<Date>(() => {
-        const selected = parseIsoDate(selectedDate);
-        return new Date(selected.getFullYear(), selected.getMonth(), 1);
-    });
+function monthStartIso(value: string): string {
+    const parsed = parseIsoDate(value);
+    return toIsoDate(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+}
 
-    useEffect(() => {
-        if (!selectedDate) return;
-        const selected = parseIsoDate(selectedDate);
-        setVisibleMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
-    }, [selectedDate]);
+function monthRangeFromStart(monthStart: string): { start: string; end: string } {
+    const parsed = parseIsoDate(monthStart);
+    return {
+        start: monthStart,
+        end: toIsoDate(new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0)),
+    };
+}
 
+function FullCalendar({
+    selectedDate,
+    visibleMonthStart,
+    dayTotals,
+    onSelectDate,
+    onVisibleMonthChange,
+}: {
+    selectedDate: string;
+    visibleMonthStart: string;
+    dayTotals: Record<string, number>;
+    onSelectDate: (iso: string) => void;
+    onVisibleMonthChange: (monthStart: string) => void;
+}) {
+    const visibleMonth = parseIsoDate(visibleMonthStart);
     const year = visibleMonth.getFullYear();
     const month = visibleMonth.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -108,11 +123,19 @@ function FullCalendar({ selectedDate, onSelectDate }: { selectedDate: string; on
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                 <h3 style={{ margin: 0, color: '#1a2c39', fontSize: '1rem' }}>Calendar</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <button type="button" style={{ ...t.secondaryBtn, padding: '6px 10px' }} onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}>
+                    <button
+                        type="button"
+                        style={{ ...t.secondaryBtn, padding: '6px 10px' }}
+                        onClick={() => onVisibleMonthChange(toIsoDate(new Date(year, month - 1, 1)))}
+                    >
                         Prev
                     </button>
                     <strong style={{ color: '#203645', minWidth: '150px', textAlign: 'center' }}>{monthLabel(visibleMonth)}</strong>
-                    <button type="button" style={{ ...t.secondaryBtn, padding: '6px 10px' }} onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}>
+                    <button
+                        type="button"
+                        style={{ ...t.secondaryBtn, padding: '6px 10px' }}
+                        onClick={() => onVisibleMonthChange(toIsoDate(new Date(year, month + 1, 1)))}
+                    >
                         Next
                     </button>
                 </div>
@@ -125,27 +148,41 @@ function FullCalendar({ selectedDate, onSelectDate }: { selectedDate: string; on
 
                 {cells.map((day, index) => {
                     if (day === null) {
-                        return <div key={`empty-${index}`} style={{ height: '42px' }} />;
+                        return <div key={`empty-${index}`} style={{ height: '58px' }} />;
                     }
                     const iso = toIsoDate(new Date(year, month, day));
                     const selected = iso === selectedDate;
+                    const dayTotal = dayTotals[iso] ?? 0;
                     return (
                         <button
                             key={iso}
                             type="button"
                             onClick={() => onSelectDate(iso)}
                             style={{
-                                height: '42px',
+                                height: '58px',
                                 borderRadius: '9px',
                                 border: selected ? '1px solid #0b5d6a' : '1px solid #d7e2ea',
-                                background: selected ? '#0f6a77' : '#f8fbfd',
+                                background: selected ? '#0f6a77' : dayTotal > 0 ? '#edf7fb' : '#f8fbfd',
                                 color: selected ? '#f4fcff' : '#2e4757',
                                 cursor: 'pointer',
                                 fontWeight: selected ? 700 : 500,
-                                fontSize: '0.9rem',
+                                fontSize: '0.82rem',
+                                display: 'grid',
+                                alignContent: 'center',
+                                justifyItems: 'center',
+                                gap: '2px',
                             }}
                         >
-                            {day}
+                            <span>{day}</span>
+                            <span
+                                style={{
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    opacity: dayTotal > 0 ? 1 : 0.45,
+                                }}
+                            >
+                                {dayTotal > 0 ? formatHoursClock(dayTotal) : '--'}
+                            </span>
                         </button>
                     );
                 })}
@@ -169,6 +206,10 @@ export function HoursPage() {
     const [manualWorkDate, setManualWorkDate] = useState(todayIsoDate());
     const [manualMinutesWorked, setManualMinutesWorked] = useState('60');
     const [selectedDate, setSelectedDate] = useState(todayIsoDate());
+    const [visibleMonthStart, setVisibleMonthStart] = useState(() => monthStartIso(todayIsoDate()));
+    const [autoSelectedLatestDate, setAutoSelectedLatestDate] = useState(false);
+
+    const visibleMonthRange = monthRangeFromStart(visibleMonthStart);
 
     useEffect(() => {
         if (!roster.includes(technician)) {
@@ -178,23 +219,71 @@ export function HoursPage() {
 
     const { data, loading, error } = useAsyncData(async () => {
         const [hoursData, summaryData] = await Promise.all([
-            fetchHours(selectedDate, selectedDate, undefined),
-            fetchHoursSummary(selectedDate, selectedDate, undefined),
+            fetchHours(visibleMonthRange.start, visibleMonthRange.end, technician || undefined),
+            fetchHoursSummary(visibleMonthRange.start, visibleMonthRange.end, technician || undefined),
         ]);
         return {
-            hours: hoursData,
-            summary: summaryData,
+            monthHours: hoursData,
+            monthSummary: summaryData,
         };
-    }, [selectedDate, refreshKey]);
+    }, [visibleMonthRange.end, visibleMonthRange.start, technician, refreshKey]);
 
     const { data: activeSession } = useAsyncData<HoursClockSession | null>(
         () => fetchActiveClockSession(technician),
         [technician, refreshKey],
     );
 
-    const hours: HoursLog[] = data?.hours ?? [];
-    const summary: HoursSummary | null = data?.summary ?? null;
+    const monthHours: HoursLog[] = data?.monthHours ?? [];
+    const monthSummary: HoursSummary | null = data?.monthSummary ?? null;
+    const selectedDayEntries = monthHours.filter((entry) => entry.work_date === selectedDate);
+    const dayTotals = monthHours.reduce<Record<string, number>>((acc, entry) => {
+        acc[entry.work_date] = (acc[entry.work_date] ?? 0) + entry.hours_worked;
+        return acc;
+    }, {});
     const visibleError = submitError ?? error;
+
+    useEffect(() => {
+        if (autoSelectedLatestDate || loading || Boolean(error)) {
+            return;
+        }
+        if (selectedDayEntries.length > 0) {
+            setAutoSelectedLatestDate(true);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function jumpToLatestHoursDate() {
+            try {
+                const allHours = await fetchHours(undefined, undefined, technician || undefined);
+                if (cancelled || allHours.length === 0) {
+                    setAutoSelectedLatestDate(true);
+                    return;
+                }
+
+                const latestDate = allHours.reduce(
+                    (latest, item) => (item.work_date > latest ? item.work_date : latest),
+                    allHours[0].work_date,
+                );
+
+                if (latestDate !== selectedDate) {
+                    setSelectedDate(latestDate);
+                    setVisibleMonthStart(monthStartIso(latestDate));
+                    setManualWorkDate(latestDate);
+                }
+            } finally {
+                if (!cancelled) {
+                    setAutoSelectedLatestDate(true);
+                }
+            }
+        }
+
+        void jumpToLatestHoursDate();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [autoSelectedLatestDate, error, loading, selectedDate, selectedDayEntries.length, technician]);
 
     function refreshData() {
         setRefreshKey((current) => current + 1);
@@ -264,7 +353,8 @@ export function HoursPage() {
         }
     }
 
-    const totalHours = summary?.total_hours ?? 0;
+    const selectedDayTotalHours = selectedDayEntries.reduce((total, entry) => total + entry.hours_worked, 0);
+    const monthTotalHours = monthSummary?.total_hours ?? monthHours.reduce((total, entry) => total + entry.hours_worked, 0);
     const activeSessionElapsed = activeSession ? formatHoursClock(activeSession.elapsed_seconds / 3600) : '0:00';
     const isClockedIn = Boolean(activeSession);
 
@@ -318,7 +408,12 @@ export function HoursPage() {
                     <div style={{ ...t.panel, padding: '10px 12px', boxShadow: 'none', border: '1px solid #dde6ee', background: '#fff' }}>
                         <div style={{ fontSize: '0.8rem', color: '#5c7080' }}>Selected Day</div>
                         <div style={{ fontWeight: 700, color: '#203543' }}>{selectedDate}</div>
-                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Total: {formatHoursClock(totalHours)}</div>
+                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Total: {formatHoursClock(selectedDayTotalHours)}</div>
+                    </div>
+                    <div style={{ ...t.panel, padding: '10px 12px', boxShadow: 'none', border: '1px solid #dde6ee', background: '#fff' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#5c7080' }}>Visible Month Total</div>
+                        <div style={{ fontWeight: 700, color: '#203543' }}>{formatHoursClock(monthTotalHours)}</div>
+                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>{visibleMonthRange.start} to {visibleMonthRange.end}</div>
                     </div>
                 </div>
 
@@ -361,10 +456,14 @@ export function HoursPage() {
 
                 <FullCalendar
                     selectedDate={selectedDate}
+                    visibleMonthStart={visibleMonthStart}
+                    dayTotals={dayTotals}
                     onSelectDate={(iso) => {
                         setSelectedDate(iso);
+                        setVisibleMonthStart(monthStartIso(iso));
                         setManualWorkDate(iso);
                     }}
+                    onVisibleMonthChange={setVisibleMonthStart}
                 />
             </section>
 
@@ -405,11 +504,13 @@ export function HoursPage() {
                 <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1d3240' }}>Day History</h3>
                 {loading ? (
                     <LoadingSpinner size="sm" message="Loading hours..." />
-                ) : hours.length === 0 ? (
-                    <InlineState tone="info">No hours logged for this day.</InlineState>
+                ) : monthHours.length === 0 ? (
+                    <InlineState tone="info">No hours found for this month and technician filter. Try another month or technician.</InlineState>
+                ) : selectedDayEntries.length === 0 ? (
+                    <InlineState tone="info">No hours logged for this day. Pick another date in the calendar to view entries.</InlineState>
                 ) : (
                     <div style={{ display: 'grid', gap: '8px' }}>
-                        {hours.map((log) => (
+                        {selectedDayEntries.map((log) => (
                             <article key={log.id} style={{ borderRadius: '10px', border: '1px solid #dce6ee', background: '#f9fcfd', padding: '9px 10px', display: 'grid', gap: '5px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                     <strong style={{ color: '#244356' }}>{log.technician}</strong>

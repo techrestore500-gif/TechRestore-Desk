@@ -3,6 +3,9 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-02 Hours data correctness pass complete: monthly calendar now renders per-day logged totals inside day cells, selected-day totals are computed from actual selected-day entries (not month summary), month-range totals are shown explicitly, and hours queries are technician-filter-aware
+- 2026-06-02 Backend hours date filtering hardened: `work_date` values are normalized to `YYYY-MM-DD` on write and all list/summary filters compare with `DATE(work_date)` so legacy datetime-like values still appear under correct day selections
+- 2026-06-02 Hours history visibility fix complete: Hours page now uses local-date defaults (not UTC date slices) and auto-jumps to the most recent logged work date when the initially selected day has no entries, preventing false "missing hours" screens
 - 2026-06-02 Hours display formatting updated to clock notation (`H:MM`): time values now render like `2:15` instead of decimal-hour notation like `2.25` across active session elapsed time, selected-day totals, and day history entries
 - 2026-06-02 Hours logging switched to minute-based UX: manual logging now accepts whole minutes instead of decimal-hour points, and hours surfaces now render elapsed session time, day totals, and history rows in hour/minute format
 - 2026-06-02 Queue frontend removed and app palette reshaped again: deleted the dedicated Queue page/hook/test and removed queue-specific UI wiring from nav, shortcuts, store, and page links, while retheming the shared shell/auth/page-chrome layers to a warmer neutral terracotta/olive palette
