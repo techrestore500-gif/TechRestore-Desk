@@ -63,6 +63,13 @@ function formatDateTime(value: string) {
     return new Date(value).toLocaleString();
 }
 
+function formatHoursClock(hoursValue: number): string {
+    const totalMinutes = Math.max(0, Math.round(hoursValue * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}:${String(minutes).padStart(2, '0')}`;
+}
+
 function monthLabel(value: Date): string {
     return value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
@@ -160,7 +167,7 @@ export function HoursPage() {
 
     const [technician, setTechnician] = useState(defaultTechnician);
     const [manualWorkDate, setManualWorkDate] = useState(todayIsoDate());
-    const [manualHoursWorked, setManualHoursWorked] = useState('1');
+    const [manualMinutesWorked, setManualMinutesWorked] = useState('60');
     const [selectedDate, setSelectedDate] = useState(todayIsoDate());
 
     useEffect(() => {
@@ -229,8 +236,14 @@ export function HoursPage() {
 
     async function handleAddHours(event: React.FormEvent) {
         event.preventDefault();
-        if (!technician || !manualWorkDate || !manualHoursWorked) {
-            setSubmitError('Please fill in technician, date, and hours.');
+        if (!technician || !manualWorkDate || !manualMinutesWorked) {
+            setSubmitError('Please fill in technician, date, and minutes.');
+            return;
+        }
+
+        const minutesWorked = Number.parseInt(manualMinutesWorked, 10);
+        if (!Number.isFinite(minutesWorked) || minutesWorked <= 0) {
+            setSubmitError('Minutes worked must be a positive whole number.');
             return;
         }
 
@@ -240,9 +253,9 @@ export function HoursPage() {
             await logHours({
                 technician,
                 work_date: manualWorkDate,
-                hours_worked: Number(manualHoursWorked),
+                hours_worked: minutesWorked / 60,
             });
-            setManualHoursWorked('1');
+            setManualMinutesWorked('60');
             refreshData();
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Failed to log hours');
@@ -252,7 +265,7 @@ export function HoursPage() {
     }
 
     const totalHours = summary?.total_hours ?? 0;
-    const activeSessionElapsed = activeSession ? `${activeSession.elapsed_hours.toFixed(2)}h` : '0.00h';
+    const activeSessionElapsed = activeSession ? formatHoursClock(activeSession.elapsed_seconds / 3600) : '0:00';
     const isClockedIn = Boolean(activeSession);
 
     const clockInButtonStyle = {
@@ -305,7 +318,7 @@ export function HoursPage() {
                     <div style={{ ...t.panel, padding: '10px 12px', boxShadow: 'none', border: '1px solid #dde6ee', background: '#fff' }}>
                         <div style={{ fontSize: '0.8rem', color: '#5c7080' }}>Selected Day</div>
                         <div style={{ fontWeight: 700, color: '#203543' }}>{selectedDate}</div>
-                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Total: {totalHours} hours</div>
+                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Total: {formatHoursClock(totalHours)}</div>
                     </div>
                 </div>
 
@@ -371,8 +384,15 @@ export function HoursPage() {
                             <input value={manualWorkDate} readOnly style={{ ...t.input, background: '#f6f9fb', color: '#3f5666' }} />
                         </label>
                         <label style={t.label}>
-                            <span>Hours worked</span>
-                            <input type="number" step="0.25" min="0.25" value={manualHoursWorked} onChange={(event) => setManualHoursWorked(event.target.value)} style={t.input} />
+                            <span>Minutes worked</span>
+                            <input
+                                type="number"
+                                step="1"
+                                min="1"
+                                value={manualMinutesWorked}
+                                onChange={(event) => setManualMinutesWorked(event.target.value)}
+                                style={t.input}
+                            />
                         </label>
                     </div>
                     <button type="submit" style={t.primaryBtn} disabled={saving !== null}>
@@ -393,7 +413,7 @@ export function HoursPage() {
                             <article key={log.id} style={{ borderRadius: '10px', border: '1px solid #dce6ee', background: '#f9fcfd', padding: '9px 10px', display: 'grid', gap: '5px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                     <strong style={{ color: '#244356' }}>{log.technician}</strong>
-                                    <strong style={{ color: '#244356' }}>{log.hours_worked}h</strong>
+                                    <strong style={{ color: '#244356' }}>{formatHoursClock(log.hours_worked)}</strong>
                                 </div>
                                 <div style={{ color: '#5d7280', fontSize: '0.82rem' }}>Work date: {formatDate(log.work_date)}</div>
                                 <div style={{ color: '#5d7280', fontSize: '0.82rem' }}>Logged {formatDateTime(log.created_at)}</div>

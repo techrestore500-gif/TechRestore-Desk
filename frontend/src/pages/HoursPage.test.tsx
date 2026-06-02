@@ -79,7 +79,7 @@ describe('HoursPage', () => {
         });
 
         expect(screen.getAllByDisplayValue('Mattis')).toHaveLength(2);
-        expect(screen.getByText('Total: 2.5 hours')).toBeInTheDocument();
+        expect(screen.getByText('Total: 2:30')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Clock In' }));
 
