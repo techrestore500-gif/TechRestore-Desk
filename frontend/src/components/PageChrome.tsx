@@ -94,7 +94,7 @@ const headerShellStyle: CSSProperties = {
     padding: "18px 20px 16px",
     display: "grid",
     gap: "10px",
-    background: "linear-gradient(150deg, rgba(255,255,255,0.92) 0%, rgba(233,241,255,0.86) 62%, rgba(255,239,231,0.82) 100%)",
+    background: "linear-gradient(150deg, rgba(255,253,249,0.94) 0%, rgba(242,234,223,0.86) 62%, rgba(232,230,215,0.8) 100%)",
     borderLeft: "5px solid var(--brand-600)",
     position: "relative",
     overflow: "hidden",
@@ -111,7 +111,7 @@ const baseSectionStyle: CSSProperties = {
     ...t.panel,
     display: "grid",
     gap: "12px",
-    borderTop: "4px solid rgba(47, 111, 237, 0.72)",
+    borderTop: "4px solid rgba(155, 95, 69, 0.72)",
 };
 
 const compactStyle: CSSProperties = {
@@ -122,25 +122,25 @@ const compactStyle: CSSProperties = {
 const toneStyles: Record<"default" | "soft" | "accent", CSSProperties> = {
     default: {},
     soft: {
-        background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(236,243,255,0.88) 100%)",
+        background: "linear-gradient(145deg, rgba(255,253,249,0.94) 0%, rgba(242,234,223,0.88) 100%)",
     },
     accent: {
-        background: "linear-gradient(145deg, rgba(255,236,225,0.98) 0%, rgba(255,184,150,0.92) 100%)",
-        borderTopColor: "rgba(241, 136, 92, 0.88)",
+        background: "linear-gradient(145deg, rgba(233,236,216,0.98) 0%, rgba(189,197,164,0.92) 100%)",
+        borderTopColor: "rgba(124, 135, 100, 0.78)",
     },
 };
 
 const metricTileStyle: CSSProperties = {
     ...t.subCard,
-    background: "linear-gradient(175deg, rgba(255,255,255,0.92) 0%, rgba(236,243,255,0.9) 100%)",
-    border: "1px solid rgba(27, 52, 98, 0.14)",
+    background: "linear-gradient(175deg, rgba(255,253,249,0.94) 0%, rgba(243,236,227,0.9) 100%)",
+    border: "1px solid rgba(86, 66, 53, 0.14)",
     display: "grid",
     gap: "4px",
-    boxShadow: "0 11px 20px rgba(26, 52, 98, 0.1)",
+    boxShadow: "0 11px 20px rgba(69, 51, 41, 0.08)",
 };
 
 const metricLabelStyle: CSSProperties = {
-    color: "#2d5cb5",
+    color: "#8a634d",
     fontSize: "0.74rem",
     fontWeight: 800,
     letterSpacing: "0.1em",
@@ -148,14 +148,14 @@ const metricLabelStyle: CSSProperties = {
 };
 
 const metricValueStyle: CSSProperties = {
-    color: "#162d58",
+    color: "#382a22",
     fontSize: "1.65rem",
     fontWeight: 800,
     lineHeight: 1.05,
 };
 
 const metricHintStyle: CSSProperties = {
-    color: "#506a95",
+    color: "#7a685c",
     fontSize: "0.84rem",
 };
 
@@ -165,15 +165,15 @@ const stateStyles: Record<string, CSSProperties> = {
     },
     success: {
         ...t.stateBanner,
-        borderColor: "#99d3ff",
-        background: "#edf5ff",
-        color: "#1f4e9c",
+        borderColor: "#cfd7bc",
+        background: "#eef1e3",
+        color: "#576243",
     },
     warning: {
         ...t.stateBanner,
-        borderColor: "#f5b190",
-        background: "#fff0e8",
-        color: "#914422",
+        borderColor: "#ddb49b",
+        background: "#f8ede5",
+        color: "#7f4a35",
     },
     error: {
         ...t.stateBanner,

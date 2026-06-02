@@ -39,7 +39,7 @@ export default function OperationsPage() {
             <div style={operationsGridStyle}>
                 <SectionCard title="Repair Flow" description="Common desk workflows during active repair work.">
                     <div style={{ ...t.formStack, gap: "8px" }}>
-                        <QuickLink title="Queue" copy="Move repairs through active statuses." to="/queue" />
+                        <QuickLink title="Dashboard" copy="Start from the main work overview and recent repair activity." to="/" />
                         <QuickLink title="Hours" copy="Track technician time and labor view." to="/hours" />
                         <QuickLink title="Tickets" copy="Open full ticket board and customer context." to="/tickets" />
                     </div>
@@ -64,7 +64,7 @@ export default function OperationsPage() {
 
             <SectionCard title="Operating Notes" compact tone="soft">
                 <div style={{ display: "grid", gap: "8px" }}>
-                    <div style={t.meta}>Keep daily flow in Dashboard, New Repair, Tickets, Queue, and Voicemail.</div>
+                    <div style={t.meta}>Keep daily flow in Dashboard, New Repair, Tickets, Hours, and Voicemail.</div>
                     <div style={t.meta}>Use Loaners and Donors when needed, without crowding the counter workflow.</div>
                     <div style={t.meta}>Use Settings for Twilio, templates, workflow policy, and backups.</div>
                 </div>

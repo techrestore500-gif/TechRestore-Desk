@@ -39,7 +39,7 @@ export function useKeyboardShortcuts() {
                 }
                 if (event.key === "4") {
                     event.preventDefault();
-                    navigate("/queue");
+                    navigate("/hours");
                     return;
                 }
                 if (event.key === "5") {

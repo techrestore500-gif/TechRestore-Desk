@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
 import AccessRequestsPage from "../pages/AccessRequestsPage";
@@ -16,7 +16,6 @@ import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
 import LoanersPage from "../pages/LoanersPage";
 import InviteAcceptPage from "../pages/InviteAcceptPage";
 import OperationsPage from "../pages/OperationsPage";
-import { QueuePage } from "../pages/QueuePage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
 import TicketDetailPage from "../pages/TicketDetailPage";
@@ -70,7 +69,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "queue",
-                element: <QueuePage />,
+                element: <Navigate to="/tickets" replace />,
             },
             {
                 path: "operations",

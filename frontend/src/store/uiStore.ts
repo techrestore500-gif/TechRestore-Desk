@@ -9,7 +9,6 @@ export type TablePagination = {
 type UiState = {
     ticketSearch: string;
     ticketStatusFilter: string;
-    queueQuickFilter: string;
     inventoryFilters: {
         category: string;
         status: string;
@@ -20,10 +19,8 @@ type UiState = {
     commandPaletteQuery: string;
     scannerMode: boolean;
     ticketSavedViews: Record<string, { search: string; status: string }>;
-    queueSavedViews: Record<string, { quickFilter: string }>;
     setTicketSearch: (value: string) => void;
     setTicketStatusFilter: (value: string) => void;
-    setQueueQuickFilter: (value: string) => void;
     setInventoryFilters: (next: Partial<UiState["inventoryFilters"]>) => void;
     setInventoryPagination: (next: Partial<TablePagination>) => void;
     setCommandPaletteOpen: (isOpen: boolean) => void;
@@ -32,9 +29,6 @@ type UiState = {
     saveTicketView: (name: string) => void;
     applyTicketView: (name: string) => void;
     deleteTicketView: (name: string) => void;
-    saveQueueView: (name: string) => void;
-    applyQueueView: (name: string) => void;
-    deleteQueueView: (name: string) => void;
 };
 
 export const useUiStore = create<UiState>()(
@@ -42,7 +36,6 @@ export const useUiStore = create<UiState>()(
         (set, get) => ({
             ticketSearch: "",
             ticketStatusFilter: "",
-            queueQuickFilter: "",
             inventoryFilters: {
                 category: "",
                 status: "",
@@ -56,10 +49,8 @@ export const useUiStore = create<UiState>()(
             commandPaletteQuery: "",
             scannerMode: false,
             ticketSavedViews: {},
-            queueSavedViews: {},
             setTicketSearch: (value) => set({ ticketSearch: value }),
             setTicketStatusFilter: (value) => set({ ticketStatusFilter: value }),
-            setQueueQuickFilter: (value) => set({ queueQuickFilter: value }),
             setInventoryFilters: (next) =>
                 set((state) => ({
                     inventoryFilters: {
@@ -109,34 +100,6 @@ export const useUiStore = create<UiState>()(
                 delete next[name];
                 set({ ticketSavedViews: next });
             },
-            saveQueueView: (name) => {
-                const viewName = name.trim();
-                if (!viewName) {
-                    return;
-                }
-                const state = get();
-                set({
-                    queueSavedViews: {
-                        ...state.queueSavedViews,
-                        [viewName]: {
-                            quickFilter: state.queueQuickFilter,
-                        },
-                    },
-                });
-            },
-            applyQueueView: (name) => {
-                const view = get().queueSavedViews[name];
-                if (!view) {
-                    return;
-                }
-                set({ queueQuickFilter: view.quickFilter });
-            },
-            deleteQueueView: (name) => {
-                const state = get();
-                const next = { ...state.queueSavedViews };
-                delete next[name];
-                set({ queueSavedViews: next });
-            },
         }),
         {
             name: "tech-restore-ui-store",
@@ -159,12 +122,10 @@ export const useUiStore = create<UiState>()(
             partialize: (state) => ({
                 ticketSearch: state.ticketSearch,
                 ticketStatusFilter: state.ticketStatusFilter,
-                queueQuickFilter: state.queueQuickFilter,
                 inventoryFilters: state.inventoryFilters,
                 inventoryPagination: state.inventoryPagination,
                 scannerMode: state.scannerMode,
                 ticketSavedViews: state.ticketSavedViews,
-                queueSavedViews: state.queueSavedViews,
             }),
         }
     )

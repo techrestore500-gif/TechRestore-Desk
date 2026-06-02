@@ -6,22 +6,22 @@
 
 :root {
     color-scheme: light;
-    --app-bg-top: #eef3ff;
-    --app-bg-mid: #dde8ff;
-    --app-bg-low: #d4e0f7;
-    --ink-900: #0f1e3a;
-    --ink-700: #31476f;
-    --line-soft: rgba(30, 58, 110, 0.18);
-    --focus-ring: rgba(47, 111, 237, 0.25);
-    --brand-700: #214bb8;
-    --brand-600: #2f6fed;
-    --brand-500: #4f86f5;
-    --brand-soft: #e8f0ff;
-    --accent-500: #ff8c5a;
-    --accent-400: #ffb28f;
-    --danger-soft: #ffecec;
-    --danger-line: #f3b2b2;
-    --danger-ink: #8f2f3e;
+    --app-bg-top: #f5efe3;
+    --app-bg-mid: #e7dac5;
+    --app-bg-low: #d7cebe;
+    --ink-900: #241d18;
+    --ink-700: #5d4b40;
+    --line-soft: rgba(78, 58, 45, 0.16);
+    --focus-ring: rgba(155, 95, 69, 0.22);
+    --brand-700: #6f3f2f;
+    --brand-600: #9b5f45;
+    --brand-500: #c98a64;
+    --brand-soft: #f3e5db;
+    --accent-500: #7c8764;
+    --accent-400: #a7b08d;
+    --danger-soft: #fbe9e6;
+    --danger-line: #e6b0a7;
+    --danger-ink: #8a342c;
 }
 
 html,
@@ -37,9 +37,9 @@ body {
     overflow-x: hidden;
     overflow-wrap: break-word;
     background:
-        radial-gradient(circle at 12% -4%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 36%),
-        radial-gradient(circle at 88% 8%, rgba(79, 134, 245, 0.21) 0%, rgba(79, 134, 245, 0) 35%),
-        radial-gradient(circle at 56% 100%, rgba(255, 140, 90, 0.16) 0%, rgba(255, 140, 90, 0) 46%),
+        radial-gradient(circle at 12% -4%, rgba(255, 251, 244, 0.84) 0%, rgba(255, 251, 244, 0) 38%),
+        radial-gradient(circle at 88% 8%, rgba(124, 135, 100, 0.18) 0%, rgba(124, 135, 100, 0) 36%),
+        radial-gradient(circle at 56% 100%, rgba(201, 138, 100, 0.16) 0%, rgba(201, 138, 100, 0) 46%),
         linear-gradient(148deg, var(--app-bg-top) 0%, var(--app-bg-mid) 42%, var(--app-bg-low) 100%);
     color: var(--ink-900);
     font-family: "Sora", "Plus Jakarta Sans", "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;

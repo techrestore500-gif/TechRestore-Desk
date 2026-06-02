@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-02 Queue frontend removed and app palette reshaped again: deleted the dedicated Queue page/hook/test and removed queue-specific UI wiring from nav, shortcuts, store, and page links, while retheming the shared shell/auth/page-chrome layers to a warmer neutral terracotta/olive palette
 - 2026-06-02 Real data reset/import tooling complete: added a SQLite-only protected backend script that backs up the active database, wipes ticket/hour trees, preserves auth/settings/Twilio data, and imports the real Tech Restore repair, pricing-note, inventory-note, and Mattis hours records
 - 2026-06-02 Global color palette refresh complete: updated app-wide palette tokens to a new blue/coral scheme and propagated it through global background layers, shared theme tokens, app shell navigation surfaces, auth gate, and shared page chrome components
 - 2026-05-31 Dashboard/Ticket status-transition UI fix complete: status actions now render from workflow-valid reachable transitions only (with primary actions + overflow menu), preventing frontend-offered actions that backend rejects; dashboard recent-customer phone display now uses shared phone formatter
