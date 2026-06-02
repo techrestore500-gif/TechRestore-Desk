@@ -324,51 +324,51 @@ export function HoursPage() {
     const layout = {
         board: {
             display: 'grid',
-            gap: '18px',
-            background: '#f3f6f9',
-            border: '1px solid #d6dee6',
-            borderRadius: '20px',
-            padding: '18px',
+            gap: '16px',
+            background: '#f8fafc',
+            border: '1px solid #dbe4ec',
+            borderRadius: '16px',
+            padding: '16px',
         },
         statRow: {
             display: 'grid',
-            gap: '12px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+            gap: '10px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         },
         statCard: {
-            borderRadius: '14px',
+            borderRadius: '10px',
             background: '#ffffff',
-            border: '1px solid #d9e2eb',
-            padding: '12px 13px',
+            border: '1px solid #dde6ef',
+            padding: '11px 12px',
             display: 'grid',
             gap: '4px',
         },
         statLabel: {
-            fontSize: '0.72rem',
-            letterSpacing: '0.08em',
+            fontSize: '0.7rem',
+            letterSpacing: '0.06em',
             textTransform: 'uppercase' as const,
-            color: '#566676',
+            color: '#60707e',
             fontWeight: 700,
         },
         statValue: {
-            fontSize: '1.38rem',
+            fontSize: '1.15rem',
             lineHeight: 1.05,
-            fontWeight: 800,
-            color: '#102534',
+            fontWeight: 700,
+            color: '#1a2d3a',
         },
         split: {
             display: 'grid',
-            gap: '14px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '12px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         },
         panel: {
             background: '#ffffff',
-            border: '1px solid #d9e2eb',
-            borderRadius: '16px',
+            border: '1px solid #dde6ef',
+            borderRadius: '12px',
             padding: '14px',
             display: 'grid',
             gap: '12px',
-            boxShadow: '0 1px 0 rgba(16, 37, 52, 0.03)',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
         },
         panelTitleRow: {
             display: 'flex',
@@ -379,21 +379,28 @@ export function HoursPage() {
         },
         panelTitle: {
             margin: 0,
-            color: '#0f2b3a',
-            fontSize: '1.05rem',
+            color: '#1b2b37',
+            fontSize: '1rem',
+            fontWeight: 700,
         },
         tiny: {
-            color: '#5a6d7b',
+            color: '#6a7a87',
             fontSize: '0.82rem',
+        },
+        helper: {
+            margin: 0,
+            color: '#4f6270',
+            fontSize: '0.9rem',
+            lineHeight: 1.45,
         },
         historyList: {
             display: 'grid',
             gap: '8px',
         },
         historyItem: {
-            borderRadius: '12px',
-            background: '#ffffff',
-            border: '1px solid #d8e0e8',
+            borderRadius: '10px',
+            background: '#fbfcfd',
+            border: '1px solid #dfe7ee',
             padding: '10px 11px',
             display: 'grid',
             gap: '6px',
@@ -409,12 +416,26 @@ export function HoursPage() {
             display: 'inline-flex',
             alignItems: 'center',
             borderRadius: '999px',
-            background: '#e8eff5',
-            border: '1px solid #d0dbe6',
-            color: '#244255',
+            background: '#eef3f7',
+            border: '1px solid #d4dde6',
+            color: '#395062',
             padding: '3px 9px',
             fontSize: '0.78rem',
             fontWeight: 700,
+        },
+        summaryGrid: {
+            display: 'grid',
+            gap: '7px',
+        },
+        summaryItem: {
+            borderRadius: '9px',
+            border: '1px solid #e0e7ee',
+            background: '#fafcfd',
+            padding: '8px 10px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '8px',
         },
     };
 
@@ -458,7 +479,7 @@ export function HoursPage() {
                             <h3 style={layout.panelTitle}>Clock Session</h3>
                             <span style={layout.tiny}>{activeSession ? `Started ${formatDateTime(activeSession.clocked_in_at)}` : 'No active session'}</span>
                         </div>
-                        <p style={{ ...t.copy, margin: 0 }}>Track live work without linking anything to tickets.</p>
+                        <p style={layout.helper}>Track live work without linking anything to tickets.</p>
                         <div style={t.fieldGrid}>
                             <label style={t.label}>
                                 <span>Technician</span>
@@ -507,15 +528,13 @@ export function HoursPage() {
                             </div>
                         </form>
 
-                        <div style={{ display: 'grid', gap: '7px' }}>
+                        <div style={layout.summaryGrid}>
                             <div style={layout.statLabel}>By Technician</div>
                             {technicianBreakdown.length > 0 ? (
                                 technicianBreakdown.map(([name, loggedHours]) => (
-                                    <div key={name} style={{ ...layout.statCard, padding: '9px 10px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                            <strong style={{ color: '#113447' }}>{name}</strong>
-                                            <span style={{ fontWeight: 700, color: '#113447' }}>{loggedHours}h</span>
-                                        </div>
+                                    <div key={name} style={layout.summaryItem}>
+                                        <strong style={{ color: '#244255', fontSize: '0.92rem' }}>{name}</strong>
+                                        <span style={{ fontWeight: 700, color: '#244255', fontSize: '0.9rem' }}>{loggedHours}h</span>
                                     </div>
                                 ))
                             ) : (
@@ -530,6 +549,7 @@ export function HoursPage() {
                         <h3 style={layout.panelTitle}>Manual Adjustment</h3>
                         <span style={layout.tiny}>Add or correct a time entry</span>
                     </div>
+                    <p style={layout.helper}>Pick a date from the calendar and submit a corrected entry.</p>
                     <form onSubmit={handleAddHours} style={t.formStack}>
                         <InlineCalendar title="Work Date" selectedDate={manualWorkDate} onSelectDate={setManualWorkDate} />
                         <div style={t.fieldGrid}>
@@ -564,11 +584,11 @@ export function HoursPage() {
                                     <div style={layout.historyTop}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                             <span style={layout.badge}>{formatDate(log.work_date)}</span>
-                                            <strong style={{ color: '#123346' }}>{log.technician}</strong>
+                                            <strong style={{ color: '#294757', fontSize: '0.95rem' }}>{log.technician}</strong>
                                         </div>
-                                        <strong style={{ color: '#123346' }}>{log.hours_worked}h</strong>
+                                        <strong style={{ color: '#294757', fontSize: '0.95rem' }}>{log.hours_worked}h</strong>
                                     </div>
-                                    <div style={{ ...t.copy, margin: 0 }}>{log.work_description || 'No work description provided.'}</div>
+                                    <div style={{ ...t.copy, margin: 0, color: '#425c6b' }}>{log.work_description || 'No work description provided.'}</div>
                                     <div style={layout.tiny}>Logged {formatDateTime(log.created_at)}</div>
                                 </article>
                             ))}
