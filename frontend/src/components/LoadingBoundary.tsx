@@ -19,7 +19,7 @@ export function LoadingBoundary({
 
     if (error) {
         return (
-            <div style={{ padding: "10px 14px", background: "#fde8e8", color: "#9b2c2c", border: "1px solid #f8b4b4", borderRadius: "12px" }}>
+            <div style={{ padding: "10px 14px", background: "var(--danger-soft)", color: "var(--danger-ink)", border: "1px solid var(--danger-line)", borderRadius: "12px" }}>
                 {error}
             </div>
         );

@@ -31,7 +31,7 @@ export function CommandPalette() {
                 />
                 <div style={{ maxHeight: "50vh", overflowY: "auto", marginTop: "10px" }}>
                     {isLoading ? <p style={{ margin: 0 }}>Searching...</p> : null}
-                    {!isLoading && items.length === 0 ? <p style={{ margin: 0, color: "#60756f" }}>No results</p> : null}
+                    {!isLoading && items.length === 0 ? <p style={{ margin: 0, color: "#4a6492" }}>No results</p> : null}
                     {items.map((item) => (
                         <button
                             key={`${item.type}:${item.id}`}
@@ -43,7 +43,7 @@ export function CommandPalette() {
                             }}
                         >
                             <strong>{item.label}</strong>
-                            <span style={{ color: "#60756f" }}>{item.subtitle}</span>
+                            <span style={{ color: "#4a6492" }}>{item.subtitle}</span>
                         </button>
                     ))}
                 </div>
@@ -55,7 +55,7 @@ export function CommandPalette() {
 const overlayStyle = {
     position: "fixed" as const,
     inset: 0,
-    backgroundColor: "rgba(8, 18, 16, 0.35)",
+    backgroundColor: "rgba(11, 22, 48, 0.42)",
     display: "grid",
     placeItems: "start center",
     paddingTop: "10vh",
@@ -66,16 +66,16 @@ const modalStyle = {
     width: "min(760px, 92vw)",
     background: "#fff",
     borderRadius: "14px",
-    border: "1px solid #d7e0df",
+    border: "1px solid #c5d7fb",
     padding: "12px",
-    boxShadow: "0 24px 44px rgba(19, 47, 41, 0.24)",
+    boxShadow: "0 24px 44px rgba(21, 44, 92, 0.24)",
 };
 
 const searchStyle = {
     width: "100%",
     padding: "10px 12px",
     borderRadius: "10px",
-    border: "1px solid #bfd0cb",
+    border: "1px solid #9fb7ea",
 };
 
 const itemStyle = {
@@ -83,7 +83,7 @@ const itemStyle = {
     textAlign: "left" as const,
     display: "grid",
     gap: "2px",
-    border: "1px solid #eef3f1",
+    border: "1px solid #e4ebfa",
     borderRadius: "8px",
     marginBottom: "6px",
     padding: "10px",

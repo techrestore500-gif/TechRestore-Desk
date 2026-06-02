@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-02 Global color palette refresh complete: updated app-wide palette tokens to a new blue/coral scheme and propagated it through global background layers, shared theme tokens, app shell navigation surfaces, auth gate, and shared page chrome components
 - 2026-05-31 Dashboard/Ticket status-transition UI fix complete: status actions now render from workflow-valid reachable transitions only (with primary actions + overflow menu), preventing frontend-offered actions that backend rejects; dashboard recent-customer phone display now uses shared phone formatter
 - 2026-05-31 UX redo phase 2 complete: page-level IA reshaped on Dashboard, Operations, Tickets, and Settings into workflow-lane command surfaces; full frontend build and tests remain green
 - 2026-05-31 Full frontend UX redo foundation complete: replaced global visual language, shared token system, AppShell, shared page chrome, and shared DataTable presentation for a distinct new product feel while preserving existing route/workflow behavior and test coverage

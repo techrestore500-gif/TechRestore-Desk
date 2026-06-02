@@ -24,8 +24,8 @@ export function LoadingSpinner({ size = "md", message }: LoadingSpinnerProps) {
                 style={{
                     width: dimension,
                     height: dimension,
-                    border: "3px solid rgba(31, 102, 87, 0.15)",
-                    borderTopColor: "#1f6657",
+                    border: "3px solid rgba(47, 111, 237, 0.15)",
+                    borderTopColor: "var(--brand-600)",
                     borderRadius: "50%",
                     animation: "spin 0.8s linear infinite",
                 }}
@@ -35,7 +35,7 @@ export function LoadingSpinner({ size = "md", message }: LoadingSpinnerProps) {
                     style={{
                         margin: 0,
                         fontSize: "0.9rem",
-                        color: "#425751",
+                        color: "#476190",
                         fontWeight: 500,
                     }}
                 >

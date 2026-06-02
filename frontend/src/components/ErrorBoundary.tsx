@@ -22,7 +22,7 @@ export class ErrorBoundary extends React.Component<{ children: ReactNode }, Erro
     render() {
         if (this.state.hasError) {
             return (
-                <div style={{ padding: "14px", borderRadius: "12px", background: "#fde8e8", border: "1px solid #f8b4b4", color: "#9b2c2c" }}>
+                <div style={{ padding: "14px", borderRadius: "12px", background: "var(--danger-soft)", border: "1px solid var(--danger-line)", color: "var(--danger-ink)" }}>
                     <strong>UI Error:</strong> {this.state.message}
                 </div>
             );

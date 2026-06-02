@@ -11,13 +11,13 @@ export const QUICK_REPAIR_STATUSES: QuickRepairStatus[] = [
 ];
 
 export const QUICK_REPAIR_STATUS_COLORS: Record<QuickRepairStatus, { bg: string; border: string; text: string }> = {
-    "New Intake": { bg: "#e9f3ff", border: "#9dc3ff", text: "#1f4b8f" },
-    "Diagnosing": { bg: "#fff3db", border: "#f0c983", text: "#7a4f00" },
-    "Waiting for Part": { bg: "#fff0e8", border: "#f0b59a", text: "#8f3d23" },
-    "In Repair": { bg: "#e9f8ef", border: "#9fdab3", text: "#18663c" },
-    "Ready for Pickup": { bg: "#ecebff", border: "#b9b6ff", text: "#4038a8" },
-    Completed: { bg: "#def6ea", border: "#93d9b6", text: "#0f6940" },
-    Canceled: { bg: "#fbe8e8", border: "#efabab", text: "#9a2323" },
+    "New Intake": { bg: "#eaf1ff", border: "#a9c2f9", text: "#264f9f" },
+    "Diagnosing": { bg: "#eef4ff", border: "#b7c9f5", text: "#36589e" },
+    "Waiting for Part": { bg: "#fff0e8", border: "#f4ba9f", text: "#9b4c2d" },
+    "In Repair": { bg: "#e8f6ff", border: "#9ac5f0", text: "#1f4f8e" },
+    "Ready for Pickup": { bg: "#f0ecff", border: "#c2b3f3", text: "#4c3f8e" },
+    Completed: { bg: "#edf4ff", border: "#afc8f4", text: "#2a4f95" },
+    Canceled: { bg: "#ffecee", border: "#f5b2bc", text: "#972f43" },
 };
 
 const UI_TO_BACKEND_PRIMARY: Record<QuickRepairStatus, string> = {
