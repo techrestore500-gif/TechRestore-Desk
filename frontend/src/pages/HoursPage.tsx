@@ -253,6 +253,30 @@ export function HoursPage() {
 
     const totalHours = summary?.total_hours ?? 0;
     const activeSessionElapsed = activeSession ? `${activeSession.elapsed_hours.toFixed(2)}h` : '0.00h';
+    const isClockedIn = Boolean(activeSession);
+
+    const clockInButtonStyle = {
+        ...t.primaryBtn,
+        padding: '10px 14px',
+        transition: 'all 180ms ease',
+        transform: isClockedIn ? 'scale(0.98)' : 'scale(1)',
+        opacity: isClockedIn ? 0.55 : 1,
+        boxShadow: isClockedIn
+            ? 'inset 0 0 0 1px rgba(18, 54, 58, 0.18)'
+            : '0 11px 24px rgba(17, 83, 86, 0.26)',
+    } as const;
+
+    const clockOutButtonStyle = {
+        ...t.secondaryBtn,
+        padding: '10px 14px',
+        transition: 'all 180ms ease',
+        transform: isClockedIn ? 'scale(1)' : 'scale(0.98)',
+        opacity: isClockedIn ? 1 : 0.65,
+        border: isClockedIn ? '1px solid rgba(19, 78, 61, 0.44)' : '1px solid rgba(26, 51, 58, 0.2)',
+        background: isClockedIn ? 'linear-gradient(145deg, #e8fff5 0%, #d5f5e6 100%)' : 'rgba(255,255,255,0.78)',
+        color: isClockedIn ? '#0f4f41' : '#163740',
+        boxShadow: isClockedIn ? '0 8px 16px rgba(19, 78, 61, 0.16)' : 'none',
+    } as const;
 
     return (
         <section style={t.pageWrap}>
@@ -286,12 +310,40 @@ export function HoursPage() {
                 </div>
 
                 <div style={t.formActionsRow}>
-                    <button type="button" style={t.primaryBtn} disabled={Boolean(activeSession) || saving !== null} onClick={handleClockIn}>
+                    <button type="button" style={clockInButtonStyle} disabled={isClockedIn || saving !== null} onClick={handleClockIn}>
                         {saving === 'clock-in' ? 'Clocking In...' : 'Clock In'}
                     </button>
-                    <button type="button" style={t.secondaryBtn} disabled={!activeSession || saving !== null} onClick={handleClockOut}>
+                    <button type="button" style={clockOutButtonStyle} disabled={!isClockedIn || saving !== null} onClick={handleClockOut}>
                         {saving === 'clock-out' ? 'Clocking Out...' : 'Clock Out'}
                     </button>
+                </div>
+
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderRadius: '10px',
+                        border: isClockedIn ? '1px solid #9fddc0' : '1px solid #d6dee5',
+                        background: isClockedIn ? '#ecfff4' : '#f5f8fb',
+                        color: isClockedIn ? '#165948' : '#4e6473',
+                        padding: '8px 10px',
+                        fontSize: '0.86rem',
+                        fontWeight: 700,
+                        transition: 'all 180ms ease',
+                    }}
+                >
+                    <span
+                        style={{
+                            width: '9px',
+                            height: '9px',
+                            borderRadius: '50%',
+                            background: isClockedIn ? '#1f9d6f' : '#8ea0ad',
+                            boxShadow: isClockedIn ? '0 0 0 3px rgba(31, 157, 111, 0.2)' : 'none',
+                            transition: 'all 180ms ease',
+                        }}
+                    />
+                    {isClockedIn ? 'Clocked In - active session is running.' : 'Clocked Out - no active session.'}
                 </div>
 
                 <FullCalendar
