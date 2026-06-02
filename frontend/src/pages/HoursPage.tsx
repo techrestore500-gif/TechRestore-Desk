@@ -43,14 +43,6 @@ function todayIsoDate() {
     return new Date().toISOString().split('T')[0];
 }
 
-function formatDate(value: string) {
-    return new Date(value).toLocaleDateString();
-}
-
-function formatDateTime(value: string) {
-    return new Date(value).toLocaleString();
-}
-
 function parseIsoDate(value: string): Date {
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, (month || 1) - 1, day || 1);
@@ -63,26 +55,22 @@ function toIsoDate(value: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-function toMonthLabel(value: Date): string {
+function formatDate(value: string) {
+    return new Date(value).toLocaleDateString();
+}
+
+function formatDateTime(value: string) {
+    return new Date(value).toLocaleString();
+}
+
+function monthLabel(value: Date): string {
     return value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
-function InlineCalendar({
-    title,
-    selectedDate,
-    onSelectDate,
-}: {
-    title: string;
-    selectedDate: string;
-    onSelectDate: (next: string) => void;
-}) {
+function FullCalendar({ selectedDate, onSelectDate }: { selectedDate: string; onSelectDate: (iso: string) => void }) {
     const [visibleMonth, setVisibleMonth] = useState<Date>(() => {
-        if (selectedDate) {
-            const selected = parseIsoDate(selectedDate);
-            return new Date(selected.getFullYear(), selected.getMonth(), 1);
-        }
-        const now = new Date();
-        return new Date(now.getFullYear(), now.getMonth(), 1);
+        const selected = parseIsoDate(selectedDate);
+        return new Date(selected.getFullYear(), selected.getMonth(), 1);
     });
 
     useEffect(() => {
@@ -109,41 +97,28 @@ function InlineCalendar({
     }
 
     return (
-        <div style={{ border: '1px solid #d9e2eb', borderRadius: '12px', padding: '10px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-                <strong style={{ color: '#1a3443' }}>{title}</strong>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                        type="button"
-                        onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}
-                        style={{ ...t.secondaryBtn, padding: '4px 8px' }}
-                        aria-label={`Previous month for ${title}`}
-                    >
+        <section style={{ ...t.panel, background: '#ffffff', border: '1px solid #dce5ed', borderRadius: '12px', boxShadow: 'none', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, color: '#1a2c39', fontSize: '1rem' }}>Calendar</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button type="button" style={{ ...t.secondaryBtn, padding: '6px 10px' }} onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}>
                         Prev
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}
-                        style={{ ...t.secondaryBtn, padding: '4px 8px' }}
-                        aria-label={`Next month for ${title}`}
-                    >
+                    <strong style={{ color: '#203645', minWidth: '150px', textAlign: 'center' }}>{monthLabel(visibleMonth)}</strong>
+                    <button type="button" style={{ ...t.secondaryBtn, padding: '6px 10px' }} onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}>
                         Next
                     </button>
                 </div>
             </div>
 
-            <div style={{ fontSize: '0.85rem', color: '#496270', marginBottom: '8px' }}>{toMonthLabel(visibleMonth)}</div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '4px', marginBottom: '6px' }}>
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                    <div key={day} style={{ fontSize: '0.72rem', textAlign: 'center', color: '#60747f' }}>{day}</div>
+            <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '6px' }}>
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((name) => (
+                    <div key={name} style={{ textAlign: 'center', fontSize: '0.75rem', color: '#607384', fontWeight: 600 }}>{name}</div>
                 ))}
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '4px' }}>
                 {cells.map((day, index) => {
                     if (day === null) {
-                        return <div key={`empty-${index}`} style={{ height: '30px' }} />;
+                        return <div key={`empty-${index}`} style={{ height: '42px' }} />;
                     }
                     const iso = toIsoDate(new Date(year, month, day));
                     const selected = iso === selectedDate;
@@ -153,13 +128,14 @@ function InlineCalendar({
                             type="button"
                             onClick={() => onSelectDate(iso)}
                             style={{
-                                height: '30px',
-                                borderRadius: '8px',
-                                border: selected ? '1px solid #0b5f6f' : '1px solid #d8e2ea',
-                                background: selected ? '#0e6a78' : '#f9fbfc',
-                                color: selected ? '#f3fbff' : '#244255',
+                                height: '42px',
+                                borderRadius: '9px',
+                                border: selected ? '1px solid #0b5d6a' : '1px solid #d7e2ea',
+                                background: selected ? '#0f6a77' : '#f8fbfd',
+                                color: selected ? '#f4fcff' : '#2e4757',
                                 cursor: 'pointer',
                                 fontWeight: selected ? 700 : 500,
+                                fontSize: '0.9rem',
                             }}
                         >
                             {day}
@@ -168,13 +144,10 @@ function InlineCalendar({
                 })}
             </div>
 
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                <div style={{ fontSize: '0.78rem', color: '#5b6f7b' }}>{selectedDate ? `Selected: ${selectedDate}` : 'No date selected'}</div>
-                <button type="button" onClick={() => onSelectDate('')} style={{ ...t.secondaryBtn, padding: '4px 8px' }}>
-                    Clear
-                </button>
+            <div style={{ marginTop: '10px', color: '#5c7180', fontSize: '0.84rem' }}>
+                Selected date: <strong style={{ color: '#1f3543' }}>{selectedDate}</strong>
             </div>
-        </div>
+        </section>
     );
 }
 
@@ -186,38 +159,26 @@ export function HoursPage() {
     const [saving, setSaving] = useState<'clock-in' | 'clock-out' | 'manual' | null>(null);
 
     const [technician, setTechnician] = useState(defaultTechnician);
-    const [clockDescription, setClockDescription] = useState('');
     const [manualWorkDate, setManualWorkDate] = useState(todayIsoDate());
     const [manualHoursWorked, setManualHoursWorked] = useState('1');
-    const [manualWorkDescription, setManualWorkDescription] = useState('');
-
-    const [filterStartDate, setFilterStartDate] = useState('');
-    const [filterEndDate, setFilterEndDate] = useState('');
-    const [filterTechnician, setFilterTechnician] = useState(defaultTechnician);
-    const [appliedStartDate, setAppliedStartDate] = useState('');
-    const [appliedEndDate, setAppliedEndDate] = useState('');
-    const [appliedTechnician, setAppliedTechnician] = useState(defaultTechnician);
+    const [selectedDate, setSelectedDate] = useState(todayIsoDate());
 
     useEffect(() => {
         if (!roster.includes(technician)) {
             setTechnician(defaultTechnician);
         }
-        if (!roster.includes(filterTechnician)) {
-            setFilterTechnician(defaultTechnician);
-            setAppliedTechnician(defaultTechnician);
-        }
-    }, [defaultTechnician, filterTechnician, roster, technician]);
+    }, [defaultTechnician, roster, technician]);
 
     const { data, loading, error } = useAsyncData(async () => {
         const [hoursData, summaryData] = await Promise.all([
-            fetchHours(appliedStartDate || undefined, appliedEndDate || undefined, appliedTechnician || undefined),
-            fetchHoursSummary(appliedStartDate || undefined, appliedEndDate || undefined, appliedTechnician || undefined),
+            fetchHours(selectedDate, selectedDate, undefined),
+            fetchHoursSummary(selectedDate, selectedDate, undefined),
         ]);
         return {
             hours: hoursData,
             summary: summaryData,
         };
-    }, [appliedStartDate, appliedEndDate, appliedTechnician, refreshKey]);
+    }, [selectedDate, refreshKey]);
 
     const { data: activeSession } = useAsyncData<HoursClockSession | null>(
         () => fetchActiveClockSession(technician),
@@ -239,7 +200,7 @@ export function HoursPage() {
             await clockIn({
                 technician,
                 ticket_id: undefined,
-                work_description: clockDescription || undefined,
+                work_description: undefined,
             });
             refreshData();
         } catch (err) {
@@ -256,9 +217,8 @@ export function HoursPage() {
             await clockOut({
                 technician,
                 ticket_id: undefined,
-                work_description: clockDescription || undefined,
+                work_description: undefined,
             });
-            setClockDescription('');
             refreshData();
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Failed to clock out');
@@ -281,10 +241,8 @@ export function HoursPage() {
                 technician,
                 work_date: manualWorkDate,
                 hours_worked: Number(manualHoursWorked),
-                work_description: manualWorkDescription || undefined,
             });
             setManualHoursWorked('1');
-            setManualWorkDescription('');
             refreshData();
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Failed to log hours');
@@ -293,308 +251,104 @@ export function HoursPage() {
         }
     }
 
-    function handleFilter(event: React.FormEvent) {
-        event.preventDefault();
-        setAppliedStartDate(filterStartDate);
-        setAppliedEndDate(filterEndDate);
-        setAppliedTechnician(filterTechnician);
-        refreshData();
-    }
-
-    function handleResetFilters() {
-        setFilterStartDate('');
-        setFilterEndDate('');
-        setFilterTechnician(defaultTechnician);
-        setAppliedStartDate('');
-        setAppliedEndDate('');
-        setAppliedTechnician(defaultTechnician);
-        refreshData();
-    }
-
     const totalHours = summary?.total_hours ?? 0;
-    const technicianBreakdown = summary ? Object.entries(summary.by_technician) : [];
-    const activeTechnicians = summary ? Object.keys(summary.by_technician).length : 0;
-    const latestEntryDate = hours.length > 0 ? formatDate(hours[0].work_date) : 'No entries yet';
-    const logCountLabel = `${hours.length} ${hours.length === 1 ? 'entry' : 'entries'}`;
     const activeSessionElapsed = activeSession ? `${activeSession.elapsed_hours.toFixed(2)}h` : '0.00h';
-    const appliedRangeLabel = appliedStartDate || appliedEndDate
-        ? `${appliedStartDate || 'Start'} to ${appliedEndDate || 'Now'}`
-        : 'All time';
-
-    const layout = {
-        board: {
-            display: 'grid',
-            gap: '16px',
-            background: '#f8fafc',
-            border: '1px solid #dbe4ec',
-            borderRadius: '16px',
-            padding: '16px',
-        },
-        statRow: {
-            display: 'grid',
-            gap: '10px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        },
-        statCard: {
-            borderRadius: '10px',
-            background: '#ffffff',
-            border: '1px solid #dde6ef',
-            padding: '11px 12px',
-            display: 'grid',
-            gap: '4px',
-        },
-        statLabel: {
-            fontSize: '0.7rem',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase' as const,
-            color: '#60707e',
-            fontWeight: 700,
-        },
-        statValue: {
-            fontSize: '1.15rem',
-            lineHeight: 1.05,
-            fontWeight: 700,
-            color: '#1a2d3a',
-        },
-        split: {
-            display: 'grid',
-            gap: '12px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        },
-        panel: {
-            background: '#ffffff',
-            border: '1px solid #dde6ef',
-            borderRadius: '12px',
-            padding: '14px',
-            display: 'grid',
-            gap: '12px',
-            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
-        },
-        panelTitleRow: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            gap: '10px',
-            flexWrap: 'wrap' as const,
-        },
-        panelTitle: {
-            margin: 0,
-            color: '#1b2b37',
-            fontSize: '1rem',
-            fontWeight: 700,
-        },
-        tiny: {
-            color: '#6a7a87',
-            fontSize: '0.82rem',
-        },
-        helper: {
-            margin: 0,
-            color: '#4f6270',
-            fontSize: '0.9rem',
-            lineHeight: 1.45,
-        },
-        historyList: {
-            display: 'grid',
-            gap: '8px',
-        },
-        historyItem: {
-            borderRadius: '10px',
-            background: '#fbfcfd',
-            border: '1px solid #dfe7ee',
-            padding: '10px 11px',
-            display: 'grid',
-            gap: '6px',
-        },
-        historyTop: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '10px',
-            flexWrap: 'wrap' as const,
-        },
-        badge: {
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: '999px',
-            background: '#eef3f7',
-            border: '1px solid #d4dde6',
-            color: '#395062',
-            padding: '3px 9px',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-        },
-        summaryGrid: {
-            display: 'grid',
-            gap: '7px',
-        },
-        summaryItem: {
-            borderRadius: '9px',
-            border: '1px solid #e0e7ee',
-            background: '#fafcfd',
-            padding: '8px 10px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '8px',
-        },
-    };
 
     return (
         <section style={t.pageWrap}>
             <PageHeader
                 kicker="Time Tracking"
                 title="Hours"
-                description="A clean workspace for timing sessions, corrections, and daily hour review."
+                description="Clock in/out, then pick a day on the calendar to view and log hours."
             />
 
             {visibleError ? <InlineState tone="error">{visibleError}</InlineState> : null}
 
-            <section style={layout.board}>
-                <div style={layout.statRow}>
-                    <div style={layout.statCard}>
-                        <div style={layout.statLabel}>Total</div>
-                        <div style={layout.statValue}>{totalHours}h</div>
-                        <div style={layout.tiny}>Total: {totalHours} hours</div>
+            <section style={{ ...t.panel, background: '#f8fbfd', border: '1px solid #d8e3eb', borderRadius: '14px', boxShadow: 'none', padding: '14px', display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                    <label style={t.label}>
+                        <span>Technician</span>
+                        <input value={technician} onChange={(event) => setTechnician(event.target.value)} style={t.input} list="tech-roster" />
+                        <datalist id="tech-roster">
+                            {roster.map((name) => <option key={name} value={name} />)}
+                        </datalist>
+                    </label>
+                    <div style={{ ...t.panel, padding: '10px 12px', boxShadow: 'none', border: '1px solid #dde6ee', background: '#fff' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#5c7080' }}>Session</div>
+                        <div style={{ fontWeight: 700, color: '#203543' }}>{activeSession ? 'Clocked In' : 'Clocked Out'}</div>
+                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Elapsed {activeSessionElapsed}</div>
                     </div>
-                    <div style={layout.statCard}>
-                        <div style={layout.statLabel}>Session</div>
-                        <div style={layout.statValue}>{activeSession ? 'Clocked In' : 'Clocked Out'}</div>
-                        <div style={layout.tiny}>Elapsed {activeSessionElapsed}</div>
-                    </div>
-                    <div style={layout.statCard}>
-                        <div style={layout.statLabel}>Range</div>
-                        <div style={layout.statValue}>{appliedRangeLabel}</div>
-                        <div style={layout.tiny}>{logCountLabel} · {activeTechnicians} techs</div>
-                    </div>
-                    <div style={layout.statCard}>
-                        <div style={layout.statLabel}>Latest</div>
-                        <div style={layout.statValue}>{latestEntryDate}</div>
-                        <div style={layout.tiny}>Most recent work date</div>
+                    <div style={{ ...t.panel, padding: '10px 12px', boxShadow: 'none', border: '1px solid #dde6ee', background: '#fff' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#5c7080' }}>Selected Day</div>
+                        <div style={{ fontWeight: 700, color: '#203543' }}>{selectedDate}</div>
+                        <div style={{ fontSize: '0.82rem', color: '#5c7080' }}>Total: {totalHours} hours</div>
                     </div>
                 </div>
 
-                <div style={layout.split}>
-                    <section style={layout.panel}>
-                        <div style={layout.panelTitleRow}>
-                            <h3 style={layout.panelTitle}>Clock Session</h3>
-                            <span style={layout.tiny}>{activeSession ? `Started ${formatDateTime(activeSession.clocked_in_at)}` : 'No active session'}</span>
-                        </div>
-                        <p style={layout.helper}>Track live work without linking anything to tickets.</p>
-                        <div style={t.fieldGrid}>
-                            <label style={t.label}>
-                                <span>Technician</span>
-                                <input value={technician} onChange={(event) => setTechnician(event.target.value)} style={t.input} list="tech-roster" />
-                                <datalist id="tech-roster">
-                                    {roster.map((name) => <option key={name} value={name} />)}
-                                </datalist>
-                            </label>
-                            <label style={t.label}>
-                                <span>Work note</span>
-                                <input value={clockDescription} onChange={(event) => setClockDescription(event.target.value)} placeholder="What are you working on?" style={t.input} />
-                            </label>
-                        </div>
-                        <div style={t.formActionsRow}>
-                            <button type="button" style={t.primaryBtn} disabled={Boolean(activeSession) || saving !== null} onClick={handleClockIn}>
-                                {saving === 'clock-in' ? 'Clocking In...' : 'Clock In'}
-                            </button>
-                            <button type="button" style={t.secondaryBtn} disabled={!activeSession || saving !== null} onClick={handleClockOut}>
-                                {saving === 'clock-out' ? 'Clocking Out...' : 'Clock Out'}
-                            </button>
-                        </div>
-                    </section>
-
-                    <section style={layout.panel}>
-                        <div style={layout.panelTitleRow}>
-                            <h3 style={layout.panelTitle}>Filters</h3>
-                            <span style={layout.tiny}>Update summary and history</span>
-                        </div>
-                        <form onSubmit={handleFilter} style={t.formStack}>
-                            <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-                                <InlineCalendar title="Start Date" selectedDate={filterStartDate} onSelectDate={setFilterStartDate} />
-                                <InlineCalendar title="End Date" selectedDate={filterEndDate} onSelectDate={setFilterEndDate} />
-                            </div>
-                            <div style={t.fieldGrid}>
-                                <label style={t.label}>
-                                    <span>Technician</span>
-                                    <input value={filterTechnician} onChange={(event) => setFilterTechnician(event.target.value)} style={t.input} list="filter-tech-roster" />
-                                    <datalist id="filter-tech-roster">
-                                        {roster.map((name) => <option key={name} value={name} />)}
-                                    </datalist>
-                                </label>
-                            </div>
-                            <div style={t.formActionsRow}>
-                                <button type="submit" style={t.primaryBtn}>Apply Filters</button>
-                                <button type="button" style={t.secondaryBtn} onClick={handleResetFilters}>Reset Filters</button>
-                            </div>
-                        </form>
-
-                        <div style={layout.summaryGrid}>
-                            <div style={layout.statLabel}>By Technician</div>
-                            {technicianBreakdown.length > 0 ? (
-                                technicianBreakdown.map(([name, loggedHours]) => (
-                                    <div key={name} style={layout.summaryItem}>
-                                        <strong style={{ color: '#244255', fontSize: '0.92rem' }}>{name}</strong>
-                                        <span style={{ fontWeight: 700, color: '#244255', fontSize: '0.9rem' }}>{loggedHours}h</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <InlineState tone="info">No hours recorded in the current range.</InlineState>
-                            )}
-                        </div>
-                    </section>
+                <div style={t.formActionsRow}>
+                    <button type="button" style={t.primaryBtn} disabled={Boolean(activeSession) || saving !== null} onClick={handleClockIn}>
+                        {saving === 'clock-in' ? 'Clocking In...' : 'Clock In'}
+                    </button>
+                    <button type="button" style={t.secondaryBtn} disabled={!activeSession || saving !== null} onClick={handleClockOut}>
+                        {saving === 'clock-out' ? 'Clocking Out...' : 'Clock Out'}
+                    </button>
                 </div>
 
-                <section style={layout.panel}>
-                    <div style={layout.panelTitleRow}>
-                        <h3 style={layout.panelTitle}>Manual Adjustment</h3>
-                        <span style={layout.tiny}>Add or correct a time entry</span>
-                    </div>
-                    <p style={layout.helper}>Pick a date from the calendar and submit a corrected entry.</p>
-                    <form onSubmit={handleAddHours} style={t.formStack}>
-                        <InlineCalendar title="Work Date" selectedDate={manualWorkDate} onSelectDate={setManualWorkDate} />
-                        <div style={t.fieldGrid}>
-                            <label style={t.label}>
-                                <span>Hours worked</span>
-                                <input type="number" step="0.25" min="0.25" value={manualHoursWorked} onChange={(event) => setManualHoursWorked(event.target.value)} style={t.input} />
-                            </label>
-                            <label style={t.label}>
-                                <span>Work description</span>
-                                <input value={manualWorkDescription} onChange={(event) => setManualWorkDescription(event.target.value)} placeholder="Replacement completed, troubleshooting, pickup prep..." style={t.input} />
-                            </label>
-                        </div>
-                        <button type="submit" style={t.primaryBtn} disabled={saving !== null}>
-                            {saving === 'manual' ? 'Saving...' : 'Log Manual Hours'}
-                        </button>
-                    </form>
-                </section>
+                <FullCalendar
+                    selectedDate={selectedDate}
+                    onSelectDate={(iso) => {
+                        setSelectedDate(iso);
+                        setManualWorkDate(iso);
+                    }}
+                />
+            </section>
 
-                <section style={layout.panel}>
-                    <div style={layout.panelTitleRow}>
-                        <h3 style={layout.panelTitle}>Hours History</h3>
-                        <span style={layout.tiny}>Most recent first</span>
+            <section style={{ ...t.panel, background: '#ffffff', border: '1px solid #dce6ee', borderRadius: '12px', boxShadow: 'none' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1d3240' }}>Manual Log</h3>
+                <form onSubmit={handleAddHours} style={{ display: 'grid', gap: '12px' }}>
+                    <div style={t.fieldGrid}>
+                        <label style={t.label}>
+                            <span>Technician</span>
+                            <input value={technician} onChange={(event) => setTechnician(event.target.value)} style={t.input} list="manual-tech-roster" />
+                            <datalist id="manual-tech-roster">
+                                {roster.map((name) => <option key={name} value={name} />)}
+                            </datalist>
+                        </label>
+                        <label style={t.label}>
+                            <span>Date</span>
+                            <input value={manualWorkDate} readOnly style={{ ...t.input, background: '#f6f9fb', color: '#3f5666' }} />
+                        </label>
+                        <label style={t.label}>
+                            <span>Hours worked</span>
+                            <input type="number" step="0.25" min="0.25" value={manualHoursWorked} onChange={(event) => setManualHoursWorked(event.target.value)} style={t.input} />
+                        </label>
                     </div>
-                    {loading ? (
-                        <LoadingSpinner size="sm" message="Loading hours..." />
-                    ) : hours.length === 0 ? (
-                        <InlineState tone="info">No hours logged yet.</InlineState>
-                    ) : (
-                        <div style={layout.historyList}>
-                            {hours.map((log) => (
-                                <article key={log.id} style={layout.historyItem}>
-                                    <div style={layout.historyTop}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                            <span style={layout.badge}>{formatDate(log.work_date)}</span>
-                                            <strong style={{ color: '#294757', fontSize: '0.95rem' }}>{log.technician}</strong>
-                                        </div>
-                                        <strong style={{ color: '#294757', fontSize: '0.95rem' }}>{log.hours_worked}h</strong>
-                                    </div>
-                                    <div style={{ ...t.copy, margin: 0, color: '#425c6b' }}>{log.work_description || 'No work description provided.'}</div>
-                                    <div style={layout.tiny}>Logged {formatDateTime(log.created_at)}</div>
-                                </article>
-                            ))}
-                        </div>
-                    )}
-                </section>
+                    <button type="submit" style={t.primaryBtn} disabled={saving !== null}>
+                        {saving === 'manual' ? 'Saving...' : 'Log Manual Hours'}
+                    </button>
+                </form>
+            </section>
+
+            <section style={{ ...t.panel, background: '#ffffff', border: '1px solid #dce6ee', borderRadius: '12px', boxShadow: 'none' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1d3240' }}>Day History</h3>
+                {loading ? (
+                    <LoadingSpinner size="sm" message="Loading hours..." />
+                ) : hours.length === 0 ? (
+                    <InlineState tone="info">No hours logged for this day.</InlineState>
+                ) : (
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                        {hours.map((log) => (
+                            <article key={log.id} style={{ borderRadius: '10px', border: '1px solid #dce6ee', background: '#f9fcfd', padding: '9px 10px', display: 'grid', gap: '5px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    <strong style={{ color: '#244356' }}>{log.technician}</strong>
+                                    <strong style={{ color: '#244356' }}>{log.hours_worked}h</strong>
+                                </div>
+                                <div style={{ color: '#5d7280', fontSize: '0.82rem' }}>Work date: {formatDate(log.work_date)}</div>
+                                <div style={{ color: '#5d7280', fontSize: '0.82rem' }}>Logged {formatDateTime(log.created_at)}</div>
+                            </article>
+                        ))}
+                    </div>
+                )}
             </section>
         </section>
     );
