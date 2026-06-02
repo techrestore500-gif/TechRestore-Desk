@@ -685,7 +685,7 @@ export default function SettingsPage() {
             {showSection("business") ? <div style={panelStyle}>
                 <h3 style={{ marginTop: 0 }}>Technician roster</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
-                    These names populate the Hours log dropdown and will appear in Queue assignment in a future phase.
+                    These names will appear in Queue assignment in a future phase.
                 </p>
                 <div style={{ ...t.formActionsRow, gap: "8px", marginBottom: "14px" }}>
                     {roster.map((name) => (

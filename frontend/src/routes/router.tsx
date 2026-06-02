@@ -5,7 +5,6 @@ import AccessRequestsPage from "../pages/AccessRequestsPage";
 import AccountPage from "../pages/AccountPage";
 import DashboardPage from "../pages/DashboardPage";
 import { DonorsPage } from "../pages/DonorsPage";
-import { HoursPage } from "../pages/HoursPage";
 import CustomerDetailPage from "../pages/CustomerDetailPage";
 import IntakePrintPage from "../pages/IntakePrintPage";
 import IntakePage from "../pages/IntakePage";
@@ -74,10 +73,6 @@ export const router = createBrowserRouter([
             {
                 path: "operations",
                 element: <OperationsPage />,
-            },
-            {
-                path: "hours",
-                element: <HoursPage />,
             },
             {
                 path: "reports",

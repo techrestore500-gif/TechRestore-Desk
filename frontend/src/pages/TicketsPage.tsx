@@ -130,7 +130,6 @@ export default function TicketsPage() {
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <Link to="/intake" style={{ ...t.primaryBtn, textDecoration: "none" }}>+ New Repair</Link>
-                        <Link to="/hours" style={{ ...t.secondaryBtn, textDecoration: "none" }}>Hours</Link>
                     </div>
                 }
             />

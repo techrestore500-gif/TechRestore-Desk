@@ -275,7 +275,6 @@ export default function DashboardPage() {
                     <SectionCard title="Fast Actions" compact tone="soft">
                         <div style={{ ...t.formStack, gap: "8px" }}>
                             <Link to="/tickets" style={quickWorkflowCardStyle}>Search Tickets</Link>
-                            <Link to="/hours" style={quickWorkflowCardStyle}>Open Hours Tracker</Link>
                             <Link to="/voicemail" style={quickWorkflowCardStyle}>Open Voicemail Inbox</Link>
                             <Link to="/operations" style={quickWorkflowCardStyle}>Open Shop Tools</Link>
                         </div>

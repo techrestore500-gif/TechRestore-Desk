@@ -11,7 +11,6 @@ const navItems = [
     { to: "/tickets", label: "Tickets" },
     { to: "/voicemail", label: "Voicemail" },
     { to: "/inventory", label: "Inventory" },
-    { to: "/hours", label: "Hours" },
     { to: "/operations", label: "Shop Tools" },
     { to: "/loaners", label: "Loaners" },
     { to: "/donors", label: "Donors" },
@@ -21,7 +20,7 @@ const navItems = [
 ];
 
 const navGroups = [
-    { label: "Daily Work", items: ["/", "/intake", "/tickets", "/voicemail", "/inventory", "/hours"] },
+    { label: "Daily Work", items: ["/", "/intake", "/tickets", "/voicemail", "/inventory"] },
     { label: "Shop Tools", items: ["/operations", "/loaners", "/donors", "/reports"] },
     { label: "Admin", items: ["/users-invites", "/settings"] },
 ];

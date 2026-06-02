@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-02 Hours frontend feature removed: removed the Hours page route, nav entries, quick links, keyboard shortcut target, and Hours-only frontend API/page/test files; backend hours endpoints and tables were intentionally left in place for low-risk compatibility
 - 2026-06-02 Hours selected-day hardening follow-up complete: frontend now normalizes incoming `work_date` values before selected-day filtering, per-day aggregation, and latest-day selection, and renders date-only values using local calendar parsing to prevent timezone-shifted day history
 - 2026-06-02 Hours data correctness pass complete: monthly calendar now renders per-day logged totals inside day cells, selected-day totals are computed from actual selected-day entries (not month summary), month-range totals are shown explicitly, and hours queries are technician-filter-aware
 - 2026-06-02 Backend hours date filtering hardened: `work_date` values are normalized to `YYYY-MM-DD` on write and all list/summary filters compare with `DATE(work_date)` so legacy datetime-like values still appear under correct day selections
