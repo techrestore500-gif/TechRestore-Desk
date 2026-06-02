@@ -48,6 +48,10 @@ function parseIsoDate(value: string): Date {
     return new Date(year, (month || 1) - 1, day || 1);
 }
 
+function normalizeWorkDate(value: string): string {
+    return value.includes('T') ? value.slice(0, 10) : value;
+}
+
 function toIsoDate(value: Date): string {
     const year = value.getFullYear();
     const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -56,7 +60,8 @@ function toIsoDate(value: Date): string {
 }
 
 function formatDate(value: string) {
-    return new Date(value).toLocaleDateString();
+    const normalized = normalizeWorkDate(value);
+    return parseIsoDate(normalized).toLocaleDateString();
 }
 
 function formatDateTime(value: string) {
@@ -235,9 +240,10 @@ export function HoursPage() {
 
     const monthHours: HoursLog[] = data?.monthHours ?? [];
     const monthSummary: HoursSummary | null = data?.monthSummary ?? null;
-    const selectedDayEntries = monthHours.filter((entry) => entry.work_date === selectedDate);
+    const selectedDayEntries = monthHours.filter((entry) => normalizeWorkDate(entry.work_date) === selectedDate);
     const dayTotals = monthHours.reduce<Record<string, number>>((acc, entry) => {
-        acc[entry.work_date] = (acc[entry.work_date] ?? 0) + entry.hours_worked;
+        const dayKey = normalizeWorkDate(entry.work_date);
+        acc[dayKey] = (acc[dayKey] ?? 0) + entry.hours_worked;
         return acc;
     }, {});
     const visibleError = submitError ?? error;
@@ -262,8 +268,11 @@ export function HoursPage() {
                 }
 
                 const latestDate = allHours.reduce(
-                    (latest, item) => (item.work_date > latest ? item.work_date : latest),
-                    allHours[0].work_date,
+                    (latest, item) => {
+                        const candidate = normalizeWorkDate(item.work_date);
+                        return candidate > latest ? candidate : latest;
+                    },
+                    normalizeWorkDate(allHours[0].work_date),
                 );
 
                 if (latestDate !== selectedDate) {
