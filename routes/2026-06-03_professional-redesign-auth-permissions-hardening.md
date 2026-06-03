@@ -19,6 +19,7 @@
 - Backend API tests passed.
 - Frontend tests passed.
 - Frontend production build passed.
+- Added explicit AppShell role-navigation tests to confirm owner-only Team Access visibility and role-based Settings visibility.
 
 ## Follow-up
 - Optionally add dedicated E2E role matrix checks for direct URL guard behavior in browser automation.

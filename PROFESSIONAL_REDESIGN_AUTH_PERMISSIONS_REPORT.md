@@ -65,11 +65,12 @@ Updated role dependencies across API routes:
 ### Frontend
 - Added `RequireRole` tests.
 - Added `PricingPage` permission test for read-only mode.
+- Added `AppShell` role-navigation tests verifying owner-only Team Access visibility and settings/team visibility rules by role.
 - Updated existing tests for current Settings and command palette behavior.
 
 ## Validation Results
 - Backend tests: `39 passed`.
-- Frontend tests: `52 passed`.
+- Frontend tests: `55 passed`.
 - Frontend production build: successful (`tsc --noEmit && vite build`).
 
 ## Manual Verification Checklist
