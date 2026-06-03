@@ -28,7 +28,7 @@ describe("CommandPalette", () => {
             </QueryClientProvider>
         );
 
-        expect(screen.getByPlaceholderText("Search tickets, parts, donors, loaners...")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Search tickets and parts...")).toBeInTheDocument();
         expect(screen.getByText("TR-001")).toBeInTheDocument();
 
         fireEvent.keyDown(window, { key: "Escape" });

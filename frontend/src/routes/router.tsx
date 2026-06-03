@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
+import { RequireRole } from "../components/RequireRole";
 import AccessRequestsPage from "../pages/AccessRequestsPage";
 import AccountPage from "../pages/AccountPage";
 import DashboardPage from "../pages/DashboardPage";
@@ -83,11 +84,27 @@ export const router = createBrowserRouter([
             },
             {
                 path: "pricing",
-                element: <PricingPage />,
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner", "admin", "front_desk", "technician", "viewer"]}
+                        deniedTitle="Pricing access is restricted"
+                        deniedDescription="You do not have permission to view pricing."
+                    >
+                        <PricingPage />
+                    </RequireRole>
+                ),
             },
             {
                 path: "settings",
-                element: <SettingsPage />,
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner", "admin"]}
+                        deniedTitle="Settings access is restricted"
+                        deniedDescription="Only owner/admin roles can open settings."
+                    >
+                        <SettingsPage />
+                    </RequireRole>
+                ),
             },
             {
                 path: "account",
@@ -95,7 +112,15 @@ export const router = createBrowserRouter([
             },
             {
                 path: "users-invites",
-                element: <AccessRequestsPage />,
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner"]}
+                        deniedTitle="Team access is owner-only"
+                        deniedDescription="Only the owner can manage invites and roles."
+                    >
+                        <AccessRequestsPage />
+                    </RequireRole>
+                ),
             },
             {
                 path: "voicemail",

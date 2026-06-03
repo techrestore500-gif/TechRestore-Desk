@@ -21,6 +21,8 @@ import {
     type PricingRule,
 } from "../api/pricingCatalog";
 import { MetricTile, PageHeader, SectionCard } from "../components/PageChrome";
+import { useAuth } from "../auth/AuthProvider";
+import { canEditPricing } from "../auth/roles";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
@@ -37,6 +39,8 @@ const initialRuleForm = {
 };
 
 export default function PricingPage() {
+    const { user } = useAuth();
+    const isReadOnly = !canEditPricing(user);
     const [refreshKey, setRefreshKey] = useState(0);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(true);
@@ -126,6 +130,10 @@ export default function PricingPage() {
 
     async function handleSubmitRule(event: React.FormEvent) {
         event.preventDefault();
+        if (isReadOnly) {
+            setError("Your role can view pricing but cannot change catalog data.");
+            return;
+        }
         const payload = {
             brand_id: Number(ruleForm.brand_id),
             model_id: Number(ruleForm.model_id),
@@ -198,12 +206,21 @@ export default function PricingPage() {
             {catalogError ? <div style={t.errorBanner}>{catalogError}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
             {message ? <div style={successStyle}>{message}</div> : null}
+            {isReadOnly ? (
+                <div style={{ ...successStyle, borderColor: "#cbd5e1", background: "#f8fafc", color: "#334155" }}>
+                    Read-only mode: only owner/admin can edit pricing configuration.
+                </div>
+            ) : null}
 
             <SectionCard title="Add Catalog Values" description="Quick-add dimensions for pricing rules." tone="soft">
                 <div style={t.fieldGridTwo}>
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (isReadOnly) {
+                                setError("Your role can view pricing but cannot add catalog values.");
+                                return;
+                            }
                             if (!brandName.trim()) {
                                 setError("Brand name is required.");
                                 return;
@@ -217,13 +234,17 @@ export default function PricingPage() {
                         style={t.formStack}
                     >
                         <strong>Brand</strong>
-                        <input value={brandName} onChange={(event) => setBrandName(event.target.value)} style={t.input} placeholder="Kyocera" />
-                        <button style={t.primaryBtn} type="submit" disabled={busy === "brand-create"}>Add brand</button>
+                        <input value={brandName} onChange={(event) => setBrandName(event.target.value)} style={t.input} placeholder="Kyocera" disabled={isReadOnly} />
+                        <button style={t.primaryBtn} type="submit" disabled={isReadOnly || busy === "brand-create"}>Add brand</button>
                     </form>
 
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (isReadOnly) {
+                                setError("Your role can view pricing but cannot add catalog values.");
+                                return;
+                            }
                             if (!modelName.trim() || !modelBrandId) {
                                 setError("Select a brand and enter model name.");
                                 return;
@@ -237,19 +258,23 @@ export default function PricingPage() {
                         style={t.formStack}
                     >
                         <strong>Model</strong>
-                        <select value={modelBrandId} onChange={(event) => setModelBrandId(event.target.value)} style={t.input}>
+                        <select value={modelBrandId} onChange={(event) => setModelBrandId(event.target.value)} style={t.input} disabled={isReadOnly}>
                             <option value="">Select brand</option>
                             {brands.map((brand) => (
                                 <option key={brand.id} value={brand.id}>{brand.name}</option>
                             ))}
                         </select>
-                        <input value={modelName} onChange={(event) => setModelName(event.target.value)} style={t.input} placeholder="E4810" />
-                        <button style={t.primaryBtn} type="submit" disabled={busy === "model-create"}>Add model</button>
+                        <input value={modelName} onChange={(event) => setModelName(event.target.value)} style={t.input} placeholder="E4810" disabled={isReadOnly} />
+                        <button style={t.primaryBtn} type="submit" disabled={isReadOnly || busy === "model-create"}>Add model</button>
                     </form>
 
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (isReadOnly) {
+                                setError("Your role can view pricing but cannot add catalog values.");
+                                return;
+                            }
                             if (!issueTypeName.trim()) {
                                 setError("Issue type name is required.");
                                 return;
@@ -263,13 +288,17 @@ export default function PricingPage() {
                         style={t.formStack}
                     >
                         <strong>Issue Type</strong>
-                        <input value={issueTypeName} onChange={(event) => setIssueTypeName(event.target.value)} style={t.input} placeholder="Screen/LCD" />
-                        <button style={t.primaryBtn} type="submit" disabled={busy === "issue-create"}>Add issue type</button>
+                        <input value={issueTypeName} onChange={(event) => setIssueTypeName(event.target.value)} style={t.input} placeholder="Screen/LCD" disabled={isReadOnly} />
+                        <button style={t.primaryBtn} type="submit" disabled={isReadOnly || busy === "issue-create"}>Add issue type</button>
                     </form>
 
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (isReadOnly) {
+                                setError("Your role can view pricing but cannot add catalog values.");
+                                return;
+                            }
                             if (!repairTypeName.trim()) {
                                 setError("Repair type name is required.");
                                 return;
@@ -283,8 +312,8 @@ export default function PricingPage() {
                         style={t.formStack}
                     >
                         <strong>Repair Type</strong>
-                        <input value={repairTypeName} onChange={(event) => setRepairTypeName(event.target.value)} style={t.input} placeholder="Estimate" />
-                        <button style={t.primaryBtn} type="submit" disabled={busy === "repair-create"}>Add repair type</button>
+                        <input value={repairTypeName} onChange={(event) => setRepairTypeName(event.target.value)} style={t.input} placeholder="Estimate" disabled={isReadOnly} />
+                        <button style={t.primaryBtn} type="submit" disabled={isReadOnly || busy === "repair-create"}>Add repair type</button>
                     </form>
                 </div>
             </SectionCard>
@@ -298,6 +327,7 @@ export default function PricingPage() {
                                 value={ruleForm.brand_id}
                                 onChange={(event) => setRuleForm((current) => ({ ...current, brand_id: event.target.value, model_id: "" }))}
                                 style={t.input}
+                                disabled={isReadOnly}
                                 required
                             >
                                 <option value="">Select brand</option>
@@ -312,6 +342,7 @@ export default function PricingPage() {
                                 value={ruleForm.model_id}
                                 onChange={(event) => setRuleForm((current) => ({ ...current, model_id: event.target.value }))}
                                 style={t.input}
+                                disabled={isReadOnly}
                                 required
                             >
                                 <option value="">Select model</option>
@@ -326,6 +357,7 @@ export default function PricingPage() {
                                 value={ruleForm.issue_type_id}
                                 onChange={(event) => setRuleForm((current) => ({ ...current, issue_type_id: event.target.value }))}
                                 style={t.input}
+                                disabled={isReadOnly}
                                 required
                             >
                                 <option value="">Select issue type</option>
@@ -340,6 +372,7 @@ export default function PricingPage() {
                                 value={ruleForm.repair_type_id}
                                 onChange={(event) => setRuleForm((current) => ({ ...current, repair_type_id: event.target.value }))}
                                 style={t.input}
+                                disabled={isReadOnly}
                                 required
                             >
                                 <option value="">Select repair type</option>
@@ -350,31 +383,31 @@ export default function PricingPage() {
                         </label>
                         <label style={t.label}>
                             Standard price ($)
-                            <input type="number" min="0" step="1" value={ruleForm.standard_price} onChange={(event) => setRuleForm((current) => ({ ...current, standard_price: event.target.value }))} style={t.input} required />
+                            <input type="number" min="0" step="1" value={ruleForm.standard_price} onChange={(event) => setRuleForm((current) => ({ ...current, standard_price: event.target.value }))} style={t.input} disabled={isReadOnly} required />
                         </label>
                         <label style={t.label}>
                             Estimated part cost ($)
-                            <input type="number" min="0" step="1" value={ruleForm.estimated_part_cost} onChange={(event) => setRuleForm((current) => ({ ...current, estimated_part_cost: event.target.value }))} style={t.input} />
+                            <input type="number" min="0" step="1" value={ruleForm.estimated_part_cost} onChange={(event) => setRuleForm((current) => ({ ...current, estimated_part_cost: event.target.value }))} style={t.input} disabled={isReadOnly} />
                         </label>
                         <label style={t.label}>
                             Estimated labor minutes
-                            <input type="number" min="0" step="5" value={ruleForm.estimated_labor_minutes} onChange={(event) => setRuleForm((current) => ({ ...current, estimated_labor_minutes: event.target.value }))} style={t.input} />
+                            <input type="number" min="0" step="5" value={ruleForm.estimated_labor_minutes} onChange={(event) => setRuleForm((current) => ({ ...current, estimated_labor_minutes: event.target.value }))} style={t.input} disabled={isReadOnly} />
                         </label>
                         <label style={t.label}>
                             Customer wording
-                            <input value={ruleForm.customer_wording} onChange={(event) => setRuleForm((current) => ({ ...current, customer_wording: event.target.value }))} style={t.input} placeholder="What front desk says to customer" />
+                            <input value={ruleForm.customer_wording} onChange={(event) => setRuleForm((current) => ({ ...current, customer_wording: event.target.value }))} style={t.input} placeholder="What front desk says to customer" disabled={isReadOnly} />
                         </label>
                     </div>
 
                     <label style={t.label}>
                         Internal notes
-                        <textarea value={ruleForm.internal_notes} onChange={(event) => setRuleForm((current) => ({ ...current, internal_notes: event.target.value }))} style={{ ...t.input, minHeight: "80px" }} />
+                        <textarea value={ruleForm.internal_notes} onChange={(event) => setRuleForm((current) => ({ ...current, internal_notes: event.target.value }))} style={{ ...t.input, minHeight: "80px" }} disabled={isReadOnly} />
                     </label>
 
                     <div style={t.formActionsRow}>
-                        <button style={t.primaryBtn} type="submit" disabled={busy === "rule-save"}>{editingRuleId ? "Update rule" : "Create rule"}</button>
+                        <button style={t.primaryBtn} type="submit" disabled={isReadOnly || busy === "rule-save"}>{editingRuleId ? "Update rule" : "Create rule"}</button>
                         {editingRuleId ? (
-                            <button type="button" style={t.secondaryBtn} onClick={resetRuleForm}>Cancel edit</button>
+                            <button type="button" style={t.secondaryBtn} onClick={resetRuleForm} disabled={isReadOnly}>Cancel edit</button>
                         ) : null}
                     </div>
                 </form>
@@ -409,10 +442,11 @@ export default function PricingPage() {
                                     <td style={t.tableCell}>{rule.active ? "Active" : "Inactive"}</td>
                                     <td style={t.tableCell}>
                                         <div style={t.formActionsRow}>
-                                            <button type="button" style={t.miniBtn} onClick={() => hydrateRuleForm(rule)}>Edit</button>
+                                            <button type="button" style={t.miniBtn} onClick={() => hydrateRuleForm(rule)} disabled={isReadOnly}>Edit</button>
                                             <button
                                                 type="button"
                                                 style={t.miniBtn}
+                                                disabled={isReadOnly}
                                                 onClick={() => {
                                                     void runAction("rule-toggle", async () => {
                                                         await updatePricingRule(rule.id, { active: !rule.active });
@@ -425,6 +459,7 @@ export default function PricingPage() {
                                             <button
                                                 type="button"
                                                 style={{ ...t.miniBtn, borderColor: "#c67d74", color: "#8f2f24" }}
+                                                disabled={isReadOnly}
                                                 onClick={() => {
                                                     void runAction("rule-delete", async () => {
                                                         await deletePricingRule(rule.id);
@@ -455,7 +490,7 @@ export default function PricingPage() {
                         renderLabel={(item) => item.name}
                         onToggle={(item) => updatePricingBrand(item.id, { active: !item.active })}
                         onRename={(item, nextName) => updatePricingBrand(item.id, { name: nextName })}
-                        busy={busy}
+                        readOnly={isReadOnly}
                         runAction={runAction}
                     />
                     <DimensionList
@@ -464,7 +499,7 @@ export default function PricingPage() {
                         renderLabel={(item) => `${item.brand_name} ${item.name}`}
                         onToggle={(item) => updatePricingModel(item.id, { active: !item.active })}
                         onRename={(item, nextName) => updatePricingModel(item.id, { name: nextName })}
-                        busy={busy}
+                        readOnly={isReadOnly}
                         runAction={runAction}
                     />
                     <DimensionList
@@ -473,7 +508,7 @@ export default function PricingPage() {
                         renderLabel={(item) => item.name}
                         onToggle={(item) => updatePricingIssueType(item.id, { active: !item.active })}
                         onRename={(item, nextName) => updatePricingIssueType(item.id, { name: nextName })}
-                        busy={busy}
+                        readOnly={isReadOnly}
                         runAction={runAction}
                     />
                     <DimensionList
@@ -482,7 +517,7 @@ export default function PricingPage() {
                         renderLabel={(item) => item.name}
                         onToggle={(item) => updatePricingRepairType(item.id, { active: !item.active })}
                         onRename={(item, nextName) => updatePricingRepairType(item.id, { name: nextName })}
-                        busy={busy}
+                        readOnly={isReadOnly}
                         runAction={runAction}
                     />
                 </div>
@@ -497,6 +532,7 @@ function DimensionList<T extends { id: number; active: boolean }>({
     renderLabel,
     onToggle,
     onRename,
+    readOnly,
     runAction,
 }: {
     title: string;
@@ -504,7 +540,7 @@ function DimensionList<T extends { id: number; active: boolean }>({
     renderLabel: (item: T) => string;
     onToggle: (item: T) => Promise<unknown>;
     onRename: (item: T, nextName: string) => Promise<unknown>;
-    busy: string | null;
+    readOnly: boolean;
     runAction: (action: string, fn: () => Promise<void>) => Promise<void>;
 }) {
     const [draftById, setDraftById] = useState<Record<number, string>>({});
@@ -525,11 +561,13 @@ function DimensionList<T extends { id: number; active: boolean }>({
                                     setDraftById((current) => ({ ...current, [item.id]: value }));
                                 }}
                                 style={t.input}
+                                disabled={readOnly}
                             />
                             <div style={t.formActionsRow}>
                                 <button
                                     type="button"
                                     style={t.miniBtn}
+                                    disabled={readOnly}
                                     onClick={() => {
                                         const nextName = draft.trim();
                                         if (!nextName || nextName === label) {
@@ -545,6 +583,7 @@ function DimensionList<T extends { id: number; active: boolean }>({
                                 <button
                                     type="button"
                                     style={t.miniBtn}
+                                    disabled={readOnly}
                                     onClick={() => {
                                         void runAction("dimension-toggle", async () => {
                                             await onToggle(item);

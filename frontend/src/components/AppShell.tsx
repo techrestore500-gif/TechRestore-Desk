@@ -1,239 +1,267 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { changePassword, type AuthRole } from "../api/auth";
 import { CommandPalette } from "./CommandPalette";
 import { useAuth } from "../auth/AuthProvider";
+import { canAccessSettings, canManageInvites, roleLabel } from "../auth/roles";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
-const navItems = [
-    { to: "/", label: "Dashboard" },
-    { to: "/intake", label: "New Repair" },
-    { to: "/tickets", label: "Tickets" },
-    { to: "/voicemail", label: "Voicemail" },
-    { to: "/inventory", label: "Inventory" },
-    { to: "/pricing", label: "Pricing" },
-    { to: "/operations", label: "Shop Tools" },
-    { to: "/reports", label: "Reports" },
-    { to: "/users-invites", label: "Team Access" },
-    { to: "/settings", label: "Settings" },
-];
+type NavItem = {
+    to: string;
+    label: string;
+    group: "Core" | "Operations" | "Administration";
+    hiddenFor?: AuthRole[];
+    visibleFor?: AuthRole[];
+};
 
-const navGroups = [
-    { label: "Daily Work", items: ["/", "/intake", "/tickets", "/voicemail", "/inventory"] },
-    { label: "Shop Tools", items: ["/pricing", "/operations", "/reports"] },
-    { label: "Admin", items: ["/users-invites", "/settings"] },
+const navItems: NavItem[] = [
+    { to: "/", label: "Dashboard", group: "Core" },
+    { to: "/intake", label: "New Repair", group: "Core", hiddenFor: ["viewer"] },
+    { to: "/tickets", label: "Tickets", group: "Core" },
+    { to: "/voicemail", label: "Voicemail", group: "Core", hiddenFor: ["viewer"] },
+    { to: "/inventory", label: "Inventory", group: "Operations", hiddenFor: ["viewer"] },
+    { to: "/pricing", label: "Pricing", group: "Operations" },
+    { to: "/operations", label: "Shop Tools", group: "Operations", hiddenFor: ["viewer"] },
+    { to: "/reports", label: "Reports", group: "Operations" },
+    { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin"] },
+    { to: "/users-invites", label: "Team Access", group: "Administration", visibleFor: ["owner"] },
 ];
 
 const S = {
     root: {
         display: "flex" as const,
         minHeight: "100vh",
-        fontFamily: '"Sora", "Plus Jakarta Sans", "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif',
-        color: "#2a221c",
-        background: "transparent",
-        position: "relative" as const,
-        isolation: "isolate" as const,
-    },
-    auraLayer: {
-        position: "fixed" as const,
-        inset: 0,
-        pointerEvents: "none" as const,
-        zIndex: 0,
-    },
-    auraPrimary: {
-        position: "absolute" as const,
-        width: "36vw",
-        height: "36vw",
-        minWidth: "340px",
-        minHeight: "340px",
-        borderRadius: "50%",
-        left: "-8vw",
-        top: "-12vw",
-        background: "radial-gradient(circle, rgba(124, 135, 100, 0.2) 0%, rgba(124, 135, 100, 0) 70%)",
-        filter: "blur(2px)",
-        animation: "auraShift 13s ease-in-out infinite",
-    },
-    auraSecondary: {
-        position: "absolute" as const,
-        width: "42vw",
-        height: "42vw",
-        minWidth: "360px",
-        minHeight: "360px",
-        borderRadius: "50%",
-        right: "-12vw",
-        bottom: "-20vw",
-        background: "radial-gradient(circle, rgba(201, 138, 100, 0.22) 0%, rgba(201, 138, 100, 0) 68%)",
-        animation: "auraShift 16s ease-in-out infinite reverse",
+        fontFamily: '"Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif',
+        color: "#111827",
+        background: "#f3f4f6",
     },
     sidebar: {
-        width: "286px",
+        width: "252px",
         flexShrink: 0,
         display: "flex" as const,
         flexDirection: "column" as const,
-        background: "linear-gradient(180deg, rgba(46, 34, 28, 0.97) 0%, rgba(33, 25, 21, 0.99) 100%)",
-        borderRight: "1px solid rgba(201, 138, 100, 0.2)",
-        backdropFilter: "blur(14px)",
+        background: "#ffffff",
+        borderRight: "1px solid #e5e7eb",
         position: "sticky" as const,
         top: 0,
         height: "100vh",
         overflowY: "auto" as const,
-        zIndex: 20,
-        boxShadow: "16px 0 32px rgba(32, 23, 19, 0.34)",
+        zIndex: 30,
     },
     brand: {
-        padding: "24px 18px 17px",
-        borderBottom: "1px solid rgba(201, 138, 100, 0.24)",
-        background: "linear-gradient(180deg, rgba(155, 95, 69, 0.34) 0%, rgba(16, 31, 37, 0) 100%)",
-    },
-    phase: {
-        fontSize: "0.63rem",
-        letterSpacing: "0.24em",
-        textTransform: "uppercase" as const,
-        color: "#dbc0a9",
-        fontWeight: 800,
-        marginBottom: "6px",
+        padding: "20px 18px 16px",
+        borderBottom: "1px solid #e5e7eb",
     },
     appName: {
-        fontSize: "1.36rem",
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-        color: "#fff7f0",
-        lineHeight: 1.14,
+        fontSize: "1.08rem",
+        fontWeight: 700,
+        letterSpacing: "0.01em",
+        color: "#0f172a",
+        lineHeight: 1.2,
         margin: 0,
     },
     tagLine: {
-        marginTop: "7px",
-        fontSize: "0.76rem",
-        color: "#d8c7ba",
-        lineHeight: 1.4,
-    },
-    logoutBtn: {
-        marginTop: "8px",
-        border: "1px solid rgba(167, 176, 141, 0.36)",
-        borderRadius: "10px",
-        background: "rgba(255,255,255,0.04)",
-        color: "#eff0df",
-        cursor: "pointer",
+        marginTop: "4px",
         fontSize: "0.78rem",
-        fontWeight: 700,
-        padding: "6px 10px",
+        color: "#6b7280",
+        lineHeight: 1.4,
     },
     nav: {
         display: "flex" as const,
         flexDirection: "column" as const,
-        gap: "16px",
-        padding: "16px 12px 10px",
+        gap: "18px",
+        padding: "16px 10px",
         flex: 1,
     },
     navGroup: {
         display: "grid" as const,
-        gap: "8px",
+        gap: "6px",
     },
     navGroupLabel: {
-        margin: "0 6px",
-        fontSize: "0.64rem",
-        letterSpacing: "0.2em",
+        margin: "0 8px",
+        fontSize: "0.69rem",
+        letterSpacing: "0.08em",
         textTransform: "uppercase" as const,
-        fontWeight: 800,
-        color: "#bdaa98",
-    },
-    profileCard: {
-        margin: "12px",
-        padding: "12px 12px",
-        borderRadius: "14px",
-        border: "1px solid rgba(201, 138, 100, 0.2)",
-        background: "linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)",
-        display: "grid" as const,
-        gap: "5px",
-    },
-    profileName: {
-        margin: 0,
-        fontSize: "0.86rem",
-        fontWeight: 750,
-        color: "#fff7ef",
-        lineHeight: 1.2,
-    },
-    profileMeta: {
-        margin: 0,
-        fontSize: "0.74rem",
-        color: "#d8c6ba",
-        lineHeight: 1.35,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-    },
-    profileActions: {
-        marginTop: "6px",
-        display: "flex" as const,
-        gap: "6px",
-        flexWrap: "wrap" as const,
-    },
-    profileLink: {
-        border: "1px solid rgba(167, 176, 141, 0.24)",
-        borderRadius: "8px",
-        padding: "5px 8px",
-        color: "#f2efe8",
-        textDecoration: "none",
-        fontSize: "0.74rem",
         fontWeight: 700,
-        background: "rgba(255,255,255,0.05)",
+        color: "#6b7280",
     },
     linkBase: {
         display: "flex" as const,
         alignItems: "center" as const,
-        padding: "11px 13px",
-        borderRadius: "12px",
+        padding: "10px 12px",
+        borderRadius: "9px",
         textDecoration: "none",
-        color: "#eadfd6",
-        fontWeight: 650,
+        color: "#111827",
+        fontWeight: 600,
         fontSize: "0.9rem",
-        letterSpacing: "0.01em",
-        transition: "background 170ms ease, color 170ms ease, box-shadow 170ms ease, border-color 170ms ease",
-        border: "1px solid rgba(201, 138, 100, 0.1)",
-        position: "relative" as const,
+        border: "1px solid transparent",
+        transition: "background-color 140ms ease, border-color 140ms ease, color 140ms ease",
     },
     main: {
         flex: 1,
         minWidth: 0,
-        padding: "28px 30px 40px",
-        position: "relative" as const,
-        zIndex: 1,
+        padding: "16px 20px 24px",
+        display: "grid" as const,
+        gridTemplateRows: "auto 1fr",
+        gap: "16px",
     },
-    mobileTopBar: {
+    topBar: {
         display: "flex" as const,
         alignItems: "center" as const,
-        justifyContent: "space-between" as const,
+        justifyContent: "space-between",
         gap: "12px",
-        border: "1px solid rgba(95, 73, 61, 0.16)",
-        borderRadius: "14px",
-        background: "linear-gradient(150deg, rgba(255,252,247,0.92) 0%, rgba(245,238,228,0.82) 100%)",
-        padding: "10px 11px",
-        marginBottom: "14px",
-        boxShadow: "0 12px 26px rgba(70, 52, 41, 0.14)",
-        backdropFilter: "blur(8px)",
+        border: "1px solid #e5e7eb",
+        borderRadius: "10px",
+        background: "#ffffff",
+        padding: "10px 12px",
     },
     menuBtn: {
-        border: "1px solid rgba(111, 63, 47, 0.24)",
-        borderRadius: "10px",
-        background: "linear-gradient(145deg, var(--brand-500) 0%, var(--brand-700) 100%)",
-        color: "#fff8f2",
+        border: "1px solid #d1d5db",
+        borderRadius: "8px",
+        background: "#ffffff",
+        color: "#111827",
         cursor: "pointer",
-        padding: "8px 10px",
-        fontWeight: 700,
-        letterSpacing: "0.01em",
+        padding: "8px 11px",
+        fontWeight: 600,
         minWidth: "72px",
     },
-    mobilePageTitle: {
+    pageTitle: {
         margin: 0,
-        fontSize: "0.9rem",
-        color: "#46352a",
-        fontWeight: 750,
+        fontSize: "1rem",
+        color: "#111827",
+        fontWeight: 700,
     },
     overlay: {
         position: "fixed" as const,
         inset: 0,
-        background: "rgba(28, 22, 18, 0.42)",
+        background: "rgba(15, 23, 42, 0.25)",
         border: "none",
-        zIndex: 15,
+        zIndex: 20,
+    },
+    accountButton: {
+        border: "1px solid #d1d5db",
+        borderRadius: "8px",
+        background: "#ffffff",
+        color: "#111827",
+        cursor: "pointer",
+        padding: "6px 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        fontWeight: 600,
+    },
+    avatar: {
+        width: "24px",
+        height: "24px",
+        borderRadius: "999px",
+        background: "#334155",
+        color: "#ffffff",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "0.74rem",
+        fontWeight: 700,
+    },
+    accountMenu: {
+        position: "absolute" as const,
+        right: 0,
+        top: "calc(100% + 6px)",
+        width: "280px",
+        border: "1px solid #e5e7eb",
+        borderRadius: "10px",
+        background: "#ffffff",
+        boxShadow: "0 14px 30px rgba(2, 6, 23, 0.14)",
+        padding: "10px",
+        display: "grid",
+        gap: "8px",
+        zIndex: 40,
+    },
+    accountInfo: {
+        borderBottom: "1px solid #e5e7eb",
+        paddingBottom: "8px",
+        display: "grid",
+        gap: "2px",
+    },
+    accountName: {
+        margin: 0,
+        fontSize: "0.9rem",
+        fontWeight: 700,
+        color: "#111827",
+    },
+    accountEmail: {
+        margin: 0,
+        fontSize: "0.8rem",
+        color: "#6b7280",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    accountRole: {
+        margin: 0,
+        fontSize: "0.78rem",
+        color: "#374151",
+    },
+    menuAction: {
+        border: "1px solid #e5e7eb",
+        borderRadius: "8px",
+        background: "#ffffff",
+        color: "#111827",
+        textAlign: "left" as const,
+        padding: "8px 10px",
+        textDecoration: "none",
+        fontWeight: 600,
+        cursor: "pointer",
+    },
+    content: {
+        minWidth: 0,
+    },
+    modalOverlay: {
+        position: "fixed" as const,
+        inset: 0,
+        background: "rgba(15, 23, 42, 0.35)",
+        display: "grid",
+        placeItems: "center",
+        zIndex: 80,
+        padding: "18px",
+    },
+    modalCard: {
+        width: "min(480px, 100%)",
+        borderRadius: "12px",
+        border: "1px solid #e5e7eb",
+        background: "#ffffff",
+        padding: "16px",
+        display: "grid",
+        gap: "12px",
+        boxShadow: "0 18px 42px rgba(2, 6, 23, 0.18)",
+    },
+    label: {
+        display: "grid",
+        gap: "6px",
+        fontWeight: 600,
+        color: "#1f2937",
+        fontSize: "0.88rem",
+    },
+    input: {
+        border: "1px solid #d1d5db",
+        borderRadius: "8px",
+        padding: "10px 12px",
+        fontSize: "0.95rem",
+    },
+    modalActions: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: "8px",
+        flexWrap: "wrap" as const,
+    },
+    dangerText: {
+        margin: 0,
+        color: "#b91c1c",
+        fontSize: "0.85rem",
+    },
+    okText: {
+        margin: 0,
+        color: "#166534",
+        fontSize: "0.85rem",
     },
 };
 
@@ -243,14 +271,42 @@ export function AppShell() {
     const location = useLocation();
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960);
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 960);
-    const canManageInvites = user?.role === "owner" || user?.role === "admin";
-    const visibleNavItems = navItems.filter((item) => item.to !== "/users-invites" || canManageInvites);
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [passwordBusy, setPasswordBusy] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+    const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+    const visibleNavItems = useMemo(
+        () =>
+            navItems.filter((item) => {
+                if (item.visibleFor && (!user?.role || !item.visibleFor.includes(user.role))) {
+                    return false;
+                }
+                if (item.hiddenFor && user?.role && item.hiddenFor.includes(user.role)) {
+                    return false;
+                }
+                if (item.to === "/users-invites" && !canManageInvites(user)) {
+                    return false;
+                }
+                if (item.to === "/settings" && !canAccessSettings(user)) {
+                    return false;
+                }
+                return true;
+            }),
+        [user]
+    );
+
     const groupedNav = useMemo(
         () =>
-            navGroups
+            ["Core", "Operations", "Administration"]
                 .map((group) => ({
-                    label: group.label,
-                    items: visibleNavItems.filter((item) => group.items.includes(item.to)),
+                    label: group,
+                    items: visibleNavItems.filter((item) => item.group === group),
                 }))
                 .filter((group) => group.items.length > 0),
         [visibleNavItems]
@@ -261,9 +317,7 @@ export function AppShell() {
         if (location.pathname === "/") return "Dashboard";
         const match = visibleNavItems.find((item) => item.to !== "/" && location.pathname.startsWith(item.to));
         if (match) return match.label;
-        if (location.pathname.startsWith("/users-invites")) return "Team Access";
-        if (location.pathname.startsWith("/inventory")) return "Inventory";
-        if (location.pathname.startsWith("/pricing")) return "Pricing";
+        if (location.pathname.startsWith("/account")) return "Account";
         return "Tech Restore Desk";
     })();
 
@@ -286,6 +340,63 @@ export function AppShell() {
         }
     }, [location.pathname, isMobile]);
 
+    useEffect(() => {
+        function handleOutsideClick(event: MouseEvent) {
+            if (!accountMenuRef.current) {
+                return;
+            }
+            if (!accountMenuRef.current.contains(event.target as Node)) {
+                setAccountMenuOpen(false);
+            }
+        }
+
+        function handleEsc(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setAccountMenuOpen(false);
+                setPasswordModalOpen(false);
+            }
+        }
+
+        window.addEventListener("mousedown", handleOutsideClick);
+        window.addEventListener("keydown", handleEsc);
+        return () => {
+            window.removeEventListener("mousedown", handleOutsideClick);
+            window.removeEventListener("keydown", handleEsc);
+        };
+    }, []);
+
+    async function submitPasswordChange(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setPasswordError(null);
+        setPasswordSuccess(null);
+        if (!currentPassword.trim()) {
+            setPasswordError("Current password is required.");
+            return;
+        }
+        if (!newPassword.trim()) {
+            setPasswordError("New password is required.");
+            return;
+        }
+        if (newPassword.trim() !== confirmPassword.trim()) {
+            setPasswordError("New password and confirm password must match.");
+            return;
+        }
+
+        try {
+            setPasswordBusy(true);
+            const response = await changePassword(currentPassword, newPassword, confirmPassword);
+            setPasswordSuccess(response.message);
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+            logout("Password changed. Please sign in again.");
+        } catch (requestError) {
+            setPasswordError(requestError instanceof Error ? requestError.message : "Unable to change password.");
+        } finally {
+            setPasswordBusy(false);
+        }
+    }
+
     const sidebarStyle = {
         ...S.sidebar,
         ...(isMobile
@@ -295,30 +406,33 @@ export function AppShell() {
                 top: 0,
                 transform: sidebarOpen ? "translateX(0)" : "translateX(-108%)",
                 transition: "transform 180ms ease",
-                boxShadow: sidebarOpen ? "0 16px 32px rgba(44, 31, 24, 0.3)" : "none",
+                boxShadow: sidebarOpen ? "0 8px 28px rgba(2, 6, 23, 0.18)" : "none",
             }
             : null),
     };
 
     const mainStyle = {
         ...S.main,
-        ...(isMobile ? { padding: "14px 14px 24px" } : null),
+        ...(isMobile ? { padding: "12px" } : null),
     };
+
+    const userInitials = user?.name
+        ? user.name
+            .split(" ")
+            .map((part) => part.charAt(0).toUpperCase())
+            .join("")
+            .slice(0, 2)
+        : "U";
 
     return (
         <div style={S.root}>
-            <div style={S.auraLayer}>
-                <div style={S.auraPrimary} />
-                <div style={S.auraSecondary} />
-            </div>
             <CommandPalette />
             {isMobile && sidebarOpen ? <button type="button" aria-label="Close navigation" style={S.overlay} onClick={() => setSidebarOpen(false)} /> : null}
 
             <aside style={sidebarStyle}>
                 <div style={S.brand}>
-                    <div style={S.phase}>Repair Desk Mode</div>
                     <div style={S.appName}>Tech Restore Desk</div>
-                    <div style={S.tagLine}>Fast counter workflow for real repair work</div>
+                    <div style={S.tagLine}>Repair operations workspace</div>
                 </div>
                 <nav style={S.nav}>
                     {groupedNav.map((group) => (
@@ -331,37 +445,10 @@ export function AppShell() {
                                     end={item.to === "/"}
                                     style={({ isActive }) => ({
                                         ...S.linkBase,
-                                        background: isActive
-                                            ? "linear-gradient(145deg, #c98a64 0%, #9b5f45 62%, #6f3f2f 100%)"
-                                            : item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(226, 230, 207, 0.98) 0%, rgba(167, 176, 141, 0.92) 100%)"
-                                                : "transparent",
-                                        color: isActive ? "#fff8f2" : item.to === "/intake" ? "#4f553e" : "#eadfd6",
-                                        boxShadow: isActive
-                                            ? "0 10px 20px rgba(111, 63, 47, 0.32)"
-                                            : item.to === "/intake"
-                                                ? "0 9px 17px rgba(93, 102, 71, 0.24)"
-                                                : "none",
-                                        borderColor: isActive ? "rgba(229, 191, 165, 0.5)" : item.to === "/intake" ? "rgba(167, 176, 141, 0.52)" : "rgba(201, 138, 100, 0.1)",
+                                        background: isActive ? "#0f172a" : "transparent",
+                                        color: isActive ? "#ffffff" : "#111827",
+                                        borderColor: isActive ? "#0f172a" : "transparent",
                                     })}
-                                    onMouseEnter={(e) => {
-                                        const el = e.currentTarget;
-                                        if (!el.classList.contains("active")) {
-                                            el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(233,236,216,1) 0%, rgba(167, 176, 141, 0.96) 100%)"
-                                                : "rgba(201, 138, 100, 0.14)";
-                                            el.style.borderColor = "rgba(201, 138, 100, 0.3)";
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        const el = e.currentTarget;
-                                        if (!el.classList.contains("active")) {
-                                            el.style.background = item.to === "/intake"
-                                                ? "linear-gradient(145deg, rgba(226, 230, 207, 0.98) 0%, rgba(167, 176, 141, 0.92) 100%)"
-                                                : "transparent";
-                                            el.style.borderColor = "rgba(201, 138, 100, 0.1)";
-                                        }
-                                    }}
                                     onClick={() => {
                                         if (isMobile) {
                                             setSidebarOpen(false);
@@ -374,34 +461,138 @@ export function AppShell() {
                         </div>
                     ))}
                 </nav>
-                {authEnabled && isAuthenticated && user ? (
-                    <div style={S.profileCard}>
-                        <p style={S.profileName}>{user.name}</p>
-                        <p style={S.profileMeta}>{user.email}</p>
-                        <p style={S.profileMeta}>Role: {user.role ?? "none"}</p>
-                        <div style={S.profileActions}>
-                            <NavLink to="/account" style={S.profileLink}>
-                                View account
-                            </NavLink>
-                            <button type="button" style={S.logoutBtn} onClick={() => logout("You have been signed out.")}>
-                                Logout
-                            </button>
-                        </div>
-                    </div>
-                ) : null}
             </aside>
 
             <main style={mainStyle}>
-                {isMobile ? (
-                    <div style={S.mobileTopBar}>
-                        <button type="button" style={S.menuBtn} onClick={() => setSidebarOpen((current) => !current)}>
-                            {sidebarOpen ? "Close" : "Menu"}
-                        </button>
-                        <h2 style={S.mobilePageTitle}>{pageLabel}</h2>
+                <div style={S.topBar}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        {isMobile ? (
+                            <button type="button" style={S.menuBtn} onClick={() => setSidebarOpen((current) => !current)}>
+                                {sidebarOpen ? "Close" : "Menu"}
+                            </button>
+                        ) : null}
+                        <h2 style={S.pageTitle}>{pageLabel}</h2>
                     </div>
-                ) : null}
-                <Outlet />
+
+                    {authEnabled && isAuthenticated && user ? (
+                        <div style={{ position: "relative" }} ref={accountMenuRef}>
+                            <button
+                                type="button"
+                                aria-label="Open account menu"
+                                style={S.accountButton}
+                                onClick={() => setAccountMenuOpen((open) => !open)}
+                            >
+                                <span style={S.avatar}>{userInitials}</span>
+                                <span style={{ fontSize: "0.86rem" }}>{user.name}</span>
+                            </button>
+
+                            {accountMenuOpen ? (
+                                <div role="menu" style={S.accountMenu}>
+                                    <div style={S.accountInfo}>
+                                        <p style={S.accountName}>{user.name}</p>
+                                        <p style={S.accountEmail}>{user.email}</p>
+                                        <p style={S.accountRole}>Role: {roleLabel(user.role)}</p>
+                                    </div>
+                                    <NavLink to="/account" style={S.menuAction} onClick={() => setAccountMenuOpen(false)}>
+                                        Account / Profile
+                                    </NavLink>
+                                    <button
+                                        type="button"
+                                        style={S.menuAction}
+                                        onClick={() => {
+                                            setAccountMenuOpen(false);
+                                            setPasswordModalOpen(true);
+                                        }}
+                                    >
+                                        Change password
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={S.menuAction}
+                                        onClick={() => {
+                                            setAccountMenuOpen(false);
+                                            logout("You have been signed out.");
+                                        }}
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+
+                <div style={S.content}>
+                    <Outlet />
+                </div>
             </main>
+
+            {passwordModalOpen ? (
+                <div style={S.modalOverlay}>
+                    <div style={S.modalCard}>
+                        <h3 style={{ margin: 0 }}>Change password</h3>
+                        <p style={{ margin: 0, color: "#6b7280", fontSize: "0.9rem" }}>
+                            Enter your current password and set a new one.
+                        </p>
+                        <form onSubmit={(event) => void submitPasswordChange(event)} style={{ display: "grid", gap: "10px" }}>
+                            <label style={S.label}>
+                                Current password
+                                <input
+                                    type="password"
+                                    autoComplete="current-password"
+                                    style={S.input}
+                                    value={currentPassword}
+                                    onChange={(event) => setCurrentPassword(event.target.value)}
+                                    disabled={passwordBusy}
+                                />
+                            </label>
+                            <label style={S.label}>
+                                New password
+                                <input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    style={S.input}
+                                    value={newPassword}
+                                    onChange={(event) => setNewPassword(event.target.value)}
+                                    disabled={passwordBusy}
+                                />
+                            </label>
+                            <label style={S.label}>
+                                Confirm new password
+                                <input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    style={S.input}
+                                    value={confirmPassword}
+                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                    disabled={passwordBusy}
+                                />
+                            </label>
+                            {passwordError ? <p style={S.dangerText}>{passwordError}</p> : null}
+                            {passwordSuccess ? <p style={S.okText}>{passwordSuccess}</p> : null}
+                            <div style={S.modalActions}>
+                                <button
+                                    type="button"
+                                    style={S.menuAction}
+                                    onClick={() => {
+                                        setPasswordModalOpen(false);
+                                        setPasswordError(null);
+                                        setPasswordSuccess(null);
+                                        setCurrentPassword("");
+                                        setNewPassword("");
+                                        setConfirmPassword("");
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" style={S.menuAction} disabled={passwordBusy}>
+                                    {passwordBusy ? "Updating..." : "Change password"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

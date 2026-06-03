@@ -77,7 +77,7 @@ def post_bootstrap_resend(x_bootstrap_key: str | None = Header(default=None, ali
 @router.post("/users", response_model=AuthUserResponse, status_code=201)
 def post_user(
     payload: AuthCreateUserRequest,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner")),
 ) -> AuthUserResponse:
     try:
         user = AuthService.create_user(payload.name, payload.email, payload.username, payload.password, payload.role)
@@ -89,7 +89,7 @@ def post_user(
 
 
 @router.get("/users", response_model=list[AuthUserResponse])
-def get_users(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthUserResponse]:
+def get_users(_: dict = Depends(require_role("owner"))) -> list[AuthUserResponse]:
     users = AuthService.list_users()
     return [AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"}) for user in users]
 
@@ -98,7 +98,7 @@ def get_users(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthUse
 def patch_user_role(
     user_id: int,
     payload: AuthUpdateUserRoleRequest,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner")),
 ) -> AuthUserResponse:
     try:
         updated = AuthService.update_user_role(user_id=user_id, role=payload.role)
@@ -140,7 +140,7 @@ def post_change_password(
 
 
 @router.get("/invites", response_model=list[AuthInviteResponse])
-def get_invites(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthInviteResponse]:
+def get_invites(_: dict = Depends(require_role("owner"))) -> list[AuthInviteResponse]:
     invites = AuthService.list_invites()
     return [AuthInviteResponse.model_validate(item) for item in invites]
 
@@ -148,7 +148,7 @@ def get_invites(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthI
 @router.post("/invites", response_model=AuthInviteResponse, status_code=201)
 def post_invite(
     payload: AuthInviteCreateRequest,
-    requester: dict = Depends(require_role("owner", "admin")),
+    requester: dict = Depends(require_role("owner")),
 ) -> AuthInviteResponse:
     try:
         invite, _ = AuthService.create_invite(
@@ -164,7 +164,7 @@ def post_invite(
 
 
 @router.post("/invites/{invite_id}/revoke", response_model=AuthInviteResponse)
-def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
+def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner"))) -> AuthInviteResponse:
     updated = AuthService.revoke_invite(invite_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="Invite not found or already finalized")
@@ -172,7 +172,7 @@ def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "
 
 
 @router.post("/invites/{invite_id}/resend", response_model=AuthInviteResponse)
-def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
+def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner"))) -> AuthInviteResponse:
     try:
         updated = AuthService.resend_invite(invite_id=invite_id, requested_by=int(requester["id"]))
     except ValueError as error:

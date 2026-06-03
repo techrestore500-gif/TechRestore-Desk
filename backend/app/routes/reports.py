@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.auth.dependencies import require_role
 from app.models import ReportSummaryResponse
 from app.services.reports import ReportsService
 
@@ -12,6 +13,7 @@ def get_report_summary(
     end_date: str | None = None,
     technician: str | None = None,
     repair_category: str | None = None,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
 ) -> ReportSummaryResponse:
     return ReportsService.get_summary(
         start_date=start_date,

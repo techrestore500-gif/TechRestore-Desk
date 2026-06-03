@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 def get_ticket_list(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
 ) -> list[TicketSummaryResponse]:
     tickets = TicketService.list_tickets(status=status, search=search)
     return [TicketSummaryResponse.model_validate(item) for item in tickets]
@@ -38,6 +39,7 @@ def get_ticket_list_paged(
     page_size: int = Query(default=50, ge=1, le=500),
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
 ) -> TicketSummaryListResponse:
     result = TicketService.list_tickets_paginated(
         page=page,
@@ -51,7 +53,7 @@ def get_ticket_list_paged(
 @router.post("", response_model=TicketDetailResponse, status_code=201)
 def post_ticket(
     payload: TicketCreate,
-    _: dict = Depends(require_role("admin", "front_desk")),
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician")),
 ) -> TicketDetailResponse:
     try:
         ticket = TicketService.create_ticket(payload.model_dump())
@@ -61,7 +63,10 @@ def post_ticket(
 
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)
-def get_ticket_by_id(ticket_id: int) -> TicketDetailResponse:
+def get_ticket_by_id(
+    ticket_id: int,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+) -> TicketDetailResponse:
     ticket = TicketService.get_ticket(ticket_id)
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -69,7 +74,10 @@ def get_ticket_by_id(ticket_id: int) -> TicketDetailResponse:
 
 
 @router.get("/{ticket_id}/loaner-agreement", response_model=LoanerAgreementResponse)
-def get_ticket_loaner_agreement(ticket_id: int) -> LoanerAgreementResponse:
+def get_ticket_loaner_agreement(
+    ticket_id: int,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+) -> LoanerAgreementResponse:
     agreement = TicketService.get_ticket_loaner_agreement(ticket_id)
     if agreement is None:
         raise HTTPException(status_code=404, detail="Loaner agreement not found")
@@ -108,7 +116,10 @@ def post_ticket_status(
 
 
 @router.get("/{ticket_id}/history", response_model=list[TicketStatusHistoryResponse])
-def get_ticket_status_history(ticket_id: int) -> list[TicketStatusHistoryResponse]:
+def get_ticket_status_history(
+    ticket_id: int,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+) -> list[TicketStatusHistoryResponse]:
     try:
         items = TicketService.get_ticket_history(ticket_id)
     except ValueError as error:
@@ -130,7 +141,10 @@ def post_ticket_note(
 
 
 @router.get("/{ticket_id}/notes", response_model=list[TicketNoteResponse])
-def get_ticket_note_list(ticket_id: int) -> list[TicketNoteResponse]:
+def get_ticket_note_list(
+    ticket_id: int,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+) -> list[TicketNoteResponse]:
     try:
         items = TicketService.get_ticket_notes(ticket_id)
     except ValueError as error:
@@ -166,7 +180,10 @@ def post_repair_action(
 
 
 @router.get("/{ticket_id}/repair-actions", response_model=list[RepairActionResponse])
-def get_repair_action_list(ticket_id: int) -> list[RepairActionResponse]:
+def get_repair_action_list(
+    ticket_id: int,
+    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+) -> list[RepairActionResponse]:
     try:
         items = TicketService.get_repair_actions(ticket_id)
     except ValueError as error:

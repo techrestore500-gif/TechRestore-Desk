@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
+from app.services.auth import AuthService
+from app.services.emailer import EmailService
 
 
 @pytest.fixture
@@ -25,6 +27,48 @@ def client(tmp_path, monkeypatch):
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client_auth(tmp_path, monkeypatch):
+    test_db_path = tmp_path / "tech_restore_desk_auth_test.sqlite"
+    test_backups_dir = tmp_path / "backups"
+    test_backups_dir.mkdir()
+    test_activity_log_path = tmp_path / "system_activity_log.json"
+
+    monkeypatch.setattr(database, "DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "LEGACY_DB_PATH", test_db_path)
+    monkeypatch.setattr(database, "BACKUPS_DIR", test_backups_dir)
+    monkeypatch.setattr(database, "SYSTEM_ACTIVITY_LOG_PATH", test_activity_log_path)
+
+    monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "1")
+    monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+    monkeypatch.delenv("REPAIR_DESK_PASSWORD", raising=False)
+    monkeypatch.setattr(EmailService, "send_invite_email", lambda **kwargs: None)
+
+    database.initialize_database()
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def _create_and_login(client: TestClient, role: str, prefix: str) -> tuple[dict, dict]:
+    email = f"{prefix}.{role}@example.com"
+    password = "password-123"
+    username = f"{prefix}_{role}"
+    AuthService.create_user(
+        name=f"{prefix.title()} {role.title()}",
+        email=email,
+        username=username,
+        password=password,
+        role=role,
+    )
+
+    login_resp = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert login_resp.status_code == 200
+    token = login_resp.json()["access_token"]
+    return ({"Authorization": f"Bearer {token}"}, login_resp.json()["user"])
 
 
 class TestHealth:
@@ -939,3 +983,139 @@ class TestPricing:
 
         delete_resp = client.delete(f"/api/pricing/catalog/rules/{rule_id}")
         assert delete_resp.status_code == 204
+
+
+class TestAuthAndPermissions:
+    def test_owner_only_invites_enforced(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_inv")
+        admin_headers, _ = _create_and_login(client_auth, "admin", "admin_inv")
+
+        owner_create = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "tech.a@example.com", "role": "technician", "name": "Tech A"},
+            headers=owner_headers,
+        )
+        assert owner_create.status_code == 201
+
+        admin_create = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "tech.b@example.com", "role": "technician", "name": "Tech B"},
+            headers=admin_headers,
+        )
+        assert admin_create.status_code == 403
+
+    def test_invite_accept_cannot_be_reused(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_reuse")
+        invite_resp = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "reuse.user@example.com", "role": "viewer", "name": "Reuse User"},
+            headers=owner_headers,
+        )
+        assert invite_resp.status_code == 201
+
+        # Create an explicit token for acceptance checks.
+        invite, raw_token = AuthService.create_invite(
+            email="reuse.user@example.com",
+            role="viewer",
+            created_by=1,
+            name="Reuse User",
+            send_email=False,
+        )
+        assert invite["status"] == "pending"
+
+        accept_resp = client_auth.post(
+            f"/api/auth/invites/{raw_token}/accept",
+            json={"password": "new-pass-123"},
+        )
+        assert accept_resp.status_code == 200
+
+        accept_again = client_auth.post(
+            f"/api/auth/invites/{raw_token}/accept",
+            json={"password": "new-pass-123"},
+        )
+        assert accept_again.status_code == 400
+
+    def test_pricing_write_restricted_to_owner_admin(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_price")
+        tech_headers, _ = _create_and_login(client_auth, "technician", "tech_price")
+        viewer_headers, _ = _create_and_login(client_auth, "viewer", "viewer_price")
+
+        owner_patch = client_auth.patch(
+            "/api/pricing/rules",
+            json={"diagnostic_fee": 25},
+            headers=owner_headers,
+        )
+        assert owner_patch.status_code == 200
+
+        tech_patch = client_auth.patch(
+            "/api/pricing/rules",
+            json={"diagnostic_fee": 35},
+            headers=tech_headers,
+        )
+        assert tech_patch.status_code == 403
+
+        viewer_read = client_auth.get("/api/pricing/catalog", headers=viewer_headers)
+        assert viewer_read.status_code == 200
+
+    def test_technician_can_create_ticket_viewer_cannot(self, client_auth):
+        technician_headers, _ = _create_and_login(client_auth, "technician", "tech_ticket")
+        viewer_headers, _ = _create_and_login(client_auth, "viewer", "viewer_ticket")
+
+        customer_resp = client_auth.post(
+            "/api/customers",
+            json={"full_name": "Role Matrix", "primary_phone": "555-5151"},
+            headers=technician_headers,
+        )
+        assert customer_resp.status_code == 201
+        customer_id = customer_resp.json()["id"]
+
+        ticket_resp = client_auth.post(
+            "/api/tickets",
+            json={"customer_id": customer_id, "issue_category": "Technician Create"},
+            headers=technician_headers,
+        )
+        assert ticket_resp.status_code == 201
+
+        viewer_ticket_resp = client_auth.post(
+            "/api/tickets",
+            json={"customer_id": customer_id, "issue_category": "Viewer Create"},
+            headers=viewer_headers,
+        )
+        assert viewer_ticket_resp.status_code == 403
+
+    def test_change_password_requires_current_and_reauth(self, client_auth):
+        headers, user = _create_and_login(client_auth, "admin", "admin_pwd")
+
+        bad_current = client_auth.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "wrong-pass",
+                "new_password": "new-pass-123",
+                "confirm_password": "new-pass-123",
+            },
+            headers=headers,
+        )
+        assert bad_current.status_code == 400
+
+        good_change = client_auth.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "password-123",
+                "new_password": "new-pass-123",
+                "confirm_password": "new-pass-123",
+            },
+            headers=headers,
+        )
+        assert good_change.status_code == 200
+
+        old_login = client_auth.post(
+            "/api/auth/login",
+            json={"email": user["email"], "password": "password-123"},
+        )
+        assert old_login.status_code == 401
+
+        new_login = client_auth.post(
+            "/api/auth/login",
+            json={"email": user["email"], "password": "new-pass-123"},
+        )
+        assert new_login.status_code == 200

@@ -6,22 +6,22 @@
 
 :root {
     color-scheme: light;
-    --app-bg-top: #f5efe3;
-    --app-bg-mid: #e7dac5;
-    --app-bg-low: #d7cebe;
-    --ink-900: #241d18;
-    --ink-700: #5d4b40;
-    --line-soft: rgba(78, 58, 45, 0.16);
-    --focus-ring: rgba(155, 95, 69, 0.22);
-    --brand-700: #6f3f2f;
-    --brand-600: #9b5f45;
-    --brand-500: #c98a64;
-    --brand-soft: #f3e5db;
-    --accent-500: #7c8764;
-    --accent-400: #a7b08d;
-    --danger-soft: #fbe9e6;
-    --danger-line: #e6b0a7;
-    --danger-ink: #8a342c;
+    --app-bg-top: #f8fafc;
+    --app-bg-mid: #eef2f7;
+    --app-bg-low: #e5eaf1;
+    --ink-900: #111827;
+    --ink-700: #4b5563;
+    --line-soft: rgba(15, 23, 42, 0.12);
+    --focus-ring: rgba(37, 99, 235, 0.24);
+    --brand-700: #0f172a;
+    --brand-600: #1e293b;
+    --brand-500: #334155;
+    --brand-soft: #e2e8f0;
+    --accent-500: #0f766e;
+    --accent-400: #14b8a6;
+    --danger-soft: #fee2e2;
+    --danger-line: #fca5a5;
+    --danger-ink: #991b1b;
 }
 
 html,
@@ -37,13 +37,12 @@ body {
     overflow-x: hidden;
     overflow-wrap: break-word;
     background:
-        radial-gradient(circle at 12% -4%, rgba(255, 251, 244, 0.84) 0%, rgba(255, 251, 244, 0) 38%),
-        radial-gradient(circle at 88% 8%, rgba(124, 135, 100, 0.18) 0%, rgba(124, 135, 100, 0) 36%),
-        radial-gradient(circle at 56% 100%, rgba(201, 138, 100, 0.16) 0%, rgba(201, 138, 100, 0) 46%),
-        linear-gradient(148deg, var(--app-bg-top) 0%, var(--app-bg-mid) 42%, var(--app-bg-low) 100%);
+        radial-gradient(circle at 8% -6%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 36%),
+        radial-gradient(circle at 95% 15%, rgba(148, 163, 184, 0.18) 0%, rgba(148, 163, 184, 0) 42%),
+        linear-gradient(154deg, var(--app-bg-top) 0%, var(--app-bg-mid) 50%, var(--app-bg-low) 100%);
     color: var(--ink-900);
-    font-family: "Sora", "Plus Jakarta Sans", "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
-    text-rendering: geometricPrecision;
+    font-family: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+    text-rendering: optimizeLegibility;
 }
 
 input,

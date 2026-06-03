@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -57,7 +58,11 @@ vi.mock('../api/tickets', () => ({
 
 
 async function renderSettingsPage() {
-    render(<SettingsPage />);
+    render(
+        <MemoryRouter>
+            <SettingsPage />
+        </MemoryRouter>
+    );
     await screen.findByText('Shop info');
 }
 
@@ -396,15 +401,12 @@ describe('SettingsPage', () => {
         expect(screen.getByText('Backup')).toBeInTheDocument();
     });
 
-    it('renders supported devices and repair categories reference data', async () => {
+    it('renders pricing ownership guidance with a link to pricing', async () => {
         await renderSettingsPage();
 
-        expect(await screen.findByText('Device & repair catalog')).toBeInTheDocument();
-        expect(screen.getByText('1 models across 1 device families.')).toBeInTheDocument();
-        expect(screen.getByText('iPhone')).toBeInTheDocument();
-        expect(screen.getByText('Apple')).toBeInTheDocument();
-        expect(screen.getAllByText('Battery swap').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Battery replacement and health verification').length).toBeGreaterThan(0);
+        expect(await screen.findByText('Pricing catalog ownership')).toBeInTheDocument();
+        const cta = screen.getByRole('link', { name: 'Go to Pricing catalog' });
+        expect(cta).toHaveAttribute('href', '/pricing');
     });
 
     it('renders Twilio settings with the auth token masked', async () => {
@@ -420,55 +422,28 @@ describe('SettingsPage', () => {
         expect(screen.getByPlaceholderText('Stored securely - enter a new token to replace it')).toHaveAttribute('type', 'text');
     });
 
-    it('saves pricing defaults through the API', async () => {
+    it('does not edit pricing defaults directly from settings', async () => {
         await renderSettingsPage();
 
-        const laborRateInput = await screen.findByLabelText('Labor rate ($/hr)');
-        const diagnosticFeeInput = screen.getByLabelText('Diagnostic fee ($)');
-        fireEvent.change(laborRateInput, { target: { value: '95' } });
-        fireEvent.change(diagnosticFeeInput, { target: { value: '25' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Save pricing' }));
-
-        await waitFor(() => {
-            expect(updatePricingRules).toHaveBeenCalledWith({
-                base_labor_rate_per_hour: 95,
-                diagnostic_fee: 25,
-            });
-        });
+        expect(await screen.findByText('Pricing catalog ownership')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Save pricing' })).not.toBeInTheDocument();
+        expect(updatePricingRules).not.toHaveBeenCalled();
     });
 
-    it('creates a repair category from settings', async () => {
+    it('does not create repair categories from settings', async () => {
         await renderSettingsPage();
 
-        fireEvent.change(await screen.findByPlaceholderText('Category name'), {
-            target: { value: 'Face ID calibration' },
-        });
-        fireEvent.change(screen.getByPlaceholderText('Default policy'), {
-            target: { value: 'Advanced' },
-        });
-        fireEvent.change(screen.getByPlaceholderText('Description'), {
-            target: { value: 'Sensor and camera alignment workflow' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Add repair category' }));
-
-        await waitFor(() => {
-            expect(createRepairCategory).toHaveBeenCalledWith({
-                name: 'Face ID calibration',
-                description: 'Sensor and camera alignment workflow',
-                default_policy: 'Advanced',
-                requires_soldering: false,
-            });
-        });
+        expect(await screen.findByText('Pricing catalog ownership')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add repair category' })).not.toBeInTheDocument();
+        expect(createRepairCategory).not.toHaveBeenCalled();
     });
 
-    it('toggles a repair category active state', async () => {
+    it('does not toggle repair categories from settings', async () => {
         await renderSettingsPage();
 
-        fireEvent.click(await screen.findByRole('button', { name: 'Disable' }));
-
-        await waitFor(() => {
-            expect(updateRepairCategory).toHaveBeenCalledWith(1, { active: false });
-        });
+        expect(await screen.findByText('Pricing catalog ownership')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Disable' })).not.toBeInTheDocument();
+        expect(updateRepairCategory).not.toHaveBeenCalled();
     });
 
     it('saves status workflow rules from settings', async () => {
