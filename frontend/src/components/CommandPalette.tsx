@@ -24,7 +24,7 @@ export function CommandPalette() {
             <div style={modalStyle} onClick={(event) => event.stopPropagation()}>
                 <input
                     autoFocus
-                    placeholder="Search tickets, parts, donors, loaners..."
+                    placeholder="Search tickets and parts..."
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     style={searchStyle}

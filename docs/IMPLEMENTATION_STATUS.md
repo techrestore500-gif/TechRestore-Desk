@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-02 Donors and Loaners frontend pages removed: removed `/donors` and `/loaners` routes, sidebar/shop links, and command-palette search paths; deleted page components/tests while intentionally keeping backend donor/loaner APIs and data tables intact
 - 2026-06-02 Hours frontend feature removed: removed the Hours page route, nav entries, quick links, keyboard shortcut target, and Hours-only frontend API/page/test files; backend hours endpoints and tables were intentionally left in place for low-risk compatibility
 - 2026-06-02 Hours selected-day hardening follow-up complete: frontend now normalizes incoming `work_date` values before selected-day filtering, per-day aggregation, and latest-day selection, and renders date-only values using local calendar parsing to prevent timezone-shifted day history
 - 2026-06-02 Hours data correctness pass complete: monthly calendar now renders per-day logged totals inside day cells, selected-day totals are computed from actual selected-day entries (not month summary), month-range totals are shown explicitly, and hours queries are technician-filter-aware

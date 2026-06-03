@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchDonors, fetchParts } from "../../api/inventory";
-import { fetchLoaners, fetchTickets } from "../../api/tickets";
+import { fetchParts } from "../../api/inventory";
+import { fetchTickets } from "../../api/tickets";
 
 type GlobalSearchItem = {
     id: number;
-    type: "ticket" | "part" | "donor" | "loaner";
+    type: "ticket" | "part";
     label: string;
     subtitle: string;
     path: string;
@@ -17,11 +17,9 @@ async function runGlobalSearch(query: string): Promise<GlobalSearchItem[]> {
         return [];
     }
 
-    const [tickets, parts, donors, loaners] = await Promise.all([
+    const [tickets, parts] = await Promise.all([
         fetchTickets(q),
         fetchParts(),
-        fetchDonors(),
-        fetchLoaners(),
     ]);
 
     const needle = q.toLowerCase();
@@ -37,28 +35,6 @@ async function runGlobalSearch(query: string): Promise<GlobalSearchItem[]> {
             path: `/inventory`,
         }));
 
-    const donorResults = donors
-        .filter((donor) => `${donor.device_identifier} ${donor.device_model}`.toLowerCase().includes(needle))
-        .slice(0, 10)
-        .map((donor) => ({
-            id: donor.id,
-            type: "donor" as const,
-            label: donor.device_identifier,
-            subtitle: `${donor.device_model} · ${donor.status}`,
-            path: `/donors`,
-        }));
-
-    const loanerResults = loaners
-        .filter((loaner) => `${loaner.loaner_code} ${loaner.model}`.toLowerCase().includes(needle))
-        .slice(0, 10)
-        .map((loaner) => ({
-            id: loaner.id,
-            type: "loaner" as const,
-            label: loaner.loaner_code,
-            subtitle: `${loaner.model} · ${loaner.status}`,
-            path: `/loaners`,
-        }));
-
     const ticketResults = tickets.slice(0, 10).map((ticket) => ({
         id: ticket.id,
         type: "ticket" as const,
@@ -67,7 +43,7 @@ async function runGlobalSearch(query: string): Promise<GlobalSearchItem[]> {
         path: `/tickets/${ticket.id}`,
     }));
 
-    return [...ticketResults, ...partResults, ...donorResults, ...loanerResults].slice(0, 24);
+    return [...ticketResults, ...partResults].slice(0, 24);
 }
 
 export function useGlobalSearchQuery(query: string, enabled: boolean) {

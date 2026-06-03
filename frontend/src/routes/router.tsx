@@ -4,7 +4,6 @@ import { AppShell } from "../components/AppShell";
 import AccessRequestsPage from "../pages/AccessRequestsPage";
 import AccountPage from "../pages/AccountPage";
 import DashboardPage from "../pages/DashboardPage";
-import { DonorsPage } from "../pages/DonorsPage";
 import CustomerDetailPage from "../pages/CustomerDetailPage";
 import IntakePrintPage from "../pages/IntakePrintPage";
 import IntakePage from "../pages/IntakePage";
@@ -12,7 +11,6 @@ import InvoicePrintPage from "../pages/InvoicePrintPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import LoginStatePage from "../pages/LoginStatePage";
 import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
-import LoanersPage from "../pages/LoanersPage";
 import InviteAcceptPage from "../pages/InviteAcceptPage";
 import OperationsPage from "../pages/OperationsPage";
 import ReportsPage from "../pages/ReportsPage";
@@ -81,14 +79,6 @@ export const router = createBrowserRouter([
             {
                 path: "inventory",
                 element: <InventoryPage />,
-            },
-            {
-                path: "donors",
-                element: <DonorsPage />,
-            },
-            {
-                path: "loaners",
-                element: <LoanersPage />,
             },
             {
                 path: "settings",

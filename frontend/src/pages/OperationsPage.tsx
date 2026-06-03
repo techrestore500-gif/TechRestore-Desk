@@ -1,26 +1,19 @@
 import { Link } from "react-router-dom";
 
-import { fetchDonors, fetchLowStockParts, type DonorDevice, type Part } from "../api/inventory";
-import { fetchLoaners, type LoanerPhone } from "../api/tickets";
+import { fetchLowStockParts, type Part } from "../api/inventory";
 import { PageHeader, SectionCard, MetricTile } from "../components/PageChrome";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
 export default function OperationsPage() {
-    const { data: loaners = [] } = useAsyncData<LoanerPhone[]>(() => fetchLoaners(), []);
-    const { data: donors = [] } = useAsyncData<DonorDevice[]>(() => fetchDonors(), []);
     const { data: lowStockParts = [] } = useAsyncData<Part[]>(() => fetchLowStockParts(), []);
-
-    const checkedOutLoaners = loaners.filter((item) => item.status.toLowerCase() === "checked_out").length;
-    const availableLoaners = loaners.filter((item) => item.status.toLowerCase() === "available").length;
-    const activeDonors = donors.filter((item) => item.status.toLowerCase() !== "retired").length;
 
     return (
         <section style={t.pageWrap}>
             <PageHeader
                 kicker="Shop Tools"
                 title="Shop Tools"
-                description="Quick access to inventory, loaners, donor devices, and admin reporting tasks."
+                description="Quick access to inventory and admin reporting tasks."
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
                         <Link to="/inventory" style={{ ...t.primaryBtn, textDecoration: "none" }}>Inventory</Link>
@@ -31,9 +24,6 @@ export default function OperationsPage() {
 
             <div style={t.detailGrid}>
                 <MetricTile label="Low Stock Parts" value={String(lowStockParts.length)} hint="Needs reorder" />
-                <MetricTile label="Loaners Checked Out" value={String(checkedOutLoaners)} hint="Active agreements" />
-                <MetricTile label="Loaners Available" value={String(availableLoaners)} hint="Ready to assign" />
-                <MetricTile label="Active Donors" value={String(activeDonors)} hint="Harvest candidates" />
             </div>
 
             <div style={operationsGridStyle}>
@@ -44,11 +34,9 @@ export default function OperationsPage() {
                     </div>
                 </SectionCard>
 
-                <SectionCard title="Assets" description="Manage inventory, loaners, and donor stock." tone="soft">
+                <SectionCard title="Assets" description="Manage inventory stock and part levels." tone="soft">
                     <div style={{ ...t.formStack, gap: "8px" }}>
                         <QuickLink title="Inventory" copy="Parts stock, low-stock risks, and movement tracking." to="/inventory" />
-                        <QuickLink title="Loaners" copy="Checkout, return, and lifecycle tracking." to="/loaners" />
-                        <QuickLink title="Donors" copy="Donor intake and part-harvest workflow." to="/donors" />
                     </div>
                 </SectionCard>
 
@@ -64,7 +52,7 @@ export default function OperationsPage() {
             <SectionCard title="Operating Notes" compact tone="soft">
                 <div style={{ display: "grid", gap: "8px" }}>
                     <div style={t.meta}>Keep daily flow in Dashboard, New Repair, Tickets, and Voicemail.</div>
-                    <div style={t.meta}>Use Loaners and Donors when needed, without crowding the counter workflow.</div>
+                    <div style={t.meta}>Use Inventory and Reports for supply and operational visibility.</div>
                     <div style={t.meta}>Use Settings for Twilio, templates, workflow policy, and backups.</div>
                 </div>
             </SectionCard>

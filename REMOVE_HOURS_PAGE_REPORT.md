@@ -11,6 +11,7 @@
   - `frontend/src/pages/HoursPage.test.tsx`
   - `frontend/src/api/hours.ts`
 - Removed stale Hours-only wording from Settings technician roster help text.
+- Follow-up scope: removed standalone Donors and Loaners pages from frontend route/nav/search surface.
 
 ## What Was Left In Backend/Database
 
@@ -23,14 +24,20 @@
 
 - `frontend/src/routes/router.tsx`
 - `frontend/src/components/AppShell.tsx`
+- `frontend/src/components/CommandPalette.tsx`
 - `frontend/src/pages/DashboardPage.tsx`
 - `frontend/src/pages/TicketsPage.tsx`
 - `frontend/src/pages/OperationsPage.tsx`
 - `frontend/src/pages/SettingsPage.tsx`
 - `frontend/src/hooks/useKeyboardShortcuts.ts`
+- `frontend/src/hooks/queries/useGlobalSearchQuery.ts`
 - `frontend/src/pages/HoursPage.tsx` (deleted)
 - `frontend/src/pages/HoursPage.test.tsx` (deleted)
 - `frontend/src/api/hours.ts` (deleted)
+- `frontend/src/pages/DonorsPage.tsx` (deleted)
+- `frontend/src/pages/DonorsPage.test.tsx` (deleted)
+- `frontend/src/pages/LoanersPage.tsx` (deleted)
+- `frontend/src/pages/LoanersPage.test.tsx` (deleted)
 
 ## Tests / Build Run
 
