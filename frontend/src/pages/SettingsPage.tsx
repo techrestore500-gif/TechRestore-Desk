@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
     createRepairCategory,
     fetchPricingRules,
@@ -715,46 +716,14 @@ export default function SettingsPage() {
 
             {showSection("workflow") ? <div id="settings-workflow" style={sectionLabelStyle}>Ticket Workflow</div> : null}
 
-            {/* ── Pricing Defaults ── */}
             {showSection("workflow") ? <div style={panelStyle}>
-                <h3 style={{ marginTop: 0 }}>Pricing defaults</h3>
+                <h3 style={{ marginTop: 0 }}>Pricing management moved</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
-                    These values are used as starting points in the pricing calculator. Individual ticket prices can still be adjusted.
+                    Pricing defaults, brands, models, issue types, repair types, and rule catalog editing now live in the dedicated Pricing page.
                 </p>
-                <form onSubmit={handleSavePricing} style={t.fieldGridTwoCompact}>
-                    <label style={t.label}>
-                        Labor rate ($/hr)
-                        <input
-                            type="number" min="0" step="5"
-                            value={laborRate}
-                            onChange={(e) => setLaborRate(e.target.value)}
-                            style={{ ...t.input, marginTop: "4px" }}
-                        />
-                    </label>
-                    <label style={t.label}>
-                        Diagnostic fee ($)
-                        <input
-                            type="number" min="0" step="5"
-                            value={diagFee}
-                            onChange={(e) => setDiagFee(e.target.value)}
-                            style={{ ...t.input, marginTop: "4px" }}
-                        />
-                    </label>
-                    <label style={t.label}>
-                        Default warranty (days)
-                        <input
-                            type="number" min="0" step="30"
-                            value={warrantyDays}
-                            onChange={(e) => setWarrantyDays(e.target.value)}
-                            style={{ ...t.input, marginTop: "4px" }}
-                        />
-                    </label>
-                    <div style={{ ...t.formActionsRow, alignItems: "flex-end" }}>
-                        <button type="submit" style={t.primaryBtn}>Save pricing</button>
-                        {pricingSaved && <span style={savedChip}>Saved!</span>}
-                    </div>
-                </form>
-                {pricingError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "10px" }}>{pricingError}</p> : null}
+                <div style={t.formActionsRow}>
+                    <Link to="/pricing" style={{ ...t.primaryBtn, textDecoration: "none" }}>Open Pricing page</Link>
+                </div>
             </div> : null}
 
             {/* ── Phase constraints ── */}
@@ -829,117 +798,12 @@ export default function SettingsPage() {
             </div> : null}
 
             {showSection("workflow") ? <div style={panelStyle}>
-                <h3 style={{ marginTop: 0 }}>Device & repair catalog</h3>
+                <h3 style={{ marginTop: 0 }}>Pricing catalog ownership</h3>
                 <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
-                    Reference the seeded supported-device list and repair categories from one place while broader settings management is still in progress.
+                    This settings page keeps workflow rules and communications. Pricing catalog administration is centralized under Pricing to avoid split ownership.
                 </p>
-                {supportedModelsError ? <p style={{ ...t.copy, color: "#9b2c2c" }}>{supportedModelsError}</p> : null}
-                {pricingRulesError ? <p style={{ ...t.copy, color: "#9b2c2c" }}>{pricingRulesError}</p> : null}
-                <div style={t.detailGrid}>
-                    <div style={t.subCard}>
-                        <strong>Supported devices</strong>
-                        <div style={{ ...t.meta, marginTop: "6px" }}>
-                            {supportedModels.length} models across {deviceFamilies.length} device families.
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
-                            {deviceFamilies.map((family) => (
-                                <span key={family} style={roadmapChip}>{family}</span>
-                            ))}
-                        </div>
-                        <div style={{ display: "grid", gap: "8px", marginTop: "14px" }}>
-                            {supportedModels.slice(0, 8).map((model) => (
-                                <div key={model.id} style={{ ...t.meta, color: "#173f37" }}>
-                                    <strong>{model.manufacturer ?? "Generic"}</strong> {model.model_name}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div style={t.subCard}>
-                        <strong>Repair categories</strong>
-                        <div style={{ ...t.meta, marginTop: "6px" }}>
-                            {repairCategories.length} categories available to pricing and action logging.
-                        </div>
-                        <div style={{ ...t.formStack, gap: "10px", marginTop: "12px" }}>
-                            {repairCategories.map((category) => (
-                                <div key={category.id} style={{ display: "grid", gap: "4px" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                        <strong>{category.name}</strong>
-                                        {category.requires_soldering ? <span style={constraintChip}>Soldering required</span> : null}
-                                    </div>
-                                    {category.description ? <div style={t.meta}>{category.description}</div> : null}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div> : null}
-
-            {showSection("workflow") ? <div style={panelStyle}>
-                <h3 style={{ marginTop: 0 }}>Repair category management</h3>
-                <p style={{ ...t.copy, marginBottom: "12px", fontSize: "0.88rem" }}>
-                    Add categories and enable or disable them for intake, pricing, and repair-action selection.
-                </p>
-                <form onSubmit={handleCreateRepairCategory} style={t.formStack}>
-                    <input
-                        value={newCategory.name}
-                        onChange={(event) => setNewCategory((current) => ({ ...current, name: event.target.value }))}
-                        placeholder="Category name"
-                        style={t.input}
-                    />
-                    <input
-                        value={newCategory.default_policy}
-                        onChange={(event) => setNewCategory((current) => ({ ...current, default_policy: event.target.value }))}
-                        placeholder="Default policy"
-                        style={t.input}
-                    />
-                    <textarea
-                        value={newCategory.description}
-                        onChange={(event) => setNewCategory((current) => ({ ...current, description: event.target.value }))}
-                        placeholder="Description"
-                        style={{ ...t.input, minHeight: "80px" }}
-                    />
-                    <label style={{ ...t.label, display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                        <input
-                            type="checkbox"
-                            checked={newCategory.requires_soldering}
-                            onChange={(event) => setNewCategory((current) => ({ ...current, requires_soldering: event.target.checked }))}
-                        />
-                        Requires soldering
-                    </label>
-                    <div>
-                        <button type="submit" style={t.primaryBtn}>Add repair category</button>
-                    </div>
-                </form>
-                {managedRepairCategoriesError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "12px" }}>{managedRepairCategoriesError}</p> : null}
-                {repairCategoryError ? <p style={{ ...t.copy, color: "#9b2c2c", marginTop: "12px" }}>{repairCategoryError}</p> : null}
-                {repairCategoryMessage ? <p style={{ ...t.copy, color: "#065f46", marginTop: "12px" }}>{repairCategoryMessage}</p> : null}
-                <div style={{ ...t.formStack, gap: "10px", marginTop: "14px" }}>
-                    {managedRepairCategories.map((category) => (
-                        <div key={category.id} style={t.subCard}>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                                <div>
-                                    <strong>{category.name}</strong>
-                                    <div style={{ ...t.meta, marginTop: "4px" }}>
-                                        {category.active ? "Active" : "Inactive"}
-                                        {category.default_policy ? ` · ${category.default_policy}` : ""}
-                                    </div>
-                                    {category.description ? <div style={{ ...t.meta, marginTop: "6px" }}>{category.description}</div> : null}
-                                </div>
-                                <button
-                                    type="button"
-                                    style={t.secondaryBtn}
-                                    disabled={repairCategoryBusyId === category.id}
-                                    onClick={() => handleToggleCategory(category)}
-                                >
-                                    {repairCategoryBusyId === category.id
-                                        ? "Updating..."
-                                        : category.active
-                                            ? "Disable"
-                                            : "Enable"}
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                <div style={t.formActionsRow}>
+                    <Link to="/pricing" style={{ ...t.secondaryBtn, textDecoration: "none" }}>Go to Pricing catalog</Link>
                 </div>
             </div> : null}
 

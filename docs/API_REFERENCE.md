@@ -2,6 +2,37 @@
 
 All endpoints are relative to `http://127.0.0.1:8787/api` in development. Request and response bodies are JSON.
 
+## Pricing Catalog
+
+Dedicated pricing catalog endpoints are available under `/api/pricing/catalog`.
+
+### Read endpoints
+- `GET /api/pricing/catalog`
+- `GET /api/pricing/catalog/brands`
+- `GET /api/pricing/catalog/models`
+- `GET /api/pricing/catalog/issue-types`
+- `GET /api/pricing/catalog/repair-types`
+- `GET /api/pricing/catalog/rules`
+- `GET /api/pricing/catalog/suggest?brand=...&model=...&issue_type=...`
+
+### Write endpoints
+- `POST /api/pricing/catalog/brands`
+- `PATCH /api/pricing/catalog/brands/{brand_id}`
+- `POST /api/pricing/catalog/models`
+- `PATCH /api/pricing/catalog/models/{model_id}`
+- `POST /api/pricing/catalog/issue-types`
+- `PATCH /api/pricing/catalog/issue-types/{issue_type_id}`
+- `POST /api/pricing/catalog/repair-types`
+- `PATCH /api/pricing/catalog/repair-types/{repair_type_id}`
+- `POST /api/pricing/catalog/rules`
+- `PATCH /api/pricing/catalog/rules/{rule_id}`
+- `DELETE /api/pricing/catalog/rules/{rule_id}`
+
+Existing pricing calculator/default endpoints remain active:
+- `POST /api/pricing/calculate`
+- `GET /api/pricing/rules`
+- `PATCH /api/pricing/rules`
+
 ## Health Check
 
 ### `GET /api/health`

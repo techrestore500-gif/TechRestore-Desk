@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-03 Dedicated Pricing page and catalog complete: added `/pricing` route and sidebar entry, moved pricing management out of Settings, implemented backend pricing catalog schema (brands/models/issue types/repair types/rules) with seeded starter values and CRUD endpoints, plus intake-side suggested-price helper based on brand/model/issue matching
 - 2026-06-02 Donors and Loaners frontend pages removed: removed `/donors` and `/loaners` routes, sidebar/shop links, and command-palette search paths; deleted page components/tests while intentionally keeping backend donor/loaner APIs and data tables intact
 - 2026-06-02 Hours frontend feature removed: removed the Hours page route, nav entries, quick links, keyboard shortcut target, and Hours-only frontend API/page/test files; backend hours endpoints and tables were intentionally left in place for low-risk compatibility
 - 2026-06-02 Hours selected-day hardening follow-up complete: frontend now normalizes incoming `work_date` values before selected-day filtering, per-day aggregation, and latest-day selection, and renders date-only values using local calendar parsing to prevent timezone-shifted day history

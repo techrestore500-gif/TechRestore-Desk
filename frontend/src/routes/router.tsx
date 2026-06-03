@@ -13,6 +13,7 @@ import LoginStatePage from "../pages/LoginStatePage";
 import LoanerAgreementPrintPage from "../pages/LoanerAgreementPrintPage";
 import InviteAcceptPage from "../pages/InviteAcceptPage";
 import OperationsPage from "../pages/OperationsPage";
+import PricingPage from "../pages/PricingPage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
 import TicketDetailPage from "../pages/TicketDetailPage";
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
             {
                 path: "inventory",
                 element: <InventoryPage />,
+            },
+            {
+                path: "pricing",
+                element: <PricingPage />,
             },
             {
                 path: "settings",

@@ -11,6 +11,7 @@ import {
     type QuickRepairStatus,
     type TicketSummary,
 } from "../api/tickets";
+import { fetchPricingCatalogSuggestion, type PricingRuleSuggestion } from "../api/pricingCatalog";
 import { QUICK_REPAIR_STATUSES, QUICK_REPAIR_STATUS_COLORS } from "../lib/repairFlow";
 import { normalizePhoneInput } from "../lib/format";
 import { PageHeader, SectionCard } from "../components/PageChrome";
@@ -52,6 +53,7 @@ export default function IntakePage() {
     const [voicemailId, setVoicemailId] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [pricingSuggestion, setPricingSuggestion] = useState<PricingRuleSuggestion | null>(null);
 
     useEffect(() => {
         let ignore = false;
@@ -148,6 +150,48 @@ export default function IntakePage() {
 
         return Array.from(fromRecent);
     }, [recentTickets, selectedCustomer]);
+
+    const normalizedIssueType = useMemo(() => {
+        const issue = form.issueProblem.toLowerCase();
+        if (issue.includes("battery")) return "Battery";
+        if (issue.includes("screen") || issue.includes("lcd")) return "Screen/LCD";
+        if (issue.includes("hinge") || issue.includes("housing")) return "Hinge/Housing";
+        if (issue.includes("button") || issue.includes("keypad")) return "Keypad/Buttons";
+        if (issue.includes("charging") && issue.includes("clean")) return "Charging Cleaning";
+        if (issue.includes("charging") || issue.includes("port")) return "Charging Port";
+        return "";
+    }, [form.issueProblem]);
+
+    useEffect(() => {
+        const brand = form.deviceBrand.trim();
+        const model = form.deviceModel.trim();
+        const issueType = normalizedIssueType;
+        if (!brand || !model || !issueType) {
+            setPricingSuggestion(null);
+            return;
+        }
+
+        let ignore = false;
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const suggestion = await fetchPricingCatalogSuggestion(brand, model, issueType);
+                    if (!ignore) {
+                        setPricingSuggestion(suggestion);
+                    }
+                } catch {
+                    if (!ignore) {
+                        setPricingSuggestion(null);
+                    }
+                }
+            })();
+        }, 200);
+
+        return () => {
+            ignore = true;
+            window.clearTimeout(timer);
+        };
+    }, [form.deviceBrand, form.deviceModel, normalizedIssueType]);
 
     async function handleSubmit() {
         const requiredFields = [
@@ -380,6 +424,20 @@ export default function IntakePage() {
                                                 style={inputStyle}
                                                 inputMode="decimal"
                                             />
+                                            {pricingSuggestion?.match_found && pricingSuggestion.rule ? (
+                                                <button
+                                                    type="button"
+                                                    style={{ ...t.miniBtn, marginTop: "8px", width: "fit-content" }}
+                                                    onClick={() => {
+                                                        setForm((current) => ({
+                                                            ...current,
+                                                            estimatedCharge: pricingSuggestion.rule ? String(pricingSuggestion.rule.standard_price) : current.estimatedCharge,
+                                                        }));
+                                                    }}
+                                                >
+                                                    Use suggested ${pricingSuggestion.rule.standard_price.toFixed(2)} ({pricingSuggestion.rule.issue_type_name})
+                                                </button>
+                                            ) : null}
                                         </label>
 
                                         <label style={labelStyle}>

@@ -440,6 +440,137 @@ class PricingDefaultsUpdate(BaseModel):
     diagnostic_fee: float | None = Field(default=None, ge=0)
 
 
+class PricingBrandResponse(BaseModel):
+    id: int
+    name: str
+    active: bool
+    created_at: str
+    updated_at: str
+
+
+class PricingBrandCreate(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class PricingBrandUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    active: bool | None = None
+
+
+class PricingModelResponse(BaseModel):
+    id: int
+    brand_id: int
+    brand_name: str
+    name: str
+    active: bool
+    created_at: str
+    updated_at: str
+
+
+class PricingModelCreate(BaseModel):
+    brand_id: int
+    name: str = Field(min_length=1)
+
+
+class PricingModelUpdate(BaseModel):
+    brand_id: int | None = None
+    name: str | None = Field(default=None, min_length=1)
+    active: bool | None = None
+
+
+class PricingIssueTypeResponse(BaseModel):
+    id: int
+    name: str
+    active: bool
+    created_at: str
+    updated_at: str
+
+
+class PricingIssueTypeCreate(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class PricingIssueTypeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    active: bool | None = None
+
+
+class PricingRepairTypeResponse(BaseModel):
+    id: int
+    name: str
+    active: bool
+    created_at: str
+    updated_at: str
+
+
+class PricingRepairTypeCreate(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class PricingRepairTypeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    active: bool | None = None
+
+
+class PricingRuleResponse(BaseModel):
+    id: int
+    brand_id: int
+    brand_name: str
+    model_id: int
+    model_name: str
+    issue_type_id: int
+    issue_type_name: str
+    repair_type_id: int
+    repair_type_name: str
+    standard_price: float
+    estimated_part_cost: float
+    estimated_labor_minutes: int
+    active: bool
+    customer_wording: str | None
+    internal_notes: str | None
+    created_at: str
+    updated_at: str
+
+
+class PricingRuleCreate(BaseModel):
+    brand_id: int
+    model_id: int
+    issue_type_id: int
+    repair_type_id: int
+    standard_price: float = Field(ge=0)
+    estimated_part_cost: float = Field(default=0, ge=0)
+    estimated_labor_minutes: int = Field(default=0, ge=0)
+    customer_wording: str | None = None
+    internal_notes: str | None = None
+    active: bool = True
+
+
+class PricingRuleUpdate(BaseModel):
+    brand_id: int | None = None
+    model_id: int | None = None
+    issue_type_id: int | None = None
+    repair_type_id: int | None = None
+    standard_price: float | None = Field(default=None, ge=0)
+    estimated_part_cost: float | None = Field(default=None, ge=0)
+    estimated_labor_minutes: int | None = Field(default=None, ge=0)
+    customer_wording: str | None = None
+    internal_notes: str | None = None
+    active: bool | None = None
+
+
+class PricingCatalogResponse(BaseModel):
+    brands: list[PricingBrandResponse]
+    models: list[PricingModelResponse]
+    issue_types: list[PricingIssueTypeResponse]
+    repair_types: list[PricingRepairTypeResponse]
+    rules: list[PricingRuleResponse]
+
+
+class PricingRuleSuggestionResponse(BaseModel):
+    match_found: bool
+    rule: PricingRuleResponse | None = None
+
+
 class RepairActionCreate(BaseModel):
     repair_category_id: int
     action_description: str | None = None

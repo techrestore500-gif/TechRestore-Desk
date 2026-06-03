@@ -868,3 +868,74 @@ class TestPricing:
         assert calc_resp.status_code == 200
         calculation = calc_resp.json()
         assert calculation["customer_price"] > baseline_price
+
+    def test_pricing_catalog_crud_and_suggestion(self, client):
+        catalog_resp = client.get("/api/pricing/catalog")
+        assert catalog_resp.status_code == 200
+        catalog = catalog_resp.json()
+        assert len(catalog["brands"]) > 0
+        assert len(catalog["models"]) > 0
+        assert len(catalog["issue_types"]) > 0
+        assert len(catalog["repair_types"]) > 0
+
+        brand_resp = client.post("/api/pricing/catalog/brands", json={"name": "Test Brand"})
+        assert brand_resp.status_code == 201
+        brand_id = brand_resp.json()["id"]
+
+        model_resp = client.post(
+            "/api/pricing/catalog/models",
+            json={"brand_id": brand_id, "name": "Model X"},
+        )
+        assert model_resp.status_code == 201
+        model_id = model_resp.json()["id"]
+
+        issue_resp = client.post(
+            "/api/pricing/catalog/issue-types",
+            json={"name": "Test Issue"},
+        )
+        assert issue_resp.status_code == 201
+        issue_type_id = issue_resp.json()["id"]
+
+        repair_resp = client.post(
+            "/api/pricing/catalog/repair-types",
+            json={"name": "Test Repair"},
+        )
+        assert repair_resp.status_code == 201
+        repair_type_id = repair_resp.json()["id"]
+
+        rule_resp = client.post(
+            "/api/pricing/catalog/rules",
+            json={
+                "brand_id": brand_id,
+                "model_id": model_id,
+                "issue_type_id": issue_type_id,
+                "repair_type_id": repair_type_id,
+                "standard_price": 99,
+                "estimated_part_cost": 15,
+                "estimated_labor_minutes": 30,
+                "customer_wording": "Standard quote",
+                "internal_notes": "Internal test note",
+            },
+        )
+        assert rule_resp.status_code == 201
+        rule_id = rule_resp.json()["id"]
+
+        suggest_resp = client.get(
+            "/api/pricing/catalog/suggest",
+            params={"brand": "Test Brand", "model": "Model X", "issue_type": "Test Issue"},
+        )
+        assert suggest_resp.status_code == 200
+        suggest_payload = suggest_resp.json()
+        assert suggest_payload["match_found"] is True
+        assert suggest_payload["rule"]["id"] == rule_id
+
+        update_resp = client.patch(
+            f"/api/pricing/catalog/rules/{rule_id}",
+            json={"active": False, "standard_price": 89},
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.json()["active"] is False
+        assert update_resp.json()["standard_price"] == 89
+
+        delete_resp = client.delete(f"/api/pricing/catalog/rules/{rule_id}")
+        assert delete_resp.status_code == 204

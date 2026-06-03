@@ -11,6 +11,7 @@ const navItems = [
     { to: "/tickets", label: "Tickets" },
     { to: "/voicemail", label: "Voicemail" },
     { to: "/inventory", label: "Inventory" },
+    { to: "/pricing", label: "Pricing" },
     { to: "/operations", label: "Shop Tools" },
     { to: "/reports", label: "Reports" },
     { to: "/users-invites", label: "Team Access" },
@@ -19,7 +20,7 @@ const navItems = [
 
 const navGroups = [
     { label: "Daily Work", items: ["/", "/intake", "/tickets", "/voicemail", "/inventory"] },
-    { label: "Shop Tools", items: ["/operations", "/reports"] },
+    { label: "Shop Tools", items: ["/pricing", "/operations", "/reports"] },
     { label: "Admin", items: ["/users-invites", "/settings"] },
 ];
 
@@ -262,6 +263,7 @@ export function AppShell() {
         if (match) return match.label;
         if (location.pathname.startsWith("/users-invites")) return "Team Access";
         if (location.pathname.startsWith("/inventory")) return "Inventory";
+        if (location.pathname.startsWith("/pricing")) return "Pricing";
         return "Tech Restore Desk";
     })();
 

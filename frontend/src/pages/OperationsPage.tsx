@@ -13,9 +13,10 @@ export default function OperationsPage() {
             <PageHeader
                 kicker="Shop Tools"
                 title="Shop Tools"
-                description="Quick access to inventory and admin reporting tasks."
+                description="Quick access to pricing, inventory, and admin reporting tasks."
                 actions={
                     <div style={{ ...t.formActionsRow, gap: "8px" }}>
+                        <Link to="/pricing" style={{ ...t.secondaryBtn, textDecoration: "none" }}>Pricing</Link>
                         <Link to="/inventory" style={{ ...t.primaryBtn, textDecoration: "none" }}>Inventory</Link>
                         <Link to="/reports" style={{ ...t.secondaryBtn, textDecoration: "none" }}>Reports</Link>
                     </div>
@@ -36,6 +37,7 @@ export default function OperationsPage() {
 
                 <SectionCard title="Assets" description="Manage inventory stock and part levels." tone="soft">
                     <div style={{ ...t.formStack, gap: "8px" }}>
+                        <QuickLink title="Pricing" copy="Catalog rules for model-based estimates and customer wording." to="/pricing" />
                         <QuickLink title="Inventory" copy="Parts stock, low-stock risks, and movement tracking." to="/inventory" />
                     </div>
                 </SectionCard>
@@ -52,7 +54,7 @@ export default function OperationsPage() {
             <SectionCard title="Operating Notes" compact tone="soft">
                 <div style={{ display: "grid", gap: "8px" }}>
                     <div style={t.meta}>Keep daily flow in Dashboard, New Repair, Tickets, and Voicemail.</div>
-                    <div style={t.meta}>Use Inventory and Reports for supply and operational visibility.</div>
+                    <div style={t.meta}>Use Pricing and Inventory for estimate consistency and supply visibility.</div>
                     <div style={t.meta}>Use Settings for Twilio, templates, workflow policy, and backups.</div>
                 </div>
             </SectionCard>

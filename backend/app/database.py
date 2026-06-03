@@ -409,6 +409,76 @@ def initialize_database() -> None:
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS pricing_brands (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pricing_models (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                brand_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (brand_id) REFERENCES pricing_brands(id),
+                UNIQUE (brand_id, name)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pricing_issue_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pricing_repair_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pricing_rules_catalog (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                brand_id INTEGER NOT NULL,
+                model_id INTEGER NOT NULL,
+                issue_type_id INTEGER NOT NULL,
+                repair_type_id INTEGER NOT NULL,
+                standard_price REAL NOT NULL,
+                estimated_part_cost REAL NOT NULL DEFAULT 0,
+                estimated_labor_minutes INTEGER NOT NULL DEFAULT 0,
+                customer_wording TEXT,
+                internal_notes TEXT,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (brand_id) REFERENCES pricing_brands(id),
+                FOREIGN KEY (model_id) REFERENCES pricing_models(id),
+                FOREIGN KEY (issue_type_id) REFERENCES pricing_issue_types(id),
+                FOREIGN KEY (repair_type_id) REFERENCES pricing_repair_types(id)
+            )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS status_workflow_rules (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 transitions_json TEXT NOT NULL,
@@ -722,6 +792,18 @@ def initialize_database() -> None:
         )
         connection.execute(
             """
+            CREATE INDEX IF NOT EXISTS idx_pricing_models_brand_active
+            ON pricing_models(brand_id, active, name)
+            """
+        )
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_pricing_rules_catalog_filters
+            ON pricing_rules_catalog(brand_id, model_id, issue_type_id, repair_type_id, active)
+            """
+        )
+        connection.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_technician_hours_ticket_tech_date
             ON technician_hours(ticket_id, technician, work_date)
             """
@@ -798,6 +880,7 @@ def initialize_database() -> None:
         seed_supported_device_models(connection)
         seed_repair_categories(connection)
         seed_pricing_defaults(connection)
+        seed_pricing_catalog(connection)
         seed_status_workflow_rules(connection)
         seed_loaner_agreement_defaults(connection)
         seed_notification_templates(connection)
@@ -914,6 +997,151 @@ DEFAULT_PRICING_DEFAULTS = {
     "part_markup_percent": 0.35,
     "diagnostic_fee": 20.0,
 }
+
+DEFAULT_PRICING_BRANDS = [
+    "CAT",
+    "FIG",
+    "Kyocera",
+    "LG",
+    "Qin",
+    "Wonder",
+]
+
+DEFAULT_PRICING_MODELS = {
+    "CAT": ["S22"],
+    "FIG": ["FIG", "FIG Mini"],
+    "Kyocera": ["E4610", "E4810", "E4811", "E4830", "E4831", "S2720/Cadence"],
+    "LG": ["Classic", "Exalt"],
+    "Qin": ["Qin"],
+    "Wonder": ["Wonder"],
+}
+
+DEFAULT_PRICING_ISSUE_TYPES = [
+    "Battery",
+    "Charging Cleaning",
+    "Charging Port",
+    "Hinge/Housing",
+    "Keypad/Buttons",
+    "Screen/LCD",
+]
+
+DEFAULT_PRICING_REPAIR_TYPES = [
+    "Estimate",
+    "Repair",
+]
+
+DEFAULT_PRICING_RULES = [
+    {
+        "brand": "Kyocera",
+        "model": "E4610",
+        "issue_type": "Battery",
+        "repair_type": "Estimate",
+        "standard_price": 45,
+        "estimated_part_cost": 18,
+        "estimated_labor_minutes": 20,
+        "customer_wording": "Battery replacement usually lands in the $35-$50 range.",
+        "internal_notes": "Repair-first if parts are available.",
+    },
+    {
+        "brand": "Kyocera",
+        "model": "E4610",
+        "issue_type": "Screen/LCD",
+        "repair_type": "Estimate",
+        "standard_price": 90,
+        "estimated_part_cost": 35,
+        "estimated_labor_minutes": 45,
+        "customer_wording": "Screen/LCD usually lands in the $65-$120 range.",
+        "internal_notes": "Repair-first if parts are available.",
+    },
+    {
+        "brand": "Kyocera",
+        "model": "E4610",
+        "issue_type": "Hinge/Housing",
+        "repair_type": "Estimate",
+        "standard_price": 95,
+        "estimated_part_cost": 36,
+        "estimated_labor_minutes": 50,
+        "customer_wording": "Hinge/housing work usually lands in the $65-$125 range.",
+        "internal_notes": "Repair-first if parts are available.",
+    },
+    {
+        "brand": "Kyocera",
+        "model": "S2720/Cadence",
+        "issue_type": "Battery",
+        "repair_type": "Estimate",
+        "standard_price": 40,
+        "estimated_part_cost": 15,
+        "estimated_labor_minutes": 20,
+        "customer_wording": "Battery replacement usually lands in the $30-$45 range.",
+        "internal_notes": "Soldering charging-port repairs are not offered.",
+    },
+    {
+        "brand": "Kyocera",
+        "model": "E4810",
+        "issue_type": "Battery",
+        "repair_type": "Estimate",
+        "standard_price": 45,
+        "estimated_part_cost": 18,
+        "estimated_labor_minutes": 20,
+        "customer_wording": "Battery replacement usually lands in the $35-$55 range.",
+        "internal_notes": "Main supported rugged flip model line.",
+    },
+    {
+        "brand": "LG",
+        "model": "Classic",
+        "issue_type": "Screen/LCD",
+        "repair_type": "Estimate",
+        "standard_price": 65,
+        "estimated_part_cost": 25,
+        "estimated_labor_minutes": 35,
+        "customer_wording": "Screen/LCD usually lands in the $45-$85 range.",
+        "internal_notes": "Repair if cost-effective for customer.",
+    },
+    {
+        "brand": "LG",
+        "model": "Exalt",
+        "issue_type": "Screen/LCD",
+        "repair_type": "Estimate",
+        "standard_price": 75,
+        "estimated_part_cost": 28,
+        "estimated_labor_minutes": 35,
+        "customer_wording": "Screen/LCD usually lands in the $55-$95 range.",
+        "internal_notes": "Repair if customer strongly values device.",
+    },
+    {
+        "brand": "CAT",
+        "model": "S22",
+        "issue_type": "Battery",
+        "repair_type": "Estimate",
+        "standard_price": 60,
+        "estimated_part_cost": 26,
+        "estimated_labor_minutes": 30,
+        "customer_wording": "Battery replacement usually lands in the $45-$75 range.",
+        "internal_notes": "Smart-flip model; labor can run long.",
+    },
+    {
+        "brand": "FIG",
+        "model": "FIG Mini",
+        "issue_type": "Hinge/Housing",
+        "repair_type": "Estimate",
+        "standard_price": 145,
+        "estimated_part_cost": 55,
+        "estimated_labor_minutes": 60,
+        "customer_wording": "Hinge/housing usually lands in the $125-$165 range.",
+        "internal_notes": "Battery/shell/setup focus.",
+    },
+    {
+        "brand": "Kyocera",
+        "model": "E4810",
+        "issue_type": "Charging Cleaning",
+        "repair_type": "Repair",
+        "standard_price": 15,
+        "estimated_part_cost": 0,
+        "estimated_labor_minutes": 10,
+        "customer_wording": "Charging port cleaning is a flat $15.",
+        "internal_notes": "Quick clean is recommended before any port quote.",
+    },
+]
 
 def build_default_status_workflow_transitions() -> dict[str, list[str]]:
     return {
@@ -1316,6 +1544,705 @@ def update_pricing_defaults(payload: dict) -> dict:
         connection.commit()
 
     return get_pricing_defaults()
+
+
+def seed_pricing_catalog(connection: sqlite3.Connection) -> None:
+    existing_count = connection.execute(
+        "SELECT COUNT(*) AS count FROM pricing_rules_catalog"
+    ).fetchone()["count"]
+    if existing_count:
+        return
+
+    timestamp = utc_now()
+    for brand_name in DEFAULT_PRICING_BRANDS:
+        connection.execute(
+            """
+            INSERT INTO pricing_brands (name, active, created_at, updated_at)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                active = excluded.active,
+                updated_at = excluded.updated_at
+            """,
+            (brand_name, timestamp, timestamp),
+        )
+
+    brand_rows = connection.execute(
+        "SELECT id, name FROM pricing_brands"
+    ).fetchall()
+    brand_id_by_name = {row["name"]: int(row["id"]) for row in brand_rows}
+
+    for brand_name, models in DEFAULT_PRICING_MODELS.items():
+        brand_id = brand_id_by_name.get(brand_name)
+        if brand_id is None:
+            continue
+        for model_name in models:
+            connection.execute(
+                """
+                INSERT INTO pricing_models (brand_id, name, active, created_at, updated_at)
+                VALUES (?, ?, 1, ?, ?)
+                ON CONFLICT(brand_id, name) DO UPDATE SET
+                    active = excluded.active,
+                    updated_at = excluded.updated_at
+                """,
+                (brand_id, model_name, timestamp, timestamp),
+            )
+
+    for issue_type in DEFAULT_PRICING_ISSUE_TYPES:
+        connection.execute(
+            """
+            INSERT INTO pricing_issue_types (name, active, created_at, updated_at)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                active = excluded.active,
+                updated_at = excluded.updated_at
+            """,
+            (issue_type, timestamp, timestamp),
+        )
+
+    for repair_type in DEFAULT_PRICING_REPAIR_TYPES:
+        connection.execute(
+            """
+            INSERT INTO pricing_repair_types (name, active, created_at, updated_at)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                active = excluded.active,
+                updated_at = excluded.updated_at
+            """,
+            (repair_type, timestamp, timestamp),
+        )
+
+    model_rows = connection.execute(
+        """
+        SELECT m.id, m.name, b.name AS brand_name
+        FROM pricing_models m
+        JOIN pricing_brands b ON b.id = m.brand_id
+        """
+    ).fetchall()
+    model_id_by_key = {(row["brand_name"], row["name"]): int(row["id"]) for row in model_rows}
+
+    issue_rows = connection.execute(
+        "SELECT id, name FROM pricing_issue_types"
+    ).fetchall()
+    issue_id_by_name = {row["name"]: int(row["id"]) for row in issue_rows}
+
+    repair_rows = connection.execute(
+        "SELECT id, name FROM pricing_repair_types"
+    ).fetchall()
+    repair_id_by_name = {row["name"]: int(row["id"]) for row in repair_rows}
+
+    for rule in DEFAULT_PRICING_RULES:
+        brand_id = brand_id_by_name.get(rule["brand"])
+        model_id = model_id_by_key.get((rule["brand"], rule["model"]))
+        issue_type_id = issue_id_by_name.get(rule["issue_type"])
+        repair_type_id = repair_id_by_name.get(rule["repair_type"])
+        if not brand_id or not model_id or not issue_type_id or not repair_type_id:
+            continue
+
+        connection.execute(
+            """
+            INSERT INTO pricing_rules_catalog (
+                brand_id,
+                model_id,
+                issue_type_id,
+                repair_type_id,
+                standard_price,
+                estimated_part_cost,
+                estimated_labor_minutes,
+                customer_wording,
+                internal_notes,
+                active,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """,
+            (
+                brand_id,
+                model_id,
+                issue_type_id,
+                repair_type_id,
+                float(rule["standard_price"]),
+                float(rule["estimated_part_cost"]),
+                int(rule["estimated_labor_minutes"]),
+                rule.get("customer_wording"),
+                rule.get("internal_notes"),
+                timestamp,
+                timestamp,
+            ),
+        )
+
+
+def _bool_to_int(value: bool) -> int:
+    return 1 if value else 0
+
+
+def list_pricing_brands(include_inactive: bool = True) -> list[dict]:
+    where_clause = "" if include_inactive else "WHERE active = 1"
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, name, active, created_at, updated_at
+            FROM pricing_brands
+            {where_clause}
+            ORDER BY active DESC, name ASC
+            """
+        ).fetchall()
+    return [{**dict(row), "active": bool(row["active"])} for row in rows]
+
+
+def create_pricing_brand(payload: dict) -> dict:
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise ValueError("Brand name is required")
+    now = utc_now()
+    with get_connection() as connection:
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO pricing_brands (name, active, created_at, updated_at)
+                VALUES (?, 1, ?, ?)
+                """,
+                (name, now, now),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("A brand with that name already exists") from error
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, active, created_at, updated_at FROM pricing_brands WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    if row is None:
+        raise ValueError("Brand could not be created")
+    return {**dict(row), "active": bool(row["active"])}
+
+
+def update_pricing_brand(brand_id: int, payload: dict) -> dict | None:
+    with get_connection() as connection:
+        existing = connection.execute(
+            "SELECT id, name, active, created_at, updated_at FROM pricing_brands WHERE id = ?",
+            (brand_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+        name = payload.get("name", existing["name"])
+        if isinstance(name, str):
+            name = name.strip()
+        if not name:
+            raise ValueError("Brand name is required")
+        active = bool(payload.get("active", bool(existing["active"])))
+        try:
+            connection.execute(
+                """
+                UPDATE pricing_brands
+                SET name = ?,
+                    active = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (name, _bool_to_int(active), utc_now(), brand_id),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("A brand with that name already exists") from error
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, active, created_at, updated_at FROM pricing_brands WHERE id = ?",
+            (brand_id,),
+        ).fetchone()
+    return None if row is None else {**dict(row), "active": bool(row["active"])}
+
+
+def list_pricing_models(brand_id: int | None = None, include_inactive: bool = True) -> list[dict]:
+    predicates: list[str] = []
+    params: list[int] = []
+    if brand_id is not None:
+        predicates.append("m.brand_id = ?")
+        params.append(brand_id)
+    if not include_inactive:
+        predicates.append("m.active = 1")
+    where_clause = f"WHERE {' AND '.join(predicates)}" if predicates else ""
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT
+                m.id,
+                m.brand_id,
+                b.name AS brand_name,
+                m.name,
+                m.active,
+                m.created_at,
+                m.updated_at
+            FROM pricing_models m
+            JOIN pricing_brands b ON b.id = m.brand_id
+            {where_clause}
+            ORDER BY m.active DESC, b.name ASC, m.name ASC
+            """,
+            tuple(params),
+        ).fetchall()
+    return [{**dict(row), "active": bool(row["active"])} for row in rows]
+
+
+def create_pricing_model(payload: dict) -> dict:
+    brand_id = int(payload.get("brand_id") or 0)
+    name = str(payload.get("name") or "").strip()
+    if brand_id <= 0:
+        raise ValueError("brand_id is required")
+    if not name:
+        raise ValueError("Model name is required")
+
+    now = utc_now()
+    with get_connection() as connection:
+        brand_exists = connection.execute(
+            "SELECT id FROM pricing_brands WHERE id = ?",
+            (brand_id,),
+        ).fetchone()
+        if brand_exists is None:
+            raise ValueError("Selected brand does not exist")
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO pricing_models (brand_id, name, active, created_at, updated_at)
+                VALUES (?, ?, 1, ?, ?)
+                """,
+                (brand_id, name, now, now),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("A model with that name already exists for this brand") from error
+        connection.commit()
+        row = connection.execute(
+            """
+            SELECT m.id, m.brand_id, b.name AS brand_name, m.name, m.active, m.created_at, m.updated_at
+            FROM pricing_models m
+            JOIN pricing_brands b ON b.id = m.brand_id
+            WHERE m.id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+    if row is None:
+        raise ValueError("Model could not be created")
+    return {**dict(row), "active": bool(row["active"])}
+
+
+def update_pricing_model(model_id: int, payload: dict) -> dict | None:
+    with get_connection() as connection:
+        existing = connection.execute(
+            "SELECT id, brand_id, name, active FROM pricing_models WHERE id = ?",
+            (model_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+
+        brand_id = int(payload.get("brand_id", existing["brand_id"]))
+        name = payload.get("name", existing["name"])
+        if isinstance(name, str):
+            name = name.strip()
+        if not name:
+            raise ValueError("Model name is required")
+        active = bool(payload.get("active", bool(existing["active"])))
+
+        brand_exists = connection.execute(
+            "SELECT id FROM pricing_brands WHERE id = ?",
+            (brand_id,),
+        ).fetchone()
+        if brand_exists is None:
+            raise ValueError("Selected brand does not exist")
+
+        try:
+            connection.execute(
+                """
+                UPDATE pricing_models
+                SET brand_id = ?,
+                    name = ?,
+                    active = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (brand_id, name, _bool_to_int(active), utc_now(), model_id),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("A model with that name already exists for this brand") from error
+        connection.commit()
+        row = connection.execute(
+            """
+            SELECT m.id, m.brand_id, b.name AS brand_name, m.name, m.active, m.created_at, m.updated_at
+            FROM pricing_models m
+            JOIN pricing_brands b ON b.id = m.brand_id
+            WHERE m.id = ?
+            """,
+            (model_id,),
+        ).fetchone()
+    return None if row is None else {**dict(row), "active": bool(row["active"])}
+
+
+def _list_simple_pricing_dimension(table_name: str, include_inactive: bool = True) -> list[dict]:
+    where_clause = "" if include_inactive else "WHERE active = 1"
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, name, active, created_at, updated_at
+            FROM {table_name}
+            {where_clause}
+            ORDER BY active DESC, name ASC
+            """
+        ).fetchall()
+    return [{**dict(row), "active": bool(row["active"])} for row in rows]
+
+
+def list_pricing_issue_types(include_inactive: bool = True) -> list[dict]:
+    return _list_simple_pricing_dimension("pricing_issue_types", include_inactive=include_inactive)
+
+
+def list_pricing_repair_types(include_inactive: bool = True) -> list[dict]:
+    return _list_simple_pricing_dimension("pricing_repair_types", include_inactive=include_inactive)
+
+
+def _create_simple_pricing_dimension(table_name: str, payload: dict, singular: str) -> dict:
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise ValueError(f"{singular} name is required")
+    now = utc_now()
+    with get_connection() as connection:
+        try:
+            cursor = connection.execute(
+                f"""
+                INSERT INTO {table_name} (name, active, created_at, updated_at)
+                VALUES (?, 1, ?, ?)
+                """,
+                (name, now, now),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError(f"A {singular.lower()} with that name already exists") from error
+        connection.commit()
+        row = connection.execute(
+            f"SELECT id, name, active, created_at, updated_at FROM {table_name} WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    if row is None:
+        raise ValueError(f"{singular} could not be created")
+    return {**dict(row), "active": bool(row["active"])}
+
+
+def _update_simple_pricing_dimension(table_name: str, entity_id: int, payload: dict, singular: str) -> dict | None:
+    with get_connection() as connection:
+        existing = connection.execute(
+            f"SELECT id, name, active FROM {table_name} WHERE id = ?",
+            (entity_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+        name = payload.get("name", existing["name"])
+        if isinstance(name, str):
+            name = name.strip()
+        if not name:
+            raise ValueError(f"{singular} name is required")
+        active = bool(payload.get("active", bool(existing["active"])))
+        try:
+            connection.execute(
+                f"""
+                UPDATE {table_name}
+                SET name = ?,
+                    active = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (name, _bool_to_int(active), utc_now(), entity_id),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError(f"A {singular.lower()} with that name already exists") from error
+        connection.commit()
+        row = connection.execute(
+            f"SELECT id, name, active, created_at, updated_at FROM {table_name} WHERE id = ?",
+            (entity_id,),
+        ).fetchone()
+    return None if row is None else {**dict(row), "active": bool(row["active"])}
+
+
+def create_pricing_issue_type(payload: dict) -> dict:
+    return _create_simple_pricing_dimension("pricing_issue_types", payload, "Issue type")
+
+
+def update_pricing_issue_type(issue_type_id: int, payload: dict) -> dict | None:
+    return _update_simple_pricing_dimension("pricing_issue_types", issue_type_id, payload, "Issue type")
+
+
+def create_pricing_repair_type(payload: dict) -> dict:
+    return _create_simple_pricing_dimension("pricing_repair_types", payload, "Repair type")
+
+
+def update_pricing_repair_type(repair_type_id: int, payload: dict) -> dict | None:
+    return _update_simple_pricing_dimension("pricing_repair_types", repair_type_id, payload, "Repair type")
+
+
+def _pricing_rules_base_query() -> str:
+    return """
+        SELECT
+            r.id,
+            r.brand_id,
+            b.name AS brand_name,
+            r.model_id,
+            m.name AS model_name,
+            r.issue_type_id,
+            i.name AS issue_type_name,
+            r.repair_type_id,
+            t.name AS repair_type_name,
+            r.standard_price,
+            r.estimated_part_cost,
+            r.estimated_labor_minutes,
+            r.active,
+            r.customer_wording,
+            r.internal_notes,
+            r.created_at,
+            r.updated_at
+        FROM pricing_rules_catalog r
+        JOIN pricing_brands b ON b.id = r.brand_id
+        JOIN pricing_models m ON m.id = r.model_id
+        JOIN pricing_issue_types i ON i.id = r.issue_type_id
+        JOIN pricing_repair_types t ON t.id = r.repair_type_id
+    """
+
+
+def list_pricing_rules(filters: dict | None = None) -> list[dict]:
+    filters = filters or {}
+    predicates: list[str] = []
+    params: list[object] = []
+
+    if filters.get("brand_id") is not None:
+        predicates.append("r.brand_id = ?")
+        params.append(int(filters["brand_id"]))
+    if filters.get("model_id") is not None:
+        predicates.append("r.model_id = ?")
+        params.append(int(filters["model_id"]))
+    if filters.get("issue_type_id") is not None:
+        predicates.append("r.issue_type_id = ?")
+        params.append(int(filters["issue_type_id"]))
+    if filters.get("repair_type_id") is not None:
+        predicates.append("r.repair_type_id = ?")
+        params.append(int(filters["repair_type_id"]))
+    if not bool(filters.get("include_inactive", False)):
+        predicates.append("r.active = 1")
+
+    search = str(filters.get("search") or "").strip()
+    if search:
+        predicates.append("(b.name LIKE ? OR m.name LIKE ? OR i.name LIKE ? OR t.name LIKE ? OR IFNULL(r.customer_wording, '') LIKE ? OR IFNULL(r.internal_notes, '') LIKE ?)")
+        pattern = f"%{search}%"
+        params.extend([pattern, pattern, pattern, pattern, pattern, pattern])
+
+    where_clause = f"WHERE {' AND '.join(predicates)}" if predicates else ""
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            {_pricing_rules_base_query()}
+            {where_clause}
+            ORDER BY r.active DESC, b.name ASC, m.name ASC, i.name ASC, t.name ASC
+            """,
+            tuple(params),
+        ).fetchall()
+    return [
+        {
+            **dict(row),
+            "active": bool(row["active"]),
+            "standard_price": float(row["standard_price"]),
+            "estimated_part_cost": float(row["estimated_part_cost"]),
+            "estimated_labor_minutes": int(row["estimated_labor_minutes"]),
+        }
+        for row in rows
+    ]
+
+
+def create_pricing_rule(payload: dict) -> dict:
+    required_ids = {
+        "brand_id": int(payload.get("brand_id") or 0),
+        "model_id": int(payload.get("model_id") or 0),
+        "issue_type_id": int(payload.get("issue_type_id") or 0),
+        "repair_type_id": int(payload.get("repair_type_id") or 0),
+    }
+    if any(value <= 0 for value in required_ids.values()):
+        raise ValueError("brand_id, model_id, issue_type_id, and repair_type_id are required")
+
+    now = utc_now()
+    with get_connection() as connection:
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO pricing_rules_catalog (
+                    brand_id,
+                    model_id,
+                    issue_type_id,
+                    repair_type_id,
+                    standard_price,
+                    estimated_part_cost,
+                    estimated_labor_minutes,
+                    customer_wording,
+                    internal_notes,
+                    active,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    required_ids["brand_id"],
+                    required_ids["model_id"],
+                    required_ids["issue_type_id"],
+                    required_ids["repair_type_id"],
+                    float(payload.get("standard_price", 0)),
+                    float(payload.get("estimated_part_cost", 0)),
+                    int(payload.get("estimated_labor_minutes", 0)),
+                    payload.get("customer_wording"),
+                    payload.get("internal_notes"),
+                    _bool_to_int(bool(payload.get("active", True))),
+                    now,
+                    now,
+                ),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("Pricing rule references an invalid brand, model, issue type, or repair type") from error
+        connection.commit()
+        row = connection.execute(
+            f"""
+            {_pricing_rules_base_query()}
+            WHERE r.id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    if row is None:
+        raise ValueError("Pricing rule could not be created")
+    result = dict(row)
+    result["active"] = bool(row["active"])
+    result["standard_price"] = float(row["standard_price"])
+    result["estimated_part_cost"] = float(row["estimated_part_cost"])
+    result["estimated_labor_minutes"] = int(row["estimated_labor_minutes"])
+    return result
+
+
+def update_pricing_rule(rule_id: int, payload: dict) -> dict | None:
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT
+                id,
+                brand_id,
+                model_id,
+                issue_type_id,
+                repair_type_id,
+                standard_price,
+                estimated_part_cost,
+                estimated_labor_minutes,
+                customer_wording,
+                internal_notes,
+                active
+            FROM pricing_rules_catalog
+            WHERE id = ?
+            """,
+            (rule_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+
+        updates = {
+            "brand_id": int(payload.get("brand_id", existing["brand_id"])),
+            "model_id": int(payload.get("model_id", existing["model_id"])),
+            "issue_type_id": int(payload.get("issue_type_id", existing["issue_type_id"])),
+            "repair_type_id": int(payload.get("repair_type_id", existing["repair_type_id"])),
+            "standard_price": float(payload.get("standard_price", existing["standard_price"])),
+            "estimated_part_cost": float(payload.get("estimated_part_cost", existing["estimated_part_cost"])),
+            "estimated_labor_minutes": int(payload.get("estimated_labor_minutes", existing["estimated_labor_minutes"])),
+            "customer_wording": payload.get("customer_wording", existing["customer_wording"]),
+            "internal_notes": payload.get("internal_notes", existing["internal_notes"]),
+            "active": _bool_to_int(bool(payload.get("active", bool(existing["active"])))),
+        }
+
+        try:
+            connection.execute(
+                """
+                UPDATE pricing_rules_catalog
+                SET brand_id = ?,
+                    model_id = ?,
+                    issue_type_id = ?,
+                    repair_type_id = ?,
+                    standard_price = ?,
+                    estimated_part_cost = ?,
+                    estimated_labor_minutes = ?,
+                    customer_wording = ?,
+                    internal_notes = ?,
+                    active = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    updates["brand_id"],
+                    updates["model_id"],
+                    updates["issue_type_id"],
+                    updates["repair_type_id"],
+                    updates["standard_price"],
+                    updates["estimated_part_cost"],
+                    updates["estimated_labor_minutes"],
+                    updates["customer_wording"],
+                    updates["internal_notes"],
+                    updates["active"],
+                    utc_now(),
+                    rule_id,
+                ),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ValueError("Pricing rule references an invalid brand, model, issue type, or repair type") from error
+        connection.commit()
+        row = connection.execute(
+            f"""
+            {_pricing_rules_base_query()}
+            WHERE r.id = ?
+            """,
+            (rule_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    result = dict(row)
+    result["active"] = bool(row["active"])
+    result["standard_price"] = float(row["standard_price"])
+    result["estimated_part_cost"] = float(row["estimated_part_cost"])
+    result["estimated_labor_minutes"] = int(row["estimated_labor_minutes"])
+    return result
+
+
+def delete_pricing_rule(rule_id: int) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM pricing_rules_catalog WHERE id = ?",
+            (rule_id,),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+
+
+def get_pricing_rule_suggestion(brand: str, model: str, issue_type: str) -> dict | None:
+    normalized_brand = brand.strip()
+    normalized_model = model.strip()
+    normalized_issue = issue_type.strip()
+    if not normalized_brand or not normalized_model or not normalized_issue:
+        return None
+
+    with get_connection() as connection:
+        row = connection.execute(
+            f"""
+            {_pricing_rules_base_query()}
+            WHERE r.active = 1
+              AND b.name = ?
+              AND m.name = ?
+              AND i.name = ?
+            ORDER BY r.updated_at DESC
+            LIMIT 1
+            """,
+            (normalized_brand, normalized_model, normalized_issue),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    result = dict(row)
+    result["active"] = bool(row["active"])
+    result["standard_price"] = float(row["standard_price"])
+    result["estimated_part_cost"] = float(row["estimated_part_cost"])
+    result["estimated_labor_minutes"] = int(row["estimated_labor_minutes"])
+    return result
 
 def seed_status_workflow_rules(connection: sqlite3.Connection) -> None:
     existing = connection.execute("SELECT id FROM status_workflow_rules WHERE id = 1").fetchone()
