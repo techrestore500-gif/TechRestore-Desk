@@ -209,6 +209,64 @@ class TestTwilioWebhooks:
         assert payload["caller_number"] == "+15555550777"
         assert payload["called_number"] == "+15555550100"
 
+    def test_recording_callback_uses_voice_webhook_call_context_when_from_missing(self, client):
+        voice_resp = client.post(
+            "/api/twilio/voice",
+            data={"From": "+15555550666", "To": "+15555550100", "CallSid": "CACTX1"},
+        )
+        assert voice_resp.status_code == 200
+
+        callback_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "unknown",
+                "CallSid": "CACTX1",
+                "RecordingSid": "RECTX1",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/ACCTX/Recordings/RECTX1",
+                "RecordingDuration": "18",
+            },
+        )
+
+        assert callback_resp.status_code == 200
+        payload = callback_resp.json()
+        assert payload["caller_number"] == "+15555550666"
+        assert payload["called_number"] == "+15555550100"
+
+    def test_recording_callback_sends_sms_alert_once_per_new_recording(self, client, monkeypatch):
+        sent_alert_ids: list[int] = []
+
+        def fake_send_alert(record: dict):
+            sent_alert_ids.append(int(record["id"]))
+
+        monkeypatch.setattr(TwilioService, "_send_new_voicemail_sms_alert", staticmethod(fake_send_alert))
+
+        first_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550911",
+                "To": "+15555550100",
+                "CallSid": "CA911",
+                "RecordingSid": "RE911",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC911/Recordings/RE911",
+                "RecordingDuration": "20",
+            },
+        )
+        assert first_resp.status_code == 200
+
+        second_resp = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550911",
+                "To": "+15555550100",
+                "CallSid": "CA911",
+                "RecordingSid": "RE911",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC911/Recordings/RE911",
+                "RecordingDuration": "21",
+            },
+        )
+        assert second_resp.status_code == 200
+        assert len(sent_alert_ids) == 1
+
     def test_recording_callback_trims_fields_and_ignores_blank_from(self, client):
         callback_resp = client.post(
             "/api/twilio/recording",

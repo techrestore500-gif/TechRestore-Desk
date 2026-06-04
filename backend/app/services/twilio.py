@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from xml.sax.saxutils import escape
 
 import httpx
@@ -29,8 +30,23 @@ DEFAULT_VOICEMAIL_GREETING = (
 )
 
 DEFAULT_VOICEMAIL_TTS_VOICE = "Polly.Joanna"
+DEFAULT_NEW_VOICEMAIL_ALERT_TO = "+18483291230"
+NEW_VOICEMAIL_ALERT_TO_ENV = "TWILIO_NEW_VOICEMAIL_ALERT_TO"
+CALL_CONTEXT_TTL_SECONDS = 6 * 60 * 60
+MAX_CALL_CONTEXT_ENTRIES = 500
+
+UNKNOWN_CALLER_VALUES = {
+    "unknown",
+    "anonymous",
+    "private",
+    "restricted",
+    "unavailable",
+    "client:unknown",
+}
 
 logger = logging.getLogger(__name__)
+
+_recent_call_context: dict[str, tuple[float, str | None, str | None]] = {}
 
 
 class TwilioAudioFetchError(Exception):
@@ -58,6 +74,48 @@ class TwilioService:
             or TwilioService._clean_env("PUBLIC_API_BASE_URL")
             or TwilioService._clean_env("PUBLIC_BASE_URL")
         )
+
+    @staticmethod
+    def remember_voice_call_context(call_sid: str | None, from_number: str | None, to_number: str | None) -> None:
+        call_sid_value = TwilioService._first_non_empty(call_sid)
+        if not call_sid_value:
+            return
+
+        normalized_from = TwilioService._normalize_party_number(from_number)
+        normalized_to = TwilioService._normalize_party_number(to_number)
+        _recent_call_context[call_sid_value] = (time.time(), normalized_from, normalized_to)
+        TwilioService._prune_recent_call_context()
+
+    @staticmethod
+    def _prune_recent_call_context() -> None:
+        now = time.time()
+        expired = [call_sid for call_sid, (seen_at, _, _) in _recent_call_context.items() if now - seen_at > CALL_CONTEXT_TTL_SECONDS]
+        for call_sid in expired:
+            _recent_call_context.pop(call_sid, None)
+
+        overflow = len(_recent_call_context) - MAX_CALL_CONTEXT_ENTRIES
+        if overflow <= 0:
+            return
+
+        oldest_call_sids = sorted(_recent_call_context.items(), key=lambda item: item[1][0])[:overflow]
+        for call_sid, _ in oldest_call_sids:
+            _recent_call_context.pop(call_sid, None)
+
+    @staticmethod
+    def _find_recent_call_context(call_sid: str | None) -> tuple[str | None, str | None]:
+        call_sid_value = TwilioService._first_non_empty(call_sid)
+        if not call_sid_value:
+            return None, None
+
+        context = _recent_call_context.get(call_sid_value)
+        if context is None:
+            return None, None
+
+        seen_at, from_number, to_number = context
+        if time.time() - seen_at > CALL_CONTEXT_TTL_SECONDS:
+            _recent_call_context.pop(call_sid_value, None)
+            return None, None
+        return from_number, to_number
 
     @staticmethod
     def get_settings() -> dict:
@@ -175,34 +233,154 @@ class TwilioService:
 
         settings = TwilioService.get_settings()
 
+        call_sid = TwilioService._first_non_empty(payload.get("CallSid"), payload.get("call_sid"))
         recording_duration = TwilioService._first_non_empty(payload.get("RecordingDuration"), payload.get("recording_duration"))
         duration_value = int(recording_duration) if str(recording_duration or "").strip().isdigit() else None
 
-        caller_number = TwilioService._first_non_empty(
+        recording_sid = TwilioService._first_non_empty(payload.get("RecordingSid"), payload.get("recording_sid"))
+        existing_record = TwilioService._find_existing_voicemail_by_recording_sid(recording_sid)
+
+        caller_number = TwilioService._normalize_party_number(TwilioService._first_non_empty(
             payload.get("From"),
             payload.get("Caller"),
             payload.get("caller_number"),
-        )
-        called_number = TwilioService._first_non_empty(
+        ))
+        called_number = TwilioService._normalize_party_number(TwilioService._first_non_empty(
             payload.get("To"),
             payload.get("Called"),
             payload.get("called_number"),
             settings.get("phone_number"),
             TwilioService._clean_env("TWILIO_PHONE_NUMBER"),
-        )
+        ))
+
+        recent_from, recent_to = TwilioService._find_recent_call_context(call_sid)
+        if caller_number is None:
+            caller_number = recent_from
+        if called_number is None:
+            called_number = recent_to
+
+        if caller_number is None or called_number is None:
+            fetched_from, fetched_to = TwilioService._fetch_call_participants(call_sid)
+            if caller_number is None:
+                caller_number = fetched_from
+            if called_number is None:
+                called_number = fetched_to
 
         record_payload = {
             "caller_number": caller_number,
             "called_number": called_number,
-            "call_sid": TwilioService._first_non_empty(payload.get("CallSid"), payload.get("call_sid")),
-            "recording_sid": TwilioService._first_non_empty(payload.get("RecordingSid"), payload.get("recording_sid")),
+            "call_sid": call_sid,
+            "recording_sid": recording_sid,
             "recording_url": recording_url,
             "recording_duration_seconds": duration_value,
             "transcription_text": TwilioService._first_non_empty(payload.get("TranscriptionText"), payload.get("transcription_text")),
             "notes": TwilioService._first_non_empty(payload.get("notes")),
             "status": TwilioService._first_non_empty(payload.get("status")) or "new",
         }
-        return create_voicemail_record(record_payload)
+        record = create_voicemail_record(record_payload)
+
+        if existing_record is None:
+            TwilioService._send_new_voicemail_sms_alert(record)
+
+        return record
+
+    @staticmethod
+    def _find_existing_voicemail_by_recording_sid(recording_sid: str | None) -> dict | None:
+        if not recording_sid:
+            return None
+        for voicemail in list_voicemail_records():
+            if voicemail.get("recording_sid") == recording_sid:
+                return voicemail
+        return None
+
+    @staticmethod
+    def _normalize_party_number(value: str | None) -> str | None:
+        candidate = TwilioService._first_non_empty(value)
+        if candidate is None:
+            return None
+        if candidate.lower() in UNKNOWN_CALLER_VALUES:
+            return None
+        digits = re.sub(r"\D", "", candidate)
+        if not digits and candidate.lower().startswith("client:"):
+            return None
+        return candidate
+
+    @staticmethod
+    def _fetch_call_participants(call_sid: str | None) -> tuple[str | None, str | None]:
+        if not call_sid:
+            return None, None
+
+        account_sid, auth_token = TwilioService._get_credentials()
+        if not account_sid or not auth_token:
+            return None, None
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{call_sid}.json"
+        try:
+            with httpx.Client(timeout=10.0, auth=(account_sid, auth_token)) as client:
+                response = client.get(url)
+        except httpx.TransportError:
+            return None, None
+
+        if response.status_code >= 400:
+            return None, None
+
+        try:
+            payload = response.json()
+        except ValueError:
+            return None, None
+
+        return (
+            TwilioService._normalize_party_number(TwilioService._first_non_empty(payload.get("from"))),
+            TwilioService._normalize_party_number(TwilioService._first_non_empty(payload.get("to"))),
+        )
+
+    @staticmethod
+    def _alert_destination_number() -> str:
+        return TwilioService._clean_env(NEW_VOICEMAIL_ALERT_TO_ENV) or DEFAULT_NEW_VOICEMAIL_ALERT_TO
+
+    @staticmethod
+    def _send_new_voicemail_sms_alert(record: dict) -> None:
+        account_sid, auth_token = TwilioService._get_credentials()
+        if not account_sid or not auth_token:
+            return
+
+        from_number = TwilioService._first_non_empty(
+            TwilioService._clean_env("TWILIO_PHONE_NUMBER"),
+            TwilioService.get_settings().get("phone_number"),
+        )
+        if not from_number:
+            return
+
+        to_number = TwilioService._alert_destination_number()
+        caller = TwilioService._first_non_empty(record.get("caller_number")) or "Unknown"
+        line = TwilioService._first_non_empty(record.get("called_number")) or "Unknown"
+        duration_seconds = record.get("recording_duration_seconds")
+        duration_text = f"{duration_seconds}s" if isinstance(duration_seconds, int) and duration_seconds >= 0 else "unknown"
+        voicemail_id = record.get("id")
+
+        body = (
+            "New Tech Restore voicemail"
+            f" | From: {caller}"
+            f" | Line: {line}"
+            f" | Duration: {duration_text}"
+            f" | ID: {voicemail_id}"
+        )
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        try:
+            with httpx.Client(timeout=10.0, auth=(account_sid, auth_token)) as client:
+                response = client.post(
+                    url,
+                    data={
+                        "From": from_number,
+                        "To": to_number,
+                        "Body": body,
+                    },
+                )
+            if response.status_code >= 400:
+                logger.warning("Failed to send voicemail SMS alert: HTTP %d", response.status_code)
+        except httpx.TransportError as error:
+            logger.warning("Failed to send voicemail SMS alert: %s", error)
 
     @staticmethod
     def fetch_recording_audio(voicemail_id: int) -> tuple[bytes, str] | None:

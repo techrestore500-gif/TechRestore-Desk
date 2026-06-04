@@ -12,6 +12,7 @@ def post_twilio_voice(
     To: str | None = Form(default=None),
     CallSid: str | None = Form(default=None),
 ) -> Response:
+    TwilioService.remember_voice_call_context(CallSid, From, To)
     xml = TwilioService.build_voice_twiml(from_number=From, to_number=To)
     return Response(content=xml, media_type="application/xml")
 
