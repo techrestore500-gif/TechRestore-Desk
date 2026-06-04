@@ -876,6 +876,22 @@ class VoicemailRecordUpdate(BaseModel):
     ticket_id: int | None = None
 
 
+class TwilioOutboundCallRequest(BaseModel):
+    to_number: str
+    voicemail_id: int | None = None
+    contact_name: str | None = None
+
+
+class TwilioOutboundCallResponse(BaseModel):
+    call_sid: str
+    status: str | None = None
+    to_number: str
+    from_number: str
+    callback_url: str
+    voicemail_id: int | None = None
+    contact_name: str | None = None
+
+
 class TwilioSetupStatusResponse(BaseModel):
     twilio_credentials_configured: bool
     public_webhook_base_url_configured: bool

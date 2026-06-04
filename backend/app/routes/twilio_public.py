@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, Response
+from fastapi import APIRouter, Form, Query, Response
 
 from app.models import VoicemailRecordResponse
 from app.services.twilio import TwilioService
@@ -45,3 +45,17 @@ def post_twilio_recording(
         }
     )
     return VoicemailRecordResponse.model_validate(record)
+
+
+@router.api_route("/twilio/outbound-call", methods=["GET", "POST"])
+def twilio_outbound_call_prompt(
+    to_number: str | None = Query(default=None),
+    contact_name: str | None = Query(default=None),
+    voicemail_id: int | None = Query(default=None),
+) -> Response:
+    xml = TwilioService.build_outbound_call_twiml(
+        to_number=to_number,
+        contact_name=contact_name,
+        voicemail_id=voicemail_id,
+    )
+    return Response(content=xml, media_type="application/xml")

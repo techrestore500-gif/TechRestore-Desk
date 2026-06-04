@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+from urllib.parse import urlencode
 from xml.sax.saxutils import escape
 
 import httpx
@@ -74,6 +75,17 @@ class TwilioService:
             or TwilioService._clean_env("PUBLIC_API_BASE_URL")
             or TwilioService._clean_env("PUBLIC_BASE_URL")
         )
+
+    @staticmethod
+    def _outbound_call_callback_url(settings: dict, *, to_number: str, voicemail_id: int | None = None, contact_name: str | None = None) -> str:
+        base_url = settings.get("public_webhook_base_url")
+        callback_url = TwilioService._build_callback_url(base_url, "/api/twilio/outbound-call")
+        params: dict[str, str] = {"to_number": to_number}
+        if voicemail_id is not None:
+            params["voicemail_id"] = str(voicemail_id)
+        if contact_name:
+            params["contact_name"] = contact_name
+        return f"{callback_url}?{urlencode(params)}"
 
     @staticmethod
     def remember_voice_call_context(call_sid: str | None, from_number: str | None, to_number: str | None) -> None:
@@ -168,6 +180,47 @@ class TwilioService:
         return create_voicemail_record(payload)
 
     @staticmethod
+    def place_outbound_call(payload: dict) -> dict:
+        to_number = TwilioService._first_non_empty(payload.get("to_number"), payload.get("To"), payload.get("to"))
+        if not to_number:
+            raise ValueError("A destination number is required to place an outbound call.")
+
+        settings = TwilioService.get_settings()
+        account_sid, auth_token = TwilioService._get_credentials()
+        if not account_sid or not auth_token:
+            raise ValueError("Twilio credentials are not configured for outbound calling.")
+
+        from_number = TwilioService._first_non_empty(settings.get("phone_number"), TwilioService._clean_env("TWILIO_PHONE_NUMBER"))
+        if not from_number:
+            raise ValueError("A Twilio phone number is required for outbound calling.")
+
+        voicemail_id = payload.get("voicemail_id")
+        if voicemail_id is not None:
+            try:
+                voicemail_id = int(voicemail_id)
+            except (TypeError, ValueError):
+                voicemail_id = None
+
+        contact_name = TwilioService._first_non_empty(payload.get("contact_name"), payload.get("contactName"))
+        callback_url = TwilioService._outbound_call_callback_url(
+            settings,
+            to_number=to_number,
+            voicemail_id=voicemail_id,
+            contact_name=contact_name,
+        )
+        call = TwilioService._request_outbound_call(account_sid, auth_token, from_number, to_number, callback_url)
+
+        return {
+            "call_sid": TwilioService._first_non_empty(call.get("sid"), call.get("call_sid")) or "",
+            "status": TwilioService._first_non_empty(call.get("status")) or "queued",
+            "to_number": to_number,
+            "from_number": from_number,
+            "callback_url": callback_url,
+            "voicemail_id": voicemail_id,
+            "contact_name": contact_name,
+        }
+
+    @staticmethod
     def get_setup_status() -> dict:
         settings = TwilioService.get_settings()
         public_base = settings.get("public_webhook_base_url")
@@ -205,6 +258,29 @@ class TwilioService:
             " recordingStatusCallbackMethod=\"POST\""
             "/>"
             f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Thanks. We will call you back soon. Goodbye.</Say>"
+            "</Response>"
+        )
+
+    @staticmethod
+    def build_outbound_call_twiml(*, to_number: str | None, contact_name: str | None = None, voicemail_id: int | None = None) -> str:
+        clean_to = TwilioService._normalize_party_number(to_number)
+        clean_contact = TwilioService._first_non_empty(contact_name)
+        if voicemail_id is not None:
+            prompt = f"This is Tech Restore calling back about voicemail {voicemail_id}."
+        elif clean_contact:
+            prompt = f"This is Tech Restore calling back for {clean_contact}."
+        elif clean_to:
+            prompt = f"This is Tech Restore calling back {clean_to}."
+        else:
+            prompt = "This is Tech Restore returning your call."
+
+        return (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<Response>"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">{escape(prompt)} Please stay on the line while we connect you.</Say>"
+            "<Pause length=\"1\"/>"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">If you need to reach us directly, call back at the number that just called you.</Say>"
+            "<Hangup/>"
             "</Response>"
         )
 
@@ -381,6 +457,31 @@ class TwilioService:
                 logger.warning("Failed to send voicemail SMS alert: HTTP %d", response.status_code)
         except httpx.TransportError as error:
             logger.warning("Failed to send voicemail SMS alert: %s", error)
+
+    @staticmethod
+    def _request_outbound_call(account_sid: str, auth_token: str, from_number: str, to_number: str, callback_url: str) -> dict:
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls.json"
+        try:
+            with httpx.Client(timeout=15.0, follow_redirects=True, auth=(account_sid, auth_token)) as client:
+                response = client.post(
+                    url,
+                    data={
+                        "To": to_number,
+                        "From": from_number,
+                        "Url": callback_url,
+                        "Method": "POST",
+                    },
+                )
+        except httpx.TransportError as error:
+            raise ValueError("Could not connect to Twilio to place the outbound call.") from error
+
+        if response.status_code >= 400:
+            raise ValueError("Twilio rejected the outbound call request.")
+
+        try:
+            return response.json()
+        except ValueError as error:
+            raise ValueError("Twilio returned an invalid outbound call response.") from error
 
     @staticmethod
     def fetch_recording_audio(voicemail_id: int) -> tuple[bytes, str] | None:

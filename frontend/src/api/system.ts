@@ -54,6 +54,22 @@ export type TwilioSettingsUpdate = {
     voicemail_greeting_audio_url?: string | null;
 };
 
+export type TwilioOutboundCallRequest = {
+    to_number: string;
+    voicemail_id?: number | null;
+    contact_name?: string | null;
+};
+
+export type TwilioOutboundCallResponse = {
+    call_sid: string;
+    status: string | null;
+    to_number: string;
+    from_number: string;
+    callback_url: string;
+    voicemail_id: number | null;
+    contact_name: string | null;
+};
+
 export type VoicemailRecord = {
     id: number;
     caller_number: string | null;
@@ -224,6 +240,19 @@ export async function clearTwilioSettings(): Promise<TwilioSettings> {
         throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
     }
     return (await response.json()) as TwilioSettings;
+}
+
+export async function placeTwilioOutboundCall(payload: TwilioOutboundCallRequest): Promise<TwilioOutboundCallResponse> {
+    const response = await apiFetch('/api/twilio/outbound-calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.detail ?? `Request failed: ${response.status}`);
+    }
+    return (await response.json()) as TwilioOutboundCallResponse;
 }
 
 export async function fetchVoicemails(): Promise<VoicemailRecord[]> {

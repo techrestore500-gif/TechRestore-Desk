@@ -159,6 +159,50 @@ class TestTwilioWebhooks:
         assert response.status_code == 200
         assert "<Play>https://cdn.example.com/greeting.mp3</Play>" in response.text
 
+    def test_outbound_call_route_places_call_and_returns_call_metadata(self, client, monkeypatch):
+        client.put(
+            "/api/settings/twilio",
+            json={
+                "account_sid": "TWILIO_ACCOUNT_SID_TEST_OUTBOUND",
+                "auth_token": "outbound-token",
+                "phone_number": "+15555550100",
+                "public_webhook_base_url": "https://example.ngrok.app",
+            },
+        )
+
+        def fake_place_call(account_sid: str, auth_token: str, from_number: str, to_number: str, callback_url: str):
+            assert account_sid == "TWILIO_ACCOUNT_SID_TEST_OUTBOUND"
+            assert auth_token == "outbound-token"
+            assert from_number == "+15555550100"
+            assert to_number == "+15555550987"
+            assert callback_url.startswith("https://example.ngrok.app/api/twilio/outbound-call")
+            return {"sid": "CAOUT123", "status": "queued"}
+
+        monkeypatch.setattr(TwilioService, "_request_outbound_call", staticmethod(fake_place_call))
+
+        response = client.post(
+            "/api/twilio/outbound-calls",
+            json={"to_number": "+15555550987", "voicemail_id": 44, "contact_name": "Sam Caller"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["call_sid"] == "CAOUT123"
+        assert payload["to_number"] == "+15555550987"
+        assert payload["from_number"] == "+15555550100"
+        assert payload["voicemail_id"] == 44
+        assert payload["contact_name"] == "Sam Caller"
+
+    def test_outbound_call_prompt_returns_twiml(self, client):
+        response = client.get(
+            "/api/twilio/outbound-call",
+            params={"to_number": "+15555550987", "contact_name": "Sam Caller", "voicemail_id": 44},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/xml")
+        assert "calling back about voicemail 44" in response.text
+        assert "Please stay on the line while we connect you." in response.text
+
     def test_recording_callback_creates_voicemail_record(self, client):
         customer_resp = client.post(
             "/api/customers",

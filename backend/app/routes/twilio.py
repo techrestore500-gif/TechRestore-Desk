@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.auth.dependencies import require_role
 from app.models import (
+    TwilioOutboundCallRequest,
+    TwilioOutboundCallResponse,
     TwilioSettingsResponse,
     TwilioSettingsUpdate,
     TwilioSetupStatusResponse,
@@ -26,6 +28,18 @@ def put_twilio_settings(payload: TwilioSettingsUpdate, _: dict = Depends(require
 @router.delete("/settings/twilio", response_model=TwilioSettingsResponse)
 def delete_twilio_settings(_: dict = Depends(require_role("admin"))) -> TwilioSettingsResponse:
     return TwilioSettingsResponse.model_validate(TwilioService.clear_settings())
+
+
+@router.post("/twilio/outbound-calls", response_model=TwilioOutboundCallResponse)
+def post_twilio_outbound_call(
+    payload: TwilioOutboundCallRequest,
+    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+) -> TwilioOutboundCallResponse:
+    try:
+        record = TwilioService.place_outbound_call(payload.model_dump(exclude_unset=True))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return TwilioOutboundCallResponse.model_validate(record)
 
 
 @router.get("/settings/twilio/setup-status", response_model=TwilioSetupStatusResponse)

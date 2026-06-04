@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, updateVoicemail, type VoicemailRecord } from "../api/system";
+import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, placeTwilioOutboundCall, updateVoicemail, type VoicemailRecord } from "../api/system";
+import { fetchCustomers, type Customer } from "../api/tickets";
 import { useAsyncData } from "../hooks/useAsyncData";
-import { formatDeskDateTime, formatDurationSeconds, formatPhone } from "../lib/format";
+import { formatDeskDateTime, formatDurationSeconds, formatPhone, normalizePhoneInput } from "../lib/format";
 import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
@@ -20,6 +21,14 @@ export default function VoicemailPage() {
     const [actionMessage, setActionMessage] = useState<string | null>(null);
     const [quickFilter, setQuickFilter] = useState<VoicemailQuickFilter>("all");
     const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth < 1120);
+    const [callNumber, setCallNumber] = useState("");
+    const [callContextLabel, setCallContextLabel] = useState("Manual dial");
+    const [callVoicemailId, setCallVoicemailId] = useState<number | null>(null);
+    const [callBusy, setCallBusy] = useState(false);
+    const [callError, setCallError] = useState<string | null>(null);
+    const [callMessage, setCallMessage] = useState<string | null>(null);
+    const [contactSearch, setContactSearch] = useState("");
+    const [debouncedContactSearch, setDebouncedContactSearch] = useState("");
 
     const [audioBlobUrls, setAudioBlobUrls] = useState<Record<number, string>>({});
     const [audioLoadErrors, setAudioLoadErrors] = useState<Record<number, string>>({});
@@ -28,6 +37,13 @@ export default function VoicemailPage() {
 
     const audioElementRefs = useRef<Record<number, HTMLAudioElement | null>>({});
     const { data: voicemails = [], error } = useAsyncData<VoicemailRecord[]>(() => fetchVoicemails(), [refreshKey]);
+    const { data: customerResults = [], loading: customerSearchLoading } = useAsyncData<Customer[]>(() => {
+        const search = debouncedContactSearch.trim();
+        if (search.length < 2) {
+            return Promise.resolve([]);
+        }
+        return fetchCustomers(search);
+    }, [debouncedContactSearch]);
 
     const filteredVoicemails = voicemails.filter((voicemail) => {
         if (quickFilter === "all") {
@@ -82,6 +98,13 @@ export default function VoicemailPage() {
             window.removeEventListener("resize", onResize);
         };
     }, []);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            setDebouncedContactSearch(contactSearch);
+        }, 250);
+        return () => window.clearTimeout(timeout);
+    }, [contactSearch]);
 
     useEffect(() => {
         function onDocumentClick(event: MouseEvent) {
@@ -282,14 +305,214 @@ export default function VoicemailPage() {
         setOpenMenuVoicemailId(null);
     }
 
+    function normalizeOutboundNumber(value: string) {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return "";
+        }
+
+        const digits = trimmed.replace(/\D/g, "");
+        if (trimmed.startsWith("+") && digits) {
+            return `+${digits}`;
+        }
+        if (digits.length === 11 && digits.startsWith("1")) {
+            return `+${digits}`;
+        }
+        if (digits.length === 10) {
+            return `+1${digits}`;
+        }
+        return trimmed;
+    }
+
+    function selectCallTarget(number: string | null, label: string, voicemailId: number | null = null) {
+        const sanitized = normalizeOutboundNumber(number ?? "");
+        setCallNumber(sanitized);
+        setCallContextLabel(label);
+        setCallVoicemailId(voicemailId);
+        setCallError(null);
+        setCallMessage(null);
+    }
+
+    function appendDialpadDigit(digit: string) {
+        setCallNumber((current) => normalizePhoneInput(`${current}${digit}`).trim());
+        setCallContextLabel("Manual dial");
+        setCallVoicemailId(null);
+        setCallError(null);
+        setCallMessage(null);
+    }
+
+    function backspaceDialTarget() {
+        setCallNumber((current) => current.slice(0, -1));
+        setCallContextLabel("Manual dial");
+        setCallVoicemailId(null);
+        setCallError(null);
+        setCallMessage(null);
+    }
+
+    function clearDialTarget() {
+        setCallNumber("");
+        setCallContextLabel("Manual dial");
+        setCallVoicemailId(null);
+        setCallError(null);
+        setCallMessage(null);
+    }
+
+    async function placeCall() {
+        const destination = normalizeOutboundNumber(callNumber);
+        if (!destination) {
+            setCallError("Enter a phone number to call.");
+            return;
+        }
+
+        try {
+            setCallBusy(true);
+            setCallError(null);
+            setCallMessage(null);
+            const result = await placeTwilioOutboundCall({
+                to_number: destination,
+                voicemail_id: callVoicemailId,
+                contact_name: callContextLabel === "Manual dial" ? null : callContextLabel,
+            });
+            setCallMessage(`Call queued to ${formatPhone(result.to_number)}.`);
+        } catch (requestError) {
+            setCallError(requestError instanceof Error ? requestError.message : "Could not place outbound call.");
+        } finally {
+            setCallBusy(false);
+        }
+    }
+
+    const recentCallerContacts = Array.from(
+        new Map(
+            voicemails
+                .filter((voicemail) => Boolean(voicemail.caller_number))
+                .map((voicemail) => [
+                    voicemail.caller_number as string,
+                    {
+                        number: voicemail.caller_number as string,
+                        label: voicemail.customer_name || formatPhone(voicemail.caller_number),
+                        voicemailId: voicemail.id,
+                    },
+                ])
+        ).values()
+    ).slice(0, 6);
+
+    const customerContactResults = customerResults
+        .filter((customer) => Boolean(customer.primary_phone || customer.alternate_phone))
+        .slice(0, 8);
+
     return (
         <section style={{ ...t.pageWrap, gap: "14px" }}>
             <PageHeader
                 kicker="Communication"
                 title="Voicemail Inbox"
-                description="Compact inbox view with quick playback and actions."
+                description="Compact inbox view with playback, callback, and contact actions."
                 actions={<Link to="/settings" style={backLinkStyle}>Back to Settings</Link>}
             />
+
+            <SectionCard
+                title="Callback Center"
+                description="Call the voicemail number back, dial a fresh number, or pick a customer from recent callers and contacts."
+                tone="soft"
+            >
+                <div style={isCompactLayout ? callCenterStackStyle : callCenterGridStyle}>
+                    <div style={callComposerStyle}>
+                        <label style={callLabelStyle}>
+                            Dial number
+                            <input
+                                value={callNumber}
+                                onChange={(event) => {
+                                    setCallNumber(normalizeOutboundNumber(event.target.value));
+                                    setCallContextLabel("Manual dial");
+                                    setCallVoicemailId(null);
+                                }}
+                                placeholder="+1 555 123 4567"
+                                style={callInputStyle}
+                                inputMode="tel"
+                            />
+                        </label>
+
+                        <div style={callStatusStyle}>
+                            <div style={t.meta}>Target: {callNumber ? formatPhone(callNumber) : "No number selected"}</div>
+                            <div style={t.meta}>Source: {callContextLabel}</div>
+                        </div>
+
+                        <div style={dialpadStyle}>
+                            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map((digit) => (
+                                <button key={digit} type="button" style={dialKeyStyle} onClick={() => appendDialpadDigit(digit)}>
+                                    {digit}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div style={dialActionRowStyle}>
+                            <button type="button" style={compactPrimaryBtnStyle} onClick={() => void placeCall()} disabled={callBusy}>
+                                {callBusy ? "Placing call..." : "Call now"}
+                            </button>
+                            <button type="button" style={compactBtnStyle} onClick={() => void backspaceDialTarget()} disabled={!callNumber}>
+                                Backspace
+                            </button>
+                            <button type="button" style={compactBtnStyle} onClick={clearDialTarget} disabled={!callNumber && callContextLabel === "Manual dial"}>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={contactColumnStyle}>
+                        <label style={callLabelStyle}>
+                            Search customers
+                            <input
+                                value={contactSearch}
+                                onChange={(event) => setContactSearch(event.target.value)}
+                                placeholder="Name or number"
+                                style={callInputStyle}
+                            />
+                        </label>
+
+                        <div style={contactSectionStyle}>
+                            <div style={contactSectionHeaderStyle}>Recent voicemail callers</div>
+                            <div style={contactListStyle}>
+                                {recentCallerContacts.length === 0 ? (
+                                    <div style={t.meta}>No voicemail callers yet.</div>
+                                ) : (
+                                    recentCallerContacts.map((contact) => (
+                                        <button
+                                            key={`${contact.number}-${contact.voicemailId}`}
+                                            type="button"
+                                            style={contactChipStyle}
+                                            onClick={() => selectCallTarget(contact.number, contact.label, contact.voicemailId)}
+                                        >
+                                            <strong>{contact.label}</strong>
+                                            <span>{formatPhone(contact.number)}</span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={contactSectionStyle}>
+                            <div style={contactSectionHeaderStyle}>Customer contacts</div>
+                            <div style={t.meta}>{contactSearch.trim().length < 2 ? "Type at least 2 characters to search customers." : customerSearchLoading ? "Loading customers..." : `${customerContactResults.length} result(s)`}</div>
+                            <div style={contactListStyle}>
+                                {customerContactResults.length === 0 ? (
+                                    <div style={t.meta}>{contactSearch.trim().length < 2 ? "Search by name or number." : "No matching customers found."}</div>
+                                ) : (
+                                    customerContactResults.map((customer) => (
+                                        <button
+                                            key={customer.id}
+                                            type="button"
+                                            style={contactChipStyle}
+                                            onClick={() => selectCallTarget(customer.primary_phone || customer.alternate_phone, customer.full_name, null)}
+                                        >
+                                            <strong>{customer.full_name}</strong>
+                                            <span>{formatPhone(customer.primary_phone || customer.alternate_phone)}</span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </SectionCard>
 
             <div style={{ ...t.formActionsRow, gap: "8px" }}>
                 <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "all" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("all")}>All</button>
@@ -300,6 +523,8 @@ export default function VoicemailPage() {
                 <button type="button" style={{ ...t.miniBtn, ...(quickFilter === "last7" ? activeFilterStyle : null) }} onClick={() => setQuickFilter("last7")}>Last 7 days</button>
             </div>
 
+            {callError ? <div style={t.errorBanner}>{callError}</div> : null}
+            {callMessage ? <div style={successBannerStyle}>{callMessage}</div> : null}
             {actionError ? <div style={t.errorBanner}>{actionError}</div> : null}
             {actionMessage ? <div style={successBannerStyle}>{actionMessage}</div> : null}
             {error ? <div style={t.errorBanner}>{error}</div> : null}
@@ -340,6 +565,15 @@ export default function VoicemailPage() {
                                         disabled={!voicemail.recording_url}
                                     >
                                         Play
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        style={compactBtnStyle}
+                                        onClick={() => selectCallTarget(voicemail.caller_number, voicemail.customer_name || `Voicemail ${voicemail.id}`, voicemail.id)}
+                                        disabled={!voicemail.caller_number}
+                                    >
+                                        Call back
                                     </button>
 
                                     <div data-voicemail-menu style={menuWrapStyle}>
@@ -434,14 +668,14 @@ const rowWrapStyle: React.CSSProperties = {
 
 const rowMainStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1.2fr) minmax(0, 1fr) auto auto auto",
+    gridTemplateColumns: "auto minmax(0, 1.2fr) minmax(0, 1fr) auto auto auto auto",
     gap: "8px 10px",
     alignItems: "center",
 };
 
 const compactRowMainStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
+    gridTemplateColumns: "auto minmax(0, 1fr) auto auto auto",
     gap: "8px 10px",
     alignItems: "center",
 };
@@ -615,4 +849,94 @@ const activeFilterStyle: React.CSSProperties = {
     background: "#1f6657",
     color: "#ffffff",
     borderColor: "#1f6657",
+};
+
+const callCenterGridStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "minmax(0, 0.92fr) minmax(0, 1.08fr)",
+    alignItems: "start",
+};
+
+const callCenterStackStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "1fr",
+};
+
+const callComposerStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "10px",
+    minWidth: 0,
+};
+
+const contactColumnStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "10px",
+    minWidth: 0,
+};
+
+const callLabelStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "6px",
+    fontWeight: 700,
+    color: "#29453f",
+};
+
+const callInputStyle: React.CSSProperties = {
+    ...t.input,
+    minWidth: 0,
+    width: "100%",
+};
+
+const callStatusStyle: React.CSSProperties = {
+    ...t.subCard,
+    display: "grid",
+    gap: "4px",
+};
+
+const dialpadStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "8px",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+};
+
+const dialKeyStyle: React.CSSProperties = {
+    ...t.secondaryBtn,
+    padding: "12px 10px",
+    fontSize: "1.05rem",
+    fontWeight: 800,
+    minHeight: "48px",
+};
+
+const dialActionRowStyle: React.CSSProperties = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    alignItems: "center",
+};
+
+const contactSectionStyle: React.CSSProperties = {
+    ...t.subCard,
+    display: "grid",
+    gap: "8px",
+    minWidth: 0,
+};
+
+const contactSectionHeaderStyle: React.CSSProperties = {
+    fontWeight: 800,
+    color: "#29453f",
+};
+
+const contactListStyle: React.CSSProperties = {
+    display: "grid",
+    gap: "8px",
+};
+
+const contactChipStyle: React.CSSProperties = {
+    ...t.secondaryBtn,
+    display: "grid",
+    gap: "2px",
+    textAlign: "left",
+    padding: "10px 12px",
 };
