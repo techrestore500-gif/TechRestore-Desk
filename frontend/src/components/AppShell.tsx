@@ -37,7 +37,7 @@ const S = {
         background: "#f3f4f6",
     },
     sidebar: {
-        width: "252px",
+        width: "236px",
         flexShrink: 0,
         display: "flex" as const,
         flexDirection: "column" as const,
@@ -101,16 +101,17 @@ const S = {
     main: {
         flex: 1,
         minWidth: 0,
-        padding: "16px 20px 24px",
+        padding: "clamp(12px, 1.8vw, 20px)",
         display: "grid" as const,
         gridTemplateRows: "auto 1fr",
-        gap: "16px",
+        gap: "clamp(10px, 1.6vw, 16px)",
     },
     topBar: {
         display: "flex" as const,
         alignItems: "center" as const,
         justifyContent: "space-between",
         gap: "12px",
+        flexWrap: "wrap" as const,
         border: "1px solid #e5e7eb",
         borderRadius: "10px",
         background: "#ffffff",
@@ -128,7 +129,7 @@ const S = {
     },
     pageTitle: {
         margin: 0,
-        fontSize: "1rem",
+        fontSize: "clamp(0.9rem, 2.6vw, 1rem)",
         color: "#111827",
         fontWeight: 700,
     },
@@ -269,8 +270,9 @@ export function AppShell() {
     useKeyboardShortcuts();
     const { authEnabled, isAuthenticated, user, logout } = useAuth();
     const location = useLocation();
-    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960);
-    const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 960);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 980);
+    const [isCompact, setIsCompact] = useState(() => window.innerWidth < 1220);
+    const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 980);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
@@ -323,8 +325,10 @@ export function AppShell() {
 
     useEffect(() => {
         function handleResize() {
-            const mobile = window.innerWidth < 960;
+            const mobile = window.innerWidth < 980;
+            const compact = window.innerWidth < 1220;
             setIsMobile(mobile);
+            setIsCompact(compact);
             setSidebarOpen(!mobile);
         }
 
@@ -402,6 +406,7 @@ export function AppShell() {
         ...(isMobile
             ? {
                 position: "fixed" as const,
+                width: "min(86vw, 280px)",
                 left: 0,
                 top: 0,
                 transform: sidebarOpen ? "translateX(0)" : "translateX(-108%)",
@@ -413,7 +418,7 @@ export function AppShell() {
 
     const mainStyle = {
         ...S.main,
-        ...(isMobile ? { padding: "12px" } : null),
+        ...(isMobile ? { padding: "10px" } : null),
     };
 
     const userInitials = user?.name
@@ -483,7 +488,7 @@ export function AppShell() {
                                 onClick={() => setAccountMenuOpen((open) => !open)}
                             >
                                 <span style={S.avatar}>{userInitials}</span>
-                                <span style={{ fontSize: "0.86rem" }}>{user.name}</span>
+                                {!isCompact ? <span style={{ fontSize: "0.86rem" }}>{user.name}</span> : null}
                             </button>
 
                             {accountMenuOpen ? (

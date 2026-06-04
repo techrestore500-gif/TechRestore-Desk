@@ -105,6 +105,9 @@ const actionsWrapStyle: CSSProperties = {
     gap: "8px",
     flexWrap: "wrap",
     alignItems: "center",
+    minWidth: 0,
+    width: "100%",
+    justifyContent: "flex-start",
 };
 
 const baseSectionStyle: CSSProperties = {

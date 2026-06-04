@@ -181,7 +181,7 @@ export default function PricingPage() {
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Brand, model, issue, notes"
-                                style={{ ...t.input, minWidth: "240px" }}
+                                style={{ ...t.input, minWidth: 0, width: "min(100%, 240px)" }}
                             />
                         </label>
                         <label style={{ ...t.label, display: "inline-flex", alignItems: "center", gap: "8px", marginTop: "24px" }}>

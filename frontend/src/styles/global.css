@@ -45,6 +45,14 @@ body {
     text-rendering: optimizeLegibility;
 }
 
+img,
+svg,
+canvas,
+video {
+    max-width: 100%;
+    height: auto;
+}
+
 input,
 select,
 textarea,
@@ -81,6 +89,51 @@ h2,
 h3,
 h4 {
     letter-spacing: -0.02em;
+}
+
+table {
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    body {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 960px) {
+    body {
+        font-size: 14.5px;
+    }
+
+    h1 {
+        font-size: clamp(1.5rem, 6.2vw, 1.9rem);
+    }
+
+    h2 {
+        font-size: clamp(1.25rem, 5.2vw, 1.65rem);
+    }
+
+    h3 {
+        font-size: clamp(1.05rem, 4.6vw, 1.3rem);
+    }
+
+    th,
+    td {
+        padding: 0.58rem;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        font-size: 14px;
+    }
+
+    th,
+    td {
+        padding: 0.5rem;
+        font-size: 0.84rem;
+    }
 }
 
 @keyframes riseIn {

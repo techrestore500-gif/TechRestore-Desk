@@ -9,8 +9,8 @@ import type { CSSProperties } from "react";
 export const panel: CSSProperties = {
     background: "linear-gradient(150deg, rgba(255,252,247,0.92) 0%, rgba(245,238,228,0.86) 100%)",
     border: "1px solid rgba(77, 57, 44, 0.14)",
-    borderRadius: "22px",
-    padding: "18px 19px",
+    borderRadius: "clamp(16px, 2.1vw, 22px)",
+    padding: "clamp(12px, 1.8vw, 19px)",
     boxShadow: "0 16px 38px rgba(69, 51, 41, 0.12)",
     backdropFilter: "blur(8px)",
 };
@@ -21,7 +21,7 @@ export const primaryBtn: CSSProperties = {
     border: "1px solid rgba(111, 63, 47, 0.24)",
     background: "linear-gradient(145deg, var(--brand-500) 0%, var(--brand-600) 52%, var(--brand-700) 100%)",
     color: "#fffaf5",
-    padding: "11px 15px",
+    padding: "clamp(9px, 1.3vw, 11px) clamp(11px, 1.8vw, 15px)",
     cursor: "pointer",
     fontWeight: 750,
     letterSpacing: "0.01em",
@@ -35,7 +35,7 @@ export const secondaryBtn: CSSProperties = {
     border: "1px solid rgba(91, 73, 62, 0.2)",
     background: "rgba(255,255,255,0.78)",
     color: "#46352a",
-    padding: "11px 15px",
+    padding: "clamp(9px, 1.3vw, 11px) clamp(11px, 1.8vw, 15px)",
     cursor: "pointer",
     transition: "all 180ms ease",
 };
@@ -46,7 +46,7 @@ export const miniBtn: CSSProperties = {
     border: "1px solid rgba(85, 66, 54, 0.16)",
     background: "rgba(255,255,255,0.85)",
     color: "#4d392e",
-    padding: "7px 10px",
+    padding: "clamp(6px, 1.1vw, 7px) clamp(9px, 1.4vw, 10px)",
     cursor: "pointer",
     fontWeight: 650,
     transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
@@ -57,7 +57,7 @@ export const input: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
-    padding: "11px 13px",
+    padding: "clamp(9px, 1.2vw, 11px) clamp(11px, 1.6vw, 13px)",
     borderRadius: "11px",
     border: "1px solid rgba(92, 73, 60, 0.2)",
     background: "rgba(255,255,255,0.95)",
@@ -163,7 +163,7 @@ export const statusBadge: CSSProperties = {
 export const detailGrid: CSSProperties = {
     display: "grid",
     gap: "16px 18px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
     alignItems: "start",
 };
 
@@ -171,7 +171,7 @@ export const detailGrid: CSSProperties = {
 export const fieldGrid: CSSProperties = {
     display: "grid",
     gap: "14px 16px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
     alignItems: "start",
 };
 
@@ -179,7 +179,7 @@ export const fieldGrid: CSSProperties = {
 export const fieldGridTwo: CSSProperties = {
     display: "grid",
     gap: "13px 16px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
     alignItems: "start",
 };
 
@@ -187,7 +187,7 @@ export const fieldGridTwo: CSSProperties = {
 export const fieldGridTwoCompact: CSSProperties = {
     display: "grid",
     gap: "10px 14px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 170px), 1fr))",
     alignItems: "start",
 };
 
@@ -210,9 +210,9 @@ export const formActionsRow: CSSProperties = {
 /** Page-level wrapper — fills the main content column with a vertical grid. */
 export const pageWrap: CSSProperties = {
     display: "grid",
-    gap: "18px",
+    gap: "clamp(12px, 2vw, 18px)",
     width: "100%",
-    maxWidth: "1240px",
+    maxWidth: "min(1240px, 100%)",
     margin: "0 auto",
     minWidth: 0,
     animation: "riseIn 280ms ease",
@@ -236,7 +236,7 @@ export const pageTitle: CSSProperties = {
     margin: 0,
     color: "#2a221c",
     lineHeight: 1.03,
-    fontSize: "1.9rem",
+    fontSize: "clamp(1.35rem, 3.2vw, 1.9rem)",
     fontWeight: 800,
 };
 

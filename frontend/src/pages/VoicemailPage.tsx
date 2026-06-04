@@ -19,6 +19,7 @@ export default function VoicemailPage() {
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
     const [quickFilter, setQuickFilter] = useState<VoicemailQuickFilter>("all");
+    const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth < 1120);
 
     const [audioBlobUrls, setAudioBlobUrls] = useState<Record<number, string>>({});
     const [audioLoadErrors, setAudioLoadErrors] = useState<Record<number, string>>({});
@@ -68,6 +69,17 @@ export default function VoicemailPage() {
             for (const url of Object.values(prevBlobUrls.current)) {
                 URL.revokeObjectURL(url);
             }
+        };
+    }, []);
+
+    useEffect(() => {
+        function onResize() {
+            setIsCompactLayout(window.innerWidth < 1120);
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
         };
     }, []);
 
@@ -306,18 +318,20 @@ export default function VoicemailPage() {
                         const lineLabel = `Line: ${formatPhone(voicemail.called_number)}`;
                         const receivedLabel = formatDeskDateTime(voicemail.created_at);
                         const durationLabel = formatDurationSeconds(voicemail.recording_duration_seconds);
+                        const compactMeta = `${lineLabel} | ${receivedLabel} | ${durationLabel}`;
 
                         return (
                             <article key={voicemail.id} style={rowWrapStyle}>
-                                <div style={rowMainStyle}>
+                                <div style={isCompactLayout ? compactRowMainStyle : rowMainStyle}>
                                     <span style={{ ...statusChipStyle, ...statusStyles[voicemail.status as keyof typeof statusStyles] }}>
                                         {statusLabel[voicemail.status as keyof typeof statusLabel]}
                                     </span>
 
                                     <div style={fieldStyle}>{fromLabel}</div>
-                                    <div style={fieldStyle}>{lineLabel}</div>
-                                    <div style={fieldStyle}>{receivedLabel}</div>
-                                    <div style={fieldStyle}>{durationLabel}</div>
+                                    {isCompactLayout ? <div style={compactMetaStyle}>{compactMeta}</div> : null}
+                                    {!isCompactLayout ? <div style={fieldStyle}>{lineLabel}</div> : null}
+                                    {!isCompactLayout ? <div style={fieldStyle}>{receivedLabel}</div> : null}
+                                    {!isCompactLayout ? <div style={fieldStyle}>{durationLabel}</div> : null}
 
                                     <button
                                         type="button"
@@ -425,6 +439,13 @@ const rowMainStyle: React.CSSProperties = {
     alignItems: "center",
 };
 
+const compactRowMainStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
+    gap: "8px 10px",
+    alignItems: "center",
+};
+
 const statusChipStyle: React.CSSProperties = {
     borderRadius: "999px",
     padding: "4px 9px",
@@ -449,8 +470,17 @@ const statusLabel = {
 const fieldStyle: React.CSSProperties = {
     fontSize: "0.84rem",
     color: "#33453f",
-    minWidth: "138px",
+    minWidth: 0,
     maxWidth: "100%",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+};
+
+const compactMetaStyle: React.CSSProperties = {
+    fontSize: "0.8rem",
+    color: "#5f6d69",
+    minWidth: 0,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
