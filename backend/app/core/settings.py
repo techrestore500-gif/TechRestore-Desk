@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from app.database import APP_ROOT
 
@@ -61,6 +62,34 @@ def _merge_unique(items: list[str]) -> list[str]:
     return merged
 
 
+def _origin_from_url(raw_url: str | None) -> str | None:
+    if raw_url is None:
+        return None
+    value = raw_url.strip()
+    if not value:
+        return None
+    parsed = urlparse(value)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _infer_frontend_origin_from_public_api_base_url(public_api_base_url: str | None) -> str | None:
+    origin = _origin_from_url(public_api_base_url)
+    if origin is None:
+        return None
+
+    parsed = urlparse(origin)
+    host = parsed.hostname or ""
+    if not host.startswith("api."):
+        return None
+
+    desk_host = f"desk.{host.removeprefix('api.')}"
+    if parsed.port:
+        return f"{parsed.scheme}://{desk_host}:{parsed.port}"
+    return f"{parsed.scheme}://{desk_host}"
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str
@@ -109,9 +138,11 @@ def get_settings() -> Settings:
             "http://localhost:6173",
         ],
     )
-    frontend_origin = os.getenv("FRONTEND_ORIGIN")
-    if frontend_origin:
-        cors_origins = _merge_unique([frontend_origin, *cors_origins])
+    frontend_origin = _origin_from_url(_first_non_empty("FRONTEND_ORIGIN", "FRONTEND_BASE_URL"))
+    inferred_frontend_origin = _infer_frontend_origin_from_public_api_base_url(
+        _first_non_empty("PUBLIC_API_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL", "PUBLIC_BASE_URL")
+    )
+    cors_origins = _merge_unique([*cors_origins, frontend_origin or "", inferred_frontend_origin or ""])
 
     settings = Settings(
         app_env=app_env,

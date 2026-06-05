@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-04 Production CORS hardening complete: pinned desk/api domain env values in Render config, added backend origin normalization for `FRONTEND_BASE_URL`, and added automatic `desk.<domain>` inference from `PUBLIC_API_BASE_URL=https://api.<domain>` to prevent browser-level cross-origin fetch failures
 - 2026-06-04 Voicemail callback dialer complete: added a callback center to the voicemail page with dialpad, customer search, recent caller shortcuts, per-voicemail call-back actions, and a protected outbound Twilio call endpoint with a public TwiML callback route
 - 2026-06-03 Professional redesign + auth/permissions hardening complete: refactored AppShell into formal sidebar/top-bar layout with top-right account menu and change-password modal flow, added frontend route-level role guards + access denied page, enforced owner-only team/invite management, enforced owner/admin pricing writes with technician/viewer read-only pricing UI, normalized backend role dependencies across auth/pricing/tickets/customers/repair-categories/status-workflow/hours/reports routes, and expanded backend/frontend tests for permission behavior
 - 2026-06-03 Dedicated Pricing page and catalog complete: added `/pricing` route and sidebar entry, moved pricing management out of Settings, implemented backend pricing catalog schema (brands/models/issue types/repair types/rules) with seeded starter values and CRUD endpoints, plus intake-side suggested-price helper based on brand/model/issue matching

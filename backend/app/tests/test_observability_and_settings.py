@@ -95,6 +95,21 @@ def test_frontend_origin_is_included_in_cors_origins(monkeypatch):
     assert "https://desk.example.com" in settings.cors_origins
 
 
+def test_frontend_base_url_is_included_in_cors_origins(monkeypatch):
+    monkeypatch.delenv("FRONTEND_ORIGIN", raising=False)
+    monkeypatch.setenv("FRONTEND_BASE_URL", "https://desk.example.com/some/path")
+    settings = get_settings()
+    assert "https://desk.example.com" in settings.cors_origins
+
+
+def test_public_api_base_url_infers_desk_origin_for_cors(monkeypatch):
+    monkeypatch.delenv("FRONTEND_ORIGIN", raising=False)
+    monkeypatch.delenv("FRONTEND_BASE_URL", raising=False)
+    monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+    settings = get_settings()
+    assert "https://desk.example.com" in settings.cors_origins
+
+
 def test_cors_allowed_origins_alias_is_supported(monkeypatch):
     monkeypatch.delenv("TECH_RESTORE_CORS_ORIGINS", raising=False)
     monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://desk.example.com,https://desk2.example.com")

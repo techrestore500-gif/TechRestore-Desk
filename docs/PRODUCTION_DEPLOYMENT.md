@@ -165,6 +165,22 @@ Simplest safe first-production option:
 7. Confirm backups are written and restorable.
 8. Confirm `GET /api/system/runtime-diagnostics` reports `/var/data/tech_restore_desk.sqlite` and `persistence_status=persistent_disk`.
 
+## Required domain env pinning (desk + API)
+
+To prevent browser-level `Failed to fetch` errors between desk and API domains, pin these backend env values:
+- `FRONTEND_ORIGIN=https://desk.<domain>`
+- `FRONTEND_BASE_URL=https://desk.<domain>`
+- `PUBLIC_API_BASE_URL=https://api.<domain>`
+- `PUBLIC_BASE_URL=https://api.<domain>`
+- `CORS_ALLOWED_ORIGINS=https://desk.<domain>`
+
+Frontend static env should also pin:
+- `VITE_API_BASE_URL=https://api.<domain>`
+
+Notes:
+- Backend now also infers `https://desk.<domain>` from `PUBLIC_API_BASE_URL=https://api.<domain>` as a safety fallback.
+- Explicit env pinning is still recommended as the primary source of truth.
+
 ## Future auth boundary (recommended next step)
 
 Keep public webhook routes open, and add explicit backend auth boundaries for all non-webhook API routes:
