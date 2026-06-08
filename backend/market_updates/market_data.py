@@ -3,10 +3,19 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
+import requests
 import yfinance as yf
+from requests import Session
+import urllib3
 
 logger = logging.getLogger(__name__)
+
+YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+_REQUEST_SESSION = Session()
+_REQUEST_SESSION.headers.update({"User-Agent": "Mozilla/5.0"})
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 SYMBOL_DISPLAY_NAME = {
     "^GSPC": "S&P 500",
@@ -49,6 +58,74 @@ def _format_source_time(raw_value: object) -> str | None:
             logger.debug("Failed converting provider timestamp", exc_info=True)
 
     return str(raw_value)
+
+
+def _coerce_float(raw_value: object) -> float | None:
+    if raw_value is None:
+        return None
+
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _fetch_quote_from_yahoo_chart(symbol: str) -> MarketQuote:
+    response = _REQUEST_SESSION.get(
+        YAHOO_CHART_URL.format(symbol=symbol),
+        params={"range": "2d", "interval": "1d", "includePrePost": "false", "events": "div,splits"},
+        timeout=20,
+        verify=False,
+    )
+    response.raise_for_status()
+
+    payload = response.json()
+    chart = payload.get("chart") or {}
+    results = chart.get("result") or []
+    if not results:
+        raise RuntimeError(f"No chart result returned for symbol {symbol}")
+
+    result = results[0]
+    meta = result.get("meta") or {}
+    indicators = result.get("indicators") or {}
+    quote_series = indicators.get("quote") or []
+    if not quote_series:
+        raise RuntimeError(f"No quote series returned for symbol {symbol}")
+
+    price_series = quote_series[0]
+    close_values = [float(value) for value in (price_series.get("close") or []) if value is not None]
+    if not close_values:
+        raise RuntimeError(f"No close data returned for symbol {symbol}")
+
+    latest_price = _coerce_float(meta.get("regularMarketPrice")) or close_values[-1]
+    previous_close = (
+        _coerce_float(meta.get("chartPreviousClose"))
+        or _coerce_float(meta.get("regularMarketPreviousClose"))
+        or (close_values[-2] if len(close_values) > 1 else None)
+        or _coerce_float(price_series.get("open"))
+        or latest_price
+    )
+    daily_change = latest_price - previous_close
+    daily_percent_change = 0.0 if previous_close == 0 else (daily_change / previous_close) * 100.0
+
+    source_time: str | None = None
+    market_time = _coerce_float(meta.get("regularMarketTime"))
+    if market_time is not None:
+        source_time = datetime.fromtimestamp(int(market_time), tz=ZoneInfo("UTC")).isoformat()
+    else:
+        timestamps = result.get("timestamp") or []
+        if timestamps:
+            source_time = datetime.fromtimestamp(int(timestamps[-1]), tz=ZoneInfo("UTC")).isoformat()
+
+    return MarketQuote(
+        display_name=_display_name_for_symbol(symbol),
+        symbol=symbol,
+        latest_price=latest_price,
+        daily_change=daily_change,
+        daily_percent_change=daily_percent_change,
+        source_time=source_time,
+        available=True,
+    )
 
 
 def _fetch_quote_from_yfinance(symbol: str) -> MarketQuote:
@@ -96,7 +173,9 @@ def fetch_market_data(symbols: list[str], provider: str = "yfinance") -> list[Ma
     quotes: list[MarketQuote] = []
     for symbol in symbols:
         try:
-            quote = _fetch_quote_from_yfinance(symbol)
+            quote = _fetch_quote_from_yahoo_chart(symbol)
+            if quote.latest_price is None or quote.daily_percent_change is None:
+                quote = _fetch_quote_from_yfinance(symbol)
             quotes.append(quote)
         except Exception as exc:
             logger.exception("Market data fetch failed for symbol=%s", symbol)

@@ -102,7 +102,7 @@ def test_formatter_outputs_compact_sms_lines() -> None:
 
 
 def test_fetch_market_data_handles_partial_symbol_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_fetch(symbol: str) -> MarketQuote:
+    def fake_chart_fetch(symbol: str) -> MarketQuote:
         if symbol == "BTC-USD":
             raise RuntimeError("Provider timeout")
         return MarketQuote(
@@ -115,7 +115,21 @@ def test_fetch_market_data_handles_partial_symbol_failure(monkeypatch: pytest.Mo
             available=True,
         )
 
-    monkeypatch.setattr("market_updates.market_data._fetch_quote_from_yfinance", fake_fetch)
+    def fake_yfinance_fetch(symbol: str) -> MarketQuote:
+        if symbol == "BTC-USD":
+            raise RuntimeError("Provider timeout")
+        return MarketQuote(
+            display_name="S&P 500",
+            symbol=symbol,
+            latest_price=5432.1,
+            daily_change=22.6,
+            daily_percent_change=0.42,
+            source_time="2026-06-07T16:05:00",
+            available=True,
+        )
+
+    monkeypatch.setattr("market_updates.market_data._fetch_quote_from_yahoo_chart", fake_chart_fetch)
+    monkeypatch.setattr("market_updates.market_data._fetch_quote_from_yfinance", fake_yfinance_fetch)
 
     quotes = fetch_market_data(["^GSPC", "BTC-USD"], provider="yfinance")
     assert len(quotes) == 2
