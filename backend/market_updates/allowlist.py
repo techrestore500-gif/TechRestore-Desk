@@ -16,9 +16,21 @@ def normalize_phone(phone: str) -> str:
     compact = re.sub(r"[^0-9+]", "", (phone or "").strip())
     if compact.startswith("00"):
         compact = "+" + compact[2:]
-    if compact and not compact.startswith("+") and compact.isdigit():
-        compact = "+" + compact
-    return compact
+
+    if compact.startswith("+"):
+        digits = re.sub(r"\D", "", compact[1:])
+        if len(digits) == 10:
+            return "+1" + digits
+        return ("+" + digits) if digits else ""
+
+    digits = re.sub(r"\D", "", compact)
+    if not digits:
+        return ""
+    if len(digits) == 10:
+        return "+1" + digits
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    return "+" + digits
 
 
 def _seed_from_env(connection) -> None:

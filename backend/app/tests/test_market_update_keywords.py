@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
-from market_updates.allowlist import is_number_allowed, upsert_allowlist_number
+from market_updates.allowlist import is_number_allowed, normalize_phone, upsert_allowlist_number
 from market_updates.feedback_store import list_feedback_entries
 from market_updates.keyword_handlers import handle_inbound_market_sms
 from market_updates.notifications import create_notification, list_notifications_for_recipient
@@ -221,6 +221,11 @@ def test_blocked_number_receives_request_prompt(market_updates_db: Path) -> None
 def test_blocked_number_can_submit_invite_request(market_updates_db: Path) -> None:
     reply = handle_inbound_market_sms(from_number="+15550001111", body="REQUEST Alex")
     assert "pending approval" in reply
+
+
+def test_normalize_phone_us_ten_digit_defaults_to_plus_one() -> None:
+    assert normalize_phone("8483291230") == "+18483291230"
+    assert normalize_phone("914 587 0597") == "+19145870597"
 
 
 def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
