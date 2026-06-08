@@ -224,10 +224,9 @@ def test_blocked_number_can_submit_invite_request(market_updates_db: Path) -> No
 
 
 def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeConfig:
-        twilio_account_sid = "AC_TEST"
-        twilio_auth_token = "token"
-        twilio_from_number = "+15555550001"
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+    monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+15555550001")
 
     sent: list[dict] = []
 
@@ -240,7 +239,6 @@ def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatc
         sent.append(kwargs)
         return SendResult()
 
-    monkeypatch.setattr("market_updates.keyword_handlers.load_config", lambda: FakeConfig())
     monkeypatch.setattr("market_updates.keyword_handlers.send_market_update_sms", fake_send_market_update_sms)
 
     reply = handle_inbound_market_sms(from_number="+15550001111", body="@market")
@@ -250,17 +248,15 @@ def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatc
 
 
 def test_approver_yes_adds_requester_to_allowlist(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeConfig:
-        twilio_account_sid = "AC_TEST"
-        twilio_auth_token = "token"
-        twilio_from_number = "+15555550001"
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+    monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+15555550001")
 
     class SendResult:
         success = True
         message_sid = "SM_TEST"
         error_message = None
 
-    monkeypatch.setattr("market_updates.keyword_handlers.load_config", lambda: FakeConfig())
     monkeypatch.setattr("market_updates.keyword_handlers.send_market_update_sms", lambda **kwargs: SendResult())
 
     requester = "+15550001111"

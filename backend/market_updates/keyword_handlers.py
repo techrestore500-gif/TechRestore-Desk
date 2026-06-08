@@ -12,7 +12,6 @@ from market_updates.allowlist import (
     list_invite_requests,
     normalize_phone,
 )
-from market_updates.config import load_config
 from market_updates.keywords import (
     CONFIRM_KEYWORDS,
     DIRECTION_KEYWORDS,
@@ -76,16 +75,21 @@ def _is_approver_number(from_number: str) -> bool:
 
 
 def _send_sms_notification(to_number: str, message_body: str) -> None:
-    try:
-        config = load_config()
-    except Exception:
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    from_number = (
+        os.getenv("TWILIO_FROM_NUMBER", "").strip()
+        or os.getenv("TWILIO_PHONE_NUMBER", "").strip()
+    )
+
+    if not account_sid or not auth_token or not from_number:
         return
 
     try:
         send_market_update_sms(
-            twilio_account_sid=config.twilio_account_sid,
-            twilio_auth_token=config.twilio_auth_token,
-            from_number=config.twilio_from_number,
+            twilio_account_sid=account_sid,
+            twilio_auth_token=auth_token,
+            from_number=from_number,
             to_number=to_number,
             message_body=message_body,
         )
