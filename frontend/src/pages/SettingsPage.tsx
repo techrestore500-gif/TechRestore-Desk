@@ -487,6 +487,7 @@ export default function SettingsPage() {
                         <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Phone / voicemail</a>
                         <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Ticket workflow</a>
                         <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System / backup</a>
+                        <Link to="/market-updates-admin" style={{ ...t.miniBtn, textDecoration: "none" }}>Market SMS admin</Link>
                     </div>
                 </div>
                 <div style={t.fieldGridTwoCompact}>
