@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from market_updates.allowlist import create_or_update_invite_request, is_number_allowed
+from market_updates.allowlist import (
+    approve_invite_request,
+    create_or_update_invite_request,
+    is_number_allowed,
+    list_invite_requests,
+    normalize_phone,
+)
+from market_updates.config import load_config
 from market_updates.keywords import (
     CONFIRM_KEYWORDS,
     DIRECTION_KEYWORDS,
@@ -30,6 +38,7 @@ from market_updates.notifications import (
     set_notification_enabled_for_recipient,
 )
 from market_updates.session_state import STATE_IDLE, clear_session, get_session, save_session
+from market_updates.sms_sender import send_market_update_sms
 
 STATE_CHECK_CHOOSE_SYMBOL = "check_choose_symbol"
 STATE_CHECK_CUSTOM_SYMBOL = "check_custom_symbol"
@@ -50,6 +59,115 @@ STATE_INTERVAL_CHOOSE_MINUTES = "interval_choose_minutes"
 STATE_INTERVAL_CHOOSE_START = "interval_choose_start"
 STATE_INTERVAL_CHOOSE_STOP = "interval_choose_stop"
 STATE_PENDING_CONFIRM = "pending_confirm"
+
+
+def _approver_phone_number() -> str:
+    configured = os.getenv("MARKET_ACCESS_APPROVER_NUMBER", "").strip()
+    if configured:
+        return normalize_phone(configured)
+    return normalize_phone("8483291230")
+
+
+def _is_approver_number(from_number: str) -> bool:
+    approver = _approver_phone_number()
+    if not approver:
+        return False
+    return normalize_phone(from_number) == approver
+
+
+def _send_sms_notification(to_number: str, message_body: str) -> None:
+    try:
+        config = load_config()
+    except Exception:
+        return
+
+    try:
+        send_market_update_sms(
+            twilio_account_sid=config.twilio_account_sid,
+            twilio_auth_token=config.twilio_auth_token,
+            from_number=config.twilio_from_number,
+            to_number=to_number,
+            message_body=message_body,
+        )
+    except Exception:
+        return
+
+
+def _render_pending_requests_for_approver() -> str:
+    pending = list_invite_requests(status="pending")
+    if not pending:
+        return "No pending access requests right now."
+
+    lines = ["Pending access requests:"]
+    for item in pending[:8]:
+        request_id = int(item.get("id") or 0)
+        phone = str(item.get("phone_number") or "")
+        label = str(item.get("requested_label") or "").strip()
+        if label:
+            lines.append(f"{request_id}: {phone} ({label})")
+        else:
+            lines.append(f"{request_id}: {phone}")
+    lines.append("Reply YES <id> to approve.")
+    return "\n".join(lines)
+
+
+def _handle_approver_reply(from_number: str, message: str) -> str | None:
+    if not _is_approver_number(from_number):
+        return None
+
+    if message == "PENDING":
+        return _render_pending_requests_for_approver()
+
+    yes_match = re.fullmatch(r"YES(?:\s+(\d+))?", message)
+    if yes_match is None:
+        return None
+
+    request_id_raw = yes_match.group(1)
+    if request_id_raw is None:
+        pending = list_invite_requests(status="pending")
+        if len(pending) != 1:
+            return "Reply YES <id> to approve. Reply PENDING to view request IDs."
+        request_id = int(pending[0].get("id") or 0)
+    else:
+        request_id = int(request_id_raw)
+
+    approved = approve_invite_request(request_id)
+    if approved is None:
+        return "Request not found. Reply PENDING to view pending IDs."
+
+    if str(approved.get("status") or "") != "approved":
+        return f"Request {request_id} is already {approved.get('status')}."
+
+    requester_phone = str(approved.get("phone_number") or "").strip()
+    if requester_phone:
+        _send_sms_notification(
+            to_number=requester_phone,
+            message_body="Your Tech Restore access request is approved. You can now text HELP to begin.",
+        )
+
+    return f"Approved request {request_id} for {requester_phone}."
+
+
+def _notify_approver_about_request(request_row: dict, from_number: str) -> None:
+    approver = _approver_phone_number()
+    if not approver:
+        return
+
+    request_id = int(request_row.get("id") or 0)
+    requested_label = str(request_row.get("requested_label") or "").strip()
+    if requested_label:
+        message = (
+            f"Tech Restore access request #{request_id} from {normalize_phone(from_number)} ({requested_label}). "
+            "Reply YES "
+            f"{request_id} to approve."
+        )
+    else:
+        message = (
+            f"Tech Restore access request #{request_id} from {normalize_phone(from_number)}. "
+            "Reply YES "
+            f"{request_id} to approve."
+        )
+    _send_sms_notification(to_number=approver, message_body=message)
 
 
 def _main_menu() -> str:
@@ -434,7 +552,24 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
     if not from_number.strip():
         return _main_menu()
 
+    approver_response = _handle_approver_reply(from_number, message)
+    if approver_response is not None:
+        return approver_response
+
     if not is_number_allowed(from_number):
+        if message == "@MARKET":
+            request_row = create_or_update_invite_request(
+                from_number,
+                message_text=body.strip() or "@MARKET",
+                requested_label="@MARKET access",
+            )
+            _notify_approver_about_request(request_row, from_number)
+            request_id = int(request_row.get("id") or 0)
+            return (
+                "Thanks for contacting Tech Restore. Your access request has been sent for approval "
+                f"(request #{request_id}). We will notify you after approval."
+            )
+
         if message.startswith("REQUEST") or message.startswith("INVITE") or message.startswith("ACCESS"):
             request_text = body.strip()
             label = ""

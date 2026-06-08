@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
-from market_updates.allowlist import upsert_allowlist_number
+from market_updates.allowlist import is_number_allowed, upsert_allowlist_number
 from market_updates.feedback_store import list_feedback_entries
 from market_updates.keyword_handlers import handle_inbound_market_sms
 from market_updates.notifications import create_notification, list_notifications_for_recipient
@@ -17,6 +17,7 @@ from market_updates.notifications import create_notification, list_notifications
 def market_updates_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db_path = tmp_path / "market_updates.sqlite"
     monkeypatch.setenv("MARKET_UPDATES_DB_PATH", str(db_path))
+    monkeypatch.setenv("MARKET_ACCESS_APPROVER_NUMBER", "+18483291230")
     monkeypatch.delenv("MARKET_UPDATES_ALLOWED_NUMBERS", raising=False)
     upsert_allowlist_number("+15555550001", label="Primary tester", enabled=True)
     upsert_allowlist_number("+15555559999", label="Secondary tester", enabled=True)
@@ -220,6 +221,55 @@ def test_blocked_number_receives_request_prompt(market_updates_db: Path) -> None
 def test_blocked_number_can_submit_invite_request(market_updates_db: Path) -> None:
     reply = handle_inbound_market_sms(from_number="+15550001111", body="REQUEST Alex")
     assert "pending approval" in reply
+
+
+def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeConfig:
+        twilio_account_sid = "AC_TEST"
+        twilio_auth_token = "token"
+        twilio_from_number = "+15555550001"
+
+    sent: list[dict] = []
+
+    class SendResult:
+        success = True
+        message_sid = "SM_TEST"
+        error_message = None
+
+    def fake_send_market_update_sms(**kwargs):
+        sent.append(kwargs)
+        return SendResult()
+
+    monkeypatch.setattr("market_updates.keyword_handlers.load_config", lambda: FakeConfig())
+    monkeypatch.setattr("market_updates.keyword_handlers.send_market_update_sms", fake_send_market_update_sms)
+
+    reply = handle_inbound_market_sms(from_number="+15550001111", body="@market")
+    assert "request #" in reply.lower()
+    assert sent
+    assert sent[0]["to_number"] == "+18483291230"
+
+
+def test_approver_yes_adds_requester_to_allowlist(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeConfig:
+        twilio_account_sid = "AC_TEST"
+        twilio_auth_token = "token"
+        twilio_from_number = "+15555550001"
+
+    class SendResult:
+        success = True
+        message_sid = "SM_TEST"
+        error_message = None
+
+    monkeypatch.setattr("market_updates.keyword_handlers.load_config", lambda: FakeConfig())
+    monkeypatch.setattr("market_updates.keyword_handlers.send_market_update_sms", lambda **kwargs: SendResult())
+
+    requester = "+15550001111"
+    initial = handle_inbound_market_sms(from_number=requester, body="@market")
+    assert "request #" in initial.lower()
+
+    approve = handle_inbound_market_sms(from_number="+18483291230", body="YES 1")
+    assert "approved request" in approve.lower()
+    assert is_number_allowed(requester) is True
 
 
 def test_feedback_keyword_persists_feedback(market_updates_db: Path) -> None:
