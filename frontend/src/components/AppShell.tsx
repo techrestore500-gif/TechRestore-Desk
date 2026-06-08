@@ -13,7 +13,15 @@ type NavItem = {
     group: "Core" | "Operations" | "Administration";
     hiddenFor?: AuthRole[];
     visibleFor?: AuthRole[];
+    marketHostOnly?: boolean;
 };
+
+const MARKET_HOSTNAME = "market.techrestoredesk.com";
+
+function isMarketHost(): boolean {
+    const host = window.location.hostname.toLowerCase();
+    return host === MARKET_HOSTNAME || host === "localhost" || host === "127.0.0.1" || host.endsWith(".onrender.com");
+}
 
 const navItems: NavItem[] = [
     { to: "/", label: "Dashboard", group: "Core" },
@@ -24,7 +32,13 @@ const navItems: NavItem[] = [
     { to: "/pricing", label: "Pricing", group: "Operations" },
     { to: "/operations", label: "Shop Tools", group: "Operations", hiddenFor: ["viewer"] },
     { to: "/reports", label: "Reports", group: "Operations" },
-    { to: "/market-updates-admin", label: "Market SMS Admin", group: "Administration", visibleFor: ["owner", "admin"] },
+    {
+        to: "/market-updates-admin",
+        label: "Market SMS Admin",
+        group: "Administration",
+        visibleFor: ["owner", "admin"],
+        marketHostOnly: true,
+    },
     { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin"] },
     { to: "/users-invites", label: "Team Access", group: "Administration", visibleFor: ["owner"] },
 ];
@@ -297,6 +311,9 @@ export function AppShell() {
                     return false;
                 }
                 if (item.to === "/settings" && !canAccessSettings(user)) {
+                    return false;
+                }
+                if (item.marketHostOnly && !isMarketHost()) {
                     return false;
                 }
                 return true;

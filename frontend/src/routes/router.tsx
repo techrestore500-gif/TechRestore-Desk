@@ -22,6 +22,18 @@ import TicketsPage from "../pages/TicketsPage";
 import VoicemailPage from "../pages/VoicemailPage";
 import MarketUpdatesAdminPage from "../pages/MarketUpdatesAdminPage";
 
+const MARKET_HOSTNAME = "market.techrestoredesk.com";
+
+function canAccessMarketAdminOnThisHost(): boolean {
+    const host = window.location.hostname.toLowerCase();
+    return host === MARKET_HOSTNAME || host === "localhost" || host === "127.0.0.1" || host.endsWith(".onrender.com");
+}
+
+function MarketAdminHostRedirect() {
+    window.location.replace(`https://${MARKET_HOSTNAME}/market-updates-admin`);
+    return null;
+}
+
 export const router = createBrowserRouter([
     {
         path: "/login",
@@ -129,7 +141,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "market-updates-admin",
-                element: (
+                element: canAccessMarketAdminOnThisHost() ? (
                     <RequireRole
                         allowedRoles={["owner", "admin"]}
                         deniedTitle="Market Updates Admin access is restricted"
@@ -137,6 +149,8 @@ export const router = createBrowserRouter([
                     >
                         <MarketUpdatesAdminPage />
                     </RequireRole>
+                ) : (
+                    <MarketAdminHostRedirect />
                 ),
             },
         ],

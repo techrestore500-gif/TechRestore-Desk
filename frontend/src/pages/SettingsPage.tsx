@@ -39,6 +39,8 @@ import { useAsyncData } from "../hooks/useAsyncData";
 import { PageHeader, SectionCard } from "../components/PageChrome";
 import * as t from "../styles/theme";
 
+const MARKET_HOSTNAME = "market.techrestoredesk.com";
+
 // ─── localStorage helpers ───
 function loadSetting<T>(key: string, fallback: T, legacyKeys: string[] = []): T {
     try {
@@ -458,6 +460,10 @@ export default function SettingsPage() {
     const activeCategoryCount = managedRepairCategories.filter((category) => category.active).length;
     const workflowRuleCount = Object.keys(workflowTransitionsDraft).length;
     const showSection = (section: "business" | "communications" | "workflow" | "system") => settingsFocus === "all" || settingsFocus === section;
+    const showMarketAdminShortcut = (() => {
+        const host = window.location.hostname.toLowerCase();
+        return host === MARKET_HOSTNAME || host === "localhost" || host === "127.0.0.1" || host.endsWith(".onrender.com");
+    })();
 
     return (
         <section style={t.pageWrap}>
@@ -487,7 +493,7 @@ export default function SettingsPage() {
                         <a href="#settings-communications" style={{ ...t.miniBtn, textDecoration: "none" }}>Phone / voicemail</a>
                         <a href="#settings-workflow" style={{ ...t.miniBtn, textDecoration: "none" }}>Ticket workflow</a>
                         <a href="#settings-system" style={{ ...t.miniBtn, textDecoration: "none" }}>System / backup</a>
-                        <Link to="/market-updates-admin" style={{ ...t.miniBtn, textDecoration: "none" }}>Market SMS admin</Link>
+                        {showMarketAdminShortcut ? <Link to="/market-updates-admin" style={{ ...t.miniBtn, textDecoration: "none" }}>Market SMS admin</Link> : null}
                     </div>
                 </div>
                 <div style={t.fieldGridTwoCompact}>
