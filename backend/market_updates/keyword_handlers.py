@@ -587,10 +587,9 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
 
         create_or_update_invite_request(from_number, message_text=body.strip() or None)
         return (
-            "Thanks for contacting Tech Restore. This number is not enabled for text support on this line. "
-            "To leave a message for Tech Restore, please call us instead of texting. "
+            "Thank you for contacting Tech Restore. This line does not accept text messages. "
+            "Please call us on this number and leave us a message. "
             "For immediate support, call or text 8483291230. "
-            "If you need access updates, reply REQUEST <your name>."
         )
 
     session = get_session(from_number)
