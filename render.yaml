@@ -46,3 +46,20 @@ services:
         value: https://api.techrestoredesk.com
       - key: VITE_AUTH_ENABLED
         value: true
+
+  - type: web
+    name: tech-restore-feedback
+    env: python
+    rootDir: feedback_service
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FEEDBACK_PORTAL_PASSWORD
+        sync: false
+      - key: FEEDBACK_PORTAL_SESSION_SECRET
+        sync: false
+      - key: FEEDBACK_PORTAL_INGEST_TOKEN
+        sync: false

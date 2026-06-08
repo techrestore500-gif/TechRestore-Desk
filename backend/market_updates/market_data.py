@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -33,6 +33,16 @@ class MarketQuote:
     latest_price: float | None
     daily_change: float | None
     daily_percent_change: float | None
+    source_time: str | None
+    available: bool = True
+
+
+@dataclass(frozen=True)
+class HistoricalMarketQuote:
+    display_name: str
+    symbol: str
+    target_date: str
+    close_price: float | None
     source_time: str | None
     available: bool = True
 
@@ -128,6 +138,61 @@ def _fetch_quote_from_yahoo_chart(symbol: str) -> MarketQuote:
     )
 
 
+def _fetch_historical_close_from_yahoo_chart(symbol: str, target_date: date) -> HistoricalMarketQuote:
+    period_start = datetime.combine(target_date - timedelta(days=7), time(0, 0), tzinfo=ZoneInfo("UTC"))
+    period_end = datetime.combine(target_date + timedelta(days=1), time(0, 0), tzinfo=ZoneInfo("UTC"))
+
+    response = _REQUEST_SESSION.get(
+        YAHOO_CHART_URL.format(symbol=symbol),
+        params={
+            "period1": int(period_start.timestamp()),
+            "period2": int(period_end.timestamp()),
+            "interval": "1d",
+            "includePrePost": "false",
+            "events": "div,splits",
+        },
+        timeout=20,
+        verify=False,
+    )
+    response.raise_for_status()
+
+    payload = response.json()
+    chart = payload.get("chart") or {}
+    results = chart.get("result") or []
+    if not results:
+        raise RuntimeError(f"No chart result returned for symbol {symbol}")
+
+    result = results[0]
+    timestamps = result.get("timestamp") or []
+    indicators = result.get("indicators") or {}
+    quote_series = indicators.get("quote") or []
+    if not timestamps or not quote_series:
+        raise RuntimeError(f"No historical data returned for symbol {symbol}")
+
+    closes = quote_series[0].get("close") or []
+    close_candidates: list[tuple[datetime, float]] = []
+    for ts, raw_close in zip(timestamps, closes):
+        close_value = _coerce_float(raw_close)
+        if close_value is None:
+            continue
+        ts_dt = datetime.fromtimestamp(int(ts), tz=ZoneInfo("UTC"))
+        if ts_dt.date() <= target_date:
+            close_candidates.append((ts_dt, close_value))
+
+    if not close_candidates:
+        raise RuntimeError(f"No historical close on or before {target_date.isoformat()} for symbol {symbol}")
+
+    source_time, close_price = close_candidates[-1]
+    return HistoricalMarketQuote(
+        display_name=_display_name_for_symbol(symbol),
+        symbol=symbol,
+        target_date=target_date.isoformat(),
+        close_price=close_price,
+        source_time=source_time.isoformat(),
+        available=True,
+    )
+
+
 def _fetch_quote_from_yfinance(symbol: str) -> MarketQuote:
     ticker = yf.Ticker(symbol)
     history = ticker.history(period="2d", interval="1d", auto_adjust=False)
@@ -191,5 +256,32 @@ def fetch_market_data(symbols: list[str], provider: str = "yfinance") -> list[Ma
                 )
             )
             logger.debug("Market data provider error for symbol=%s: %s", symbol, exc)
+
+    return quotes
+
+
+def fetch_market_data_for_date(symbols: list[str], target_date: date, provider: str = "yfinance") -> list[HistoricalMarketQuote]:
+    provider_name = provider.strip().lower()
+    if provider_name != "yfinance":
+        raise ValueError(f"Unsupported market data provider: {provider}")
+
+    quotes: list[HistoricalMarketQuote] = []
+    for symbol in symbols:
+        try:
+            quote = _fetch_historical_close_from_yahoo_chart(symbol, target_date)
+            quotes.append(quote)
+        except Exception as exc:
+            logger.exception("Historical market data fetch failed for symbol=%s date=%s", symbol, target_date.isoformat())
+            quotes.append(
+                HistoricalMarketQuote(
+                    display_name=_display_name_for_symbol(symbol),
+                    symbol=symbol,
+                    target_date=target_date.isoformat(),
+                    close_price=None,
+                    source_time=None,
+                    available=False,
+                )
+            )
+            logger.debug("Historical provider error for symbol=%s date=%s: %s", symbol, target_date.isoformat(), exc)
 
     return quotes

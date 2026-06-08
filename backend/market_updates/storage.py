@@ -49,7 +49,9 @@ def ensure_tables() -> None:
                 condition TEXT,
                 threshold REAL,
                 reminder_time TEXT,
+                stop_time TEXT,
                 recurrence TEXT,
+                interval_minutes INTEGER,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 completed INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
@@ -57,6 +59,76 @@ def ensure_tables() -> None:
                 last_triggered_at TEXT,
                 original_text TEXT
             )
+            """
+        )
+
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(market_notifications)").fetchall()
+        }
+        if "stop_time" not in columns:
+            connection.execute("ALTER TABLE market_notifications ADD COLUMN stop_time TEXT")
+        if "interval_minutes" not in columns:
+            connection.execute("ALTER TABLE market_notifications ADD COLUMN interval_minutes INTEGER")
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS market_sms_allowlist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone_number TEXT NOT NULL UNIQUE,
+                label TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS market_sms_invite_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone_number TEXT NOT NULL,
+                requested_label TEXT,
+                message_text TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(phone_number, status)
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS market_feedback_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone_number TEXT NOT NULL,
+                feedback_text TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'sms',
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_market_sms_allowlist_enabled
+            ON market_sms_allowlist(phone_number, enabled)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_market_sms_invite_requests_status
+            ON market_sms_invite_requests(status, updated_at)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_market_feedback_entries_created
+            ON market_feedback_entries(created_at DESC, id DESC)
             """
         )
 

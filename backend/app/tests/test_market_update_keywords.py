@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
+from market_updates.allowlist import upsert_allowlist_number
+from market_updates.feedback_store import list_feedback_entries
 from market_updates.keyword_handlers import handle_inbound_market_sms
 from market_updates.notifications import create_notification, list_notifications_for_recipient
 
@@ -15,6 +17,9 @@ from market_updates.notifications import create_notification, list_notifications
 def market_updates_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db_path = tmp_path / "market_updates.sqlite"
     monkeypatch.setenv("MARKET_UPDATES_DB_PATH", str(db_path))
+    monkeypatch.delenv("MARKET_UPDATES_ALLOWED_NUMBERS", raising=False)
+    upsert_allowlist_number("+15555550001", label="Primary tester", enabled=True)
+    upsert_allowlist_number("+15555559999", label="Secondary tester", enabled=True)
     return db_path
 
 
@@ -31,18 +36,22 @@ def quote_stub(monkeypatch: pytest.MonkeyPatch) -> None:
             self.available = True
 
     def fake_fetch(symbols, provider="yfinance"):
-        display = "Bitcoin"
-        symbol = symbols[0]
-        if symbol == "^GSPC":
-            display = "S&P 500"
-        elif symbol == "^IXIC":
-            display = "Nasdaq Composite"
-        elif symbol == "BTC-USD":
+        out = []
+        for symbol in symbols:
             display = "Bitcoin"
+            if symbol == "^GSPC":
+                display = "S&P 500"
+            elif symbol == "^IXIC":
+                display = "Nasdaq Composite"
+            elif symbol == "BTC-USD":
+                display = "Bitcoin"
+            elif symbol == "AAPL":
+                display = "Apple"
 
-        quote = Quote(display)
-        quote.symbol = symbol
-        return [quote]
+            quote = Quote(display)
+            quote.symbol = symbol
+            out.append(quote)
+        return out
 
     monkeypatch.setattr("market_updates.keyword_handlers.fetch_market_data", fake_fetch)
 
@@ -73,6 +82,8 @@ def test_help_shows_main_menu(market_updates_db: Path) -> None:
     reply = handle_inbound_market_sms(from_number="+15555550001", body="HELP")
     assert "Market Assistant:" in reply
     assert "CHECK - check prices" in reply
+    assert "DATECHECK" in reply
+    assert "TICKER/LOOKUP/FIND" in reply
 
 
 def test_check_then_btc_returns_status(quote_stub: None, market_updates_db: Path) -> None:
@@ -121,8 +132,8 @@ def test_time_and_daily_flows_create_drafts(market_updates_db: Path) -> None:
     handle_inbound_market_sms(from_number="+15555550001", body="REMIND")
     handle_inbound_market_sms(from_number="+15555550001", body="TIME")
     ask_time = handle_inbound_market_sms(from_number="+15555550001", body="STATUS")
-    assert "What time should I send it" in ask_time
-    draft_time = handle_inbound_market_sms(from_number="+15555550001", body="9:30 AM")
+    assert "What date and time should I send it" in ask_time
+    draft_time = handle_inbound_market_sms(from_number="+15555550001", body="2026-06-20 9:30 AM")
     assert "Reminder draft:" in draft_time
 
     handle_inbound_market_sms(from_number="+15555550001", body="CANCEL")
@@ -144,7 +155,9 @@ def test_list_only_shows_sender_notifications_and_actions(market_updates_db: Pat
         condition="below",
         threshold=60000,
         reminder_time=None,
+        stop_time=None,
         recurrence=None,
+        interval_minutes=None,
         original_text="Bitcoin below",
     )
     create_notification(
@@ -155,7 +168,9 @@ def test_list_only_shows_sender_notifications_and_actions(market_updates_db: Pat
         condition="above",
         threshold=4000,
         reminder_time=None,
+        stop_time=None,
         recurrence=None,
+        interval_minutes=None,
         original_text="Ethereum above",
     )
 
@@ -192,3 +207,59 @@ def test_market_updates_sms_webhook_returns_twiml_public_route(client_auth: Test
     assert response.headers["content-type"].startswith("application/xml")
     assert "<Message>" in response.text
     assert "Market Assistant:" in response.text
+
+
+def test_blocked_number_receives_request_prompt(market_updates_db: Path) -> None:
+    reply = handle_inbound_market_sms(from_number="+15550001111", body="HELP")
+    assert "not on the allowed list" in reply
+
+
+def test_blocked_number_can_submit_invite_request(market_updates_db: Path) -> None:
+    reply = handle_inbound_market_sms(from_number="+15550001111", body="REQUEST Alex")
+    assert "pending approval" in reply
+
+
+def test_feedback_keyword_persists_feedback(market_updates_db: Path) -> None:
+    reply = handle_inbound_market_sms(from_number="+15555550001", body="FEEDBACK add option chain view")
+    assert "queued for review" in reply
+
+    entries = list_feedback_entries(limit=10)
+    assert entries
+    assert "option chain" in entries[0]["feedback_text"]
+
+
+def test_check_list_fetches_multiple_symbols(quote_stub: None, market_updates_db: Path) -> None:
+    reply = handle_inbound_market_sms(from_number="+15555550001", body="CHECK BTC AAPL")
+    assert "Latest prices:" in reply
+    assert "Bitcoin:" in reply
+    assert "Apple:" in reply
+
+
+def test_ticker_lookup_keyword_returns_matches(market_updates_db: Path) -> None:
+    reply = handle_inbound_market_sms(from_number="+15555550001", body="TICKER apple")
+    assert "Ticker matches:" in reply
+    assert "AAPL" in reply
+
+
+def test_datecheck_keyword_returns_historical_values(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class HistoricalQuote:
+        def __init__(self, symbol: str, display_name: str):
+            self.symbol = symbol
+            self.display_name = display_name
+            self.target_date = "2026-06-01"
+            self.close_price = 123.45
+            self.source_time = "2026-06-01T16:00:00+00:00"
+            self.available = True
+
+    def fake_hist_fetch(symbols, target_date, provider="yfinance"):
+        out = []
+        for symbol in symbols:
+            display = "Bitcoin" if symbol == "BTC-USD" else symbol
+            out.append(HistoricalQuote(symbol, display))
+        return out
+
+    monkeypatch.setattr("market_updates.keyword_handlers.fetch_market_data_for_date", fake_hist_fetch)
+
+    reply = handle_inbound_market_sms(from_number="+15555550001", body="DATECHECK 2026-06-01 BTC")
+    assert "Close on 2026-06-01:" in reply
+    assert "Bitcoin:" in reply

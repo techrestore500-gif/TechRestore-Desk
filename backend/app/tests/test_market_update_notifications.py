@@ -13,6 +13,7 @@ from market_updates.notification_runner import run
 def market_updates_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db_path = tmp_path / "market_updates.sqlite"
     monkeypatch.setenv("MARKET_UPDATES_DB_PATH", str(db_path))
+    monkeypatch.setenv("MARKET_UPDATES_ALLOWED_NUMBERS", "+15555550002")
     return db_path
 
 
@@ -37,7 +38,9 @@ def test_price_alert_triggers_when_condition_met(
         condition="below",
         threshold=60000,
         reminder_time=None,
+        stop_time=None,
         recurrence=None,
+        interval_minutes=None,
         original_text="Bitcoin below 60000",
     )
 
@@ -78,7 +81,9 @@ def test_price_alert_does_not_trigger_when_condition_not_met(
         condition="below",
         threshold=60000,
         reminder_time=None,
+        stop_time=None,
         recurrence=None,
+        interval_minutes=None,
         original_text="Bitcoin below 60000",
     )
 
@@ -119,7 +124,9 @@ def test_one_time_reminder_sends_once(
         condition=None,
         threshold=None,
         reminder_time="2026-06-07T10:00:00",
+        stop_time=None,
         recurrence="once",
+        interval_minutes=None,
         original_text="Check markets",
     )
 
@@ -161,7 +168,9 @@ def test_daily_reminder_advances_after_send(
         condition=None,
         threshold=None,
         reminder_time="09:30",
+        stop_time=None,
         recurrence="daily",
+        interval_minutes=None,
         original_text="Daily status",
     )
 
@@ -203,7 +212,9 @@ def test_runner_dry_run_sends_no_messages(
         condition="below",
         threshold=60000,
         reminder_time=None,
+        stop_time=None,
         recurrence=None,
+        interval_minutes=None,
         original_text="Bitcoin below 60000",
     )
 
@@ -229,3 +240,56 @@ def test_runner_dry_run_sends_no_messages(
     exit_code = run(["--dry-run"])
     assert exit_code == 0
     assert sent == []
+
+
+def test_interval_reminder_respects_cadence_and_stop_window(
+    market_updates_db: Path,
+    base_env: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reminder = create_notification(
+        recipient_phone="+15555550002",
+        notification_type="interval_reminder",
+        symbol=None,
+        display_name="Market status",
+        condition=None,
+        threshold=None,
+        reminder_time="2026-06-07T09:00:00-04:00",
+        stop_time="2026-06-07T12:00:00-04:00",
+        recurrence="interval",
+        interval_minutes=60,
+        original_text="Hourly status",
+    )
+
+    times = [
+        datetime.fromisoformat("2026-06-07T09:05:00-04:00"),
+        datetime.fromisoformat("2026-06-07T09:20:00-04:00"),
+        datetime.fromisoformat("2026-06-07T10:10:00-04:00"),
+        datetime.fromisoformat("2026-06-07T12:30:00-04:00"),
+    ]
+
+    monkeypatch.setattr("market_updates.notification_runner._now_local", lambda: times.pop(0))
+    monkeypatch.setattr("market_updates.notification_runner.fetch_market_data", lambda symbols, provider="yfinance": [])
+
+    sent: list[dict] = []
+
+    class Result:
+        success = True
+        message_sid = "SM_TEST"
+        error_message = None
+
+    def fake_send(**kwargs):
+        sent.append(kwargs)
+        return Result()
+
+    monkeypatch.setattr("market_updates.notification_runner.send_market_update_sms", fake_send)
+
+    assert run([]) == 0
+    assert run([]) == 0
+    assert run([]) == 0
+    assert run([]) == 0
+    assert len(sent) == 2
+
+    refreshed = get_notification_by_id(int(reminder["id"]))
+    assert refreshed is not None
+    assert int(refreshed["completed"]) == 1

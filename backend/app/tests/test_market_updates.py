@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
 from market_updates.config import MarketUpdateConfig, load_config
 from market_updates.formatter import format_market_update_sms
-from market_updates.market_data import MarketQuote, fetch_market_data
+from market_updates.market_data import HistoricalMarketQuote, MarketQuote, fetch_market_data, fetch_market_data_for_date
 from market_updates.sms_sender import send_market_update_sms_to_many
 from market_updates.send_market_update import run
 
@@ -141,6 +141,33 @@ def test_fetch_market_data_handles_partial_symbol_failure(monkeypatch: pytest.Mo
     assert second.available is False
     assert second.display_name == "Bitcoin"
     assert second.latest_price is None
+
+
+def test_fetch_market_data_for_date_handles_partial_symbol_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_hist_fetch(symbol: str, target_date: date) -> HistoricalMarketQuote:
+        if symbol == "BTC-USD":
+            raise RuntimeError("Provider timeout")
+        return HistoricalMarketQuote(
+            display_name="S&P 500",
+            symbol=symbol,
+            target_date=target_date.isoformat(),
+            close_price=5300.0,
+            source_time="2026-06-01T21:00:00+00:00",
+            available=True,
+        )
+
+    monkeypatch.setattr("market_updates.market_data._fetch_historical_close_from_yahoo_chart", fake_hist_fetch)
+
+    quotes = fetch_market_data_for_date(["^GSPC", "BTC-USD"], date(2026, 6, 1), provider="yfinance")
+    assert len(quotes) == 2
+
+    first, second = quotes
+    assert first.available is True
+    assert first.close_price == 5300.0
+
+    assert second.available is False
+    assert second.display_name == "Bitcoin"
+    assert second.close_price is None
 
 
 def test_cli_dry_run_does_not_send_sms(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

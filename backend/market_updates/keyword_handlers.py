@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
+from market_updates.allowlist import create_or_update_invite_request, is_number_allowed
 from market_updates.keywords import (
     CONFIRM_KEYWORDS,
     DIRECTION_KEYWORDS,
@@ -10,10 +12,15 @@ from market_updates.keywords import (
     SYMBOL_ALIASES,
     TOP_LEVEL_KEYWORDS,
     normalize_message,
+    parse_check_symbols,
+    parse_datecheck_request,
     parse_list_action,
     parse_symbol_keyword,
+    parse_ticker_lookup_query,
+    search_ticker_profiles,
 )
-from market_updates.market_data import fetch_market_data
+from market_updates.market_data import fetch_market_data, fetch_market_data_for_date
+from market_updates.feedback_store import create_feedback_entry
 from market_updates.notifications import (
     build_summary,
     create_notification,
@@ -37,6 +44,11 @@ STATE_TIME_CHOOSE_TIME = "time_choose_time"
 STATE_DAILY_CHOOSE_MESSAGE = "daily_choose_message"
 STATE_DAILY_CUSTOM_MESSAGE = "daily_custom_message"
 STATE_DAILY_CHOOSE_TIME = "daily_choose_time"
+STATE_INTERVAL_CHOOSE_MESSAGE = "interval_choose_message"
+STATE_INTERVAL_CUSTOM_MESSAGE = "interval_custom_message"
+STATE_INTERVAL_CHOOSE_MINUTES = "interval_choose_minutes"
+STATE_INTERVAL_CHOOSE_START = "interval_choose_start"
+STATE_INTERVAL_CHOOSE_STOP = "interval_choose_stop"
 STATE_PENDING_CONFIRM = "pending_confirm"
 
 
@@ -44,6 +56,9 @@ def _main_menu() -> str:
     return (
         "Market Assistant:\n"
         "CHECK - check prices\n"
+        "DATECHECK - historical close (YYYY-MM-DD symbols)\n"
+        "TICKER/LOOKUP/FIND - symbol finder\n"
+        "FEEDBACK - send product feedback\n"
         "REMIND - set notifications\n"
         "LIST - view notifications\n"
         "STOP - cancel current setup"
@@ -81,6 +96,7 @@ def _remind_type_menu() -> str:
         "PRICE - above/below price alert\n"
         "TIME - one-time reminder\n"
         "DAILY - daily update\n"
+        "UPDATE - repeat every N minutes\n"
         "LIST - current notifications"
     )
 
@@ -141,6 +157,24 @@ def _parse_time_of_day(text: str) -> tuple[str, str] | None:
     return None
 
 
+def _parse_local_datetime(text: str) -> tuple[str, str] | None:
+    value = text.strip()
+    formats = (
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d %I:%M %p",
+        "%m/%d/%Y %H:%M",
+        "%m/%d/%Y %I:%M %p",
+    )
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(value.upper(), fmt)
+            dt = dt.replace(tzinfo=ZoneInfo("America/New_York"))
+            return dt.isoformat(), dt.strftime("%b %d %Y %I:%M %p ET")
+        except ValueError:
+            continue
+    return None
+
+
 def _build_time_iso_next_occurrence(hhmm_24: str) -> str:
     now = datetime.now()
     hour, minute = [int(part) for part in hhmm_24.split(":", 1)]
@@ -148,6 +182,18 @@ def _build_time_iso_next_occurrence(hhmm_24: str) -> str:
     if target <= now:
         target = target + timedelta(days=1)
     return target.isoformat()
+
+
+def _parse_interval_minutes(text: str) -> int | None:
+    compact = re.sub(r"[^0-9]", "", text)
+    if not compact:
+        return None
+    minutes = int(compact)
+    if minutes < 30:
+        return None
+    if minutes > 1440:
+        return None
+    return minutes
 
 
 def _render_quote_sentence(symbol: str, display_name: str) -> str:
@@ -170,6 +216,85 @@ def _render_quote_sentence(symbol: str, display_name: str) -> str:
     )
 
 
+def _render_quote_list_sentence(raw_choices: list[tuple[str, str]]) -> str:
+    symbols = [item[0] for item in raw_choices]
+    quotes = fetch_market_data(symbols, provider="yfinance")
+
+    lines = ["Latest prices:"]
+    for choice, quote in zip(raw_choices, quotes):
+        _symbol, display_name = choice
+        if not quote.available or quote.latest_price is None or quote.daily_percent_change is None:
+            lines.append(f"{display_name}: unavailable")
+            continue
+
+        direction = "up" if quote.daily_percent_change >= 0 else "down"
+        abs_pct = abs(quote.daily_percent_change)
+        price_text = f"{quote.latest_price:,.2f}" if quote.symbol.startswith("^") else f"${quote.latest_price:,.2f}"
+        lines.append(f"{display_name}: {price_text}, {direction} {abs_pct:.2f}%")
+
+    lines.append("Reply CHECK for menu, DATECHECK for historical, or REMIND for alerts.")
+    return "\n".join(lines)
+
+
+def _render_datecheck_response(target_iso_date: str, raw_choices: list[tuple[str, str]]) -> str:
+    symbols = [item[0] for item in raw_choices]
+    quotes = fetch_market_data_for_date(symbols, datetime.fromisoformat(target_iso_date).date(), provider="yfinance")
+
+    lines = [f"Close on {target_iso_date}:"]
+    for choice, quote in zip(raw_choices, quotes):
+        _symbol, display_name = choice
+        if not quote.available or quote.close_price is None:
+            lines.append(f"{display_name}: unavailable")
+            continue
+
+        price_text = f"{quote.close_price:,.2f}" if quote.symbol.startswith("^") else f"${quote.close_price:,.2f}"
+        lines.append(f"{display_name}: {price_text}")
+
+    lines.append("Reply CHECK <tickers> for live, or DATECHECK YYYY-MM-DD <tickers> again.")
+    return "\n".join(lines)
+
+
+def _render_ticker_lookup(message: str) -> str:
+    parsed_query = parse_ticker_lookup_query(message)
+    if parsed_query is None:
+        return "Reply TICKER <company or symbol>. Example: TICKER apple"
+
+    profiles = search_ticker_profiles(parsed_query, limit=6)
+    if not profiles:
+        return "No matches found. Try a different keyword, like TICKER microsoft or FIND btc."
+
+    lines = ["Ticker matches:"]
+    for profile in profiles:
+        lines.append(f"{profile.symbol} - {profile.display_name}: {profile.description}")
+    lines.append("Use CHECK <ticker list> to fetch live values.")
+    return "\n".join(lines)
+
+
+def _format_human_datetime(value: object) -> str:
+    if value is None:
+        return "n/a"
+
+    raw = str(value).strip()
+    if not raw:
+        return "n/a"
+
+    if re.fullmatch(r"\d{2}:\d{2}", raw):
+        try:
+            parsed = datetime.strptime(raw, "%H:%M")
+            return parsed.strftime("%b %d %Y %I:%M %p ET")
+        except ValueError:
+            return raw
+
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("America/New_York"))
+        dt = dt.astimezone(ZoneInfo("America/New_York"))
+        return dt.strftime("%b %d %Y %I:%M %p ET")
+    except ValueError:
+        return raw
+
+
 def _format_notifications_list(from_number: str) -> str:
     notifications = list_notifications_for_recipient(from_number)
     if not notifications:
@@ -178,7 +303,9 @@ def _format_notifications_list(from_number: str) -> str:
     lines = ["Your notifications:"]
     for index, notification in enumerate(notifications, start=1):
         status = "active" if int(notification.get("enabled", 0)) == 1 else "paused"
-        lines.append(f"{index}. {build_summary(notification)} - {status}")
+        created_at = _format_human_datetime(notification.get("created_at"))
+        schedule_at = _format_human_datetime(notification.get("reminder_time"))
+        lines.append(f"{index}. {build_summary(notification)} | {status} | created {created_at} | when {schedule_at}")
 
     lines.append("Reply DELETE 1, PAUSE 1, or RESUME 1.")
     return "\n".join(lines)
@@ -225,7 +352,9 @@ def _save_draft_notification(from_number: str, draft: dict) -> str:
             condition=draft.get("direction"),
             threshold=threshold_value,
             reminder_time=None,
+            stop_time=None,
             recurrence=None,
+            interval_minutes=None,
             original_text=f"{draft.get('display_name')} {draft.get('direction')} ${threshold_value:,.2f}",
         )
         clear_session(from_number)
@@ -244,7 +373,9 @@ def _save_draft_notification(from_number: str, draft: dict) -> str:
             condition=None,
             threshold=None,
             reminder_time=draft.get("reminder_time"),
+            stop_time=None,
             recurrence="once",
+            interval_minutes=None,
             original_text=str(draft.get("message") or "One-time reminder"),
         )
         clear_session(from_number)
@@ -262,12 +393,35 @@ def _save_draft_notification(from_number: str, draft: dict) -> str:
             condition=None,
             threshold=None,
             reminder_time=draft.get("reminder_time"),
+            stop_time=None,
             recurrence="daily",
+            interval_minutes=None,
             original_text=str(draft.get("message") or "Daily reminder"),
         )
         clear_session(from_number)
         return (
             f"Saved. Daily reminder set for {notification.get('reminder_time')} local time.\n"
+            "Reply LIST to view notifications, or CHECK to check prices."
+        )
+
+    if notification_type == "interval_reminder":
+        notification = create_notification(
+            recipient_phone=from_number,
+            notification_type="interval_reminder",
+            symbol=draft.get("symbol"),
+            display_name=draft.get("display_name"),
+            condition=None,
+            threshold=None,
+            reminder_time=draft.get("start_time"),
+            stop_time=draft.get("stop_time"),
+            recurrence="interval",
+            interval_minutes=int(draft.get("interval_minutes") or 0),
+            original_text=str(draft.get("message") or "Interval reminder"),
+        )
+        clear_session(from_number)
+        return (
+            "Saved. Interval reminder is active every "
+            f"{notification.get('interval_minutes')} minutes from {notification.get('reminder_time')} to {notification.get('stop_time')}.\n"
             "Reply LIST to view notifications, or CHECK to check prices."
         )
 
@@ -280,6 +434,24 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
     if not from_number.strip():
         return _main_menu()
 
+    if not is_number_allowed(from_number):
+        if message.startswith("REQUEST") or message.startswith("INVITE") or message.startswith("ACCESS"):
+            request_text = body.strip()
+            label = ""
+            if " " in request_text:
+                label = request_text.split(" ", 1)[1].strip()
+            create_or_update_invite_request(from_number, message_text=request_text, requested_label=label or None)
+            return (
+                "Access request sent. Your number is pending approval. "
+                "We will notify you after approval."
+            )
+
+        create_or_update_invite_request(from_number, message_text=body.strip() or None)
+        return (
+            "This number is not on the allowed list. "
+            "Reply REQUEST <your name> to submit an invite request."
+        )
+
     session = get_session(from_number)
     state = session.state
     draft = dict(session.draft)
@@ -287,6 +459,33 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
     if message in {"HELP", "MENU"}:
         save_session(from_number, state=STATE_IDLE, draft={})
         return _main_menu()
+
+    if message.startswith("CHECK "):
+        parsed = parse_check_symbols(message)
+        if not parsed:
+            return "Reply CHECK <ticker list>, for example: CHECK BTC AAPL TSLA"
+        return _render_quote_list_sentence([(item.symbol, item.display_name) for item in parsed])
+
+    if message.startswith("DATECHECK "):
+        parsed = parse_datecheck_request(message)
+        if parsed is None:
+            return "Use DATECHECK YYYY-MM-DD <ticker list>, for example: DATECHECK 2026-06-01 BTC AAPL"
+        target_date, choices = parsed
+        return _render_datecheck_response(target_date.isoformat(), [(item.symbol, item.display_name) for item in choices])
+
+    ticker_query = parse_ticker_lookup_query(message)
+    if ticker_query is not None:
+        return _render_ticker_lookup(message)
+
+    if message == "FEEDBACK":
+        return "Reply with FEEDBACK <your message>. We log it for review at feedback.techrestoredesk.com."
+
+    if message.startswith("FEEDBACK "):
+        feedback_text = body.strip()[9:].strip() if len(body.strip()) >= 9 else ""
+        if not feedback_text:
+            return "Please include feedback text after FEEDBACK."
+        create_feedback_entry(from_number, feedback_text, source="sms")
+        return "Thanks, your feedback was received and queued for review."
 
     if message in {"STOP", "CANCEL"}:
         clear_session(from_number)
@@ -306,12 +505,22 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
         if message == "CHECK":
             save_session(from_number, state=STATE_CHECK_CHOOSE_SYMBOL, draft={})
             return _check_menu()
+        if message == "DATECHECK":
+            return "Use DATECHECK YYYY-MM-DD <ticker list>, for example: DATECHECK 2026-06-01 BTC AAPL"
+        if message in {"TICKER", "LOOKUP", "FIND"}:
+            return "Reply with TICKER <company or symbol>, for example: TICKER apple"
         if message == "REMIND":
             save_session(from_number, state=STATE_REMIND_CHOOSE_TYPE, draft={})
             return _remind_type_menu()
         return _main_menu()
 
     if state == STATE_CHECK_CHOOSE_SYMBOL:
+        if " " in message:
+            parsed = parse_check_symbols(f"CHECK {message}")
+            if parsed:
+                clear_session(from_number)
+                return _render_quote_list_sentence([(item.symbol, item.display_name) for item in parsed])
+
         if message == "MORE":
             return _check_more_menu()
         if message == "CUSTOM":
@@ -320,7 +529,7 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
 
         choice = parse_symbol_keyword(message)
         if choice is None:
-            return "Unknown symbol. Reply BTC, ETH, SPX, NASDAQ, DOW, SPY, QQQ, AAPL, MORE, or CUSTOM."
+            return "Unknown symbol. Reply BTC, ETH, SPX, NASDAQ, DOW, SPY, QQQ, AAPL, MORE, CUSTOM, or CHECK <ticker list>."
 
         clear_session(from_number)
         return _render_quote_sentence(choice.symbol, choice.display_name)
@@ -335,7 +544,7 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
 
     if state == STATE_REMIND_CHOOSE_TYPE:
         if message not in REMINDER_TYPE_KEYWORDS:
-            return "Reply PRICE, TIME, DAILY, or LIST."
+            return "Reply PRICE, TIME, DAILY, UPDATE, or LIST."
 
         if message == "PRICE":
             save_session(
@@ -350,6 +559,14 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
                 from_number,
                 state=STATE_TIME_CHOOSE_MESSAGE,
                 draft={"notification_type": "one_time_reminder"},
+            )
+            return _time_message_menu()
+
+        if message in {"UPDATE", "INTERVAL"}:
+            save_session(
+                from_number,
+                state=STATE_INTERVAL_CHOOSE_MESSAGE,
+                draft={"notification_type": "interval_reminder"},
             )
             return _time_message_menu()
 
@@ -427,7 +644,7 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
             draft["display_name"] = choice.display_name
 
         save_session(from_number, state=STATE_TIME_CHOOSE_TIME, draft=draft)
-        return "What time should I send it? Example: 9:30 AM"
+        return "What date and time should I send it? Example: 2026-06-20 9:30 AM"
 
     if state == STATE_TIME_CUSTOM_MESSAGE:
         if not message:
@@ -436,15 +653,15 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
         draft["symbol"] = None
         draft["display_name"] = "Custom"
         save_session(from_number, state=STATE_TIME_CHOOSE_TIME, draft=draft)
-        return "What time should I send it? Example: 9:30 AM"
+        return "What date and time should I send it? Example: 2026-06-20 9:30 AM"
 
     if state == STATE_TIME_CHOOSE_TIME:
-        parsed = _parse_time_of_day(message)
+        parsed = _parse_local_datetime(body)
         if parsed is None:
-            return "Reply with a time like 14:30 or 2:30 PM."
+            return "Reply with date and time like 2026-06-20 14:30 or 06/20/2026 2:30 PM."
 
-        hhmm_24, human_time = parsed
-        draft["reminder_time"] = _build_time_iso_next_occurrence(hhmm_24)
+        reminder_time_iso, human_time = parsed
+        draft["reminder_time"] = reminder_time_iso
         draft["human_time"] = human_time
         save_session(from_number, state=STATE_PENDING_CONFIRM, draft=draft)
         return (
@@ -495,6 +712,84 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
             "Reply SAVE to activate, EDIT to change, or DELETE to cancel."
         )
 
+    if state == STATE_INTERVAL_CHOOSE_MESSAGE:
+        if message == "CUSTOM":
+            save_session(from_number, state=STATE_INTERVAL_CUSTOM_MESSAGE, draft=draft)
+            return "Reply with the repeated update text."
+
+        if message == "STATUS":
+            draft["message"] = "Interval market status update"
+            draft["symbol"] = None
+            draft["display_name"] = "Market status"
+        else:
+            choice = parse_symbol_keyword(message)
+            if choice is None:
+                return "Reply STATUS, BTC, SPX, NASDAQ, or CUSTOM."
+            draft["message"] = f"{choice.display_name} interval update"
+            draft["symbol"] = choice.symbol
+            draft["display_name"] = choice.display_name
+
+        save_session(from_number, state=STATE_INTERVAL_CHOOSE_MINUTES, draft=draft)
+        return "How often should I send it? Minimum is 30 minutes. Example: 60"
+
+    if state == STATE_INTERVAL_CUSTOM_MESSAGE:
+        if not message:
+            return "Please reply with update text."
+        draft["message"] = body.strip()
+        draft["symbol"] = None
+        draft["display_name"] = "Custom"
+        save_session(from_number, state=STATE_INTERVAL_CHOOSE_MINUTES, draft=draft)
+        return "How often should I send it? Minimum is 30 minutes. Example: 60"
+
+    if state == STATE_INTERVAL_CHOOSE_MINUTES:
+        minutes = _parse_interval_minutes(body)
+        if minutes is None:
+            return "Reply with minutes as a number (minimum 30). Example: 60"
+
+        draft["interval_minutes"] = minutes
+        save_session(from_number, state=STATE_INTERVAL_CHOOSE_START, draft=draft)
+        return "What start date and time should I use? Example: 2026-06-20 09:00"
+
+    if state == STATE_INTERVAL_CHOOSE_START:
+        parsed = _parse_local_datetime(body)
+        if parsed is None:
+            return "Reply with start date/time like 2026-06-20 09:00 or 06/20/2026 9:00 AM."
+
+        start_iso, start_human = parsed
+        draft["start_time"] = start_iso
+        draft["start_human_time"] = start_human
+        save_session(from_number, state=STATE_INTERVAL_CHOOSE_STOP, draft=draft)
+        return "What stop date and time should I use? Example: 2026-06-20 18:00"
+
+    if state == STATE_INTERVAL_CHOOSE_STOP:
+        parsed = _parse_local_datetime(body)
+        if parsed is None:
+            return "Reply with stop date/time like 2026-06-20 18:00 or 06/20/2026 6:00 PM."
+
+        stop_iso, stop_human = parsed
+        start_iso = str(draft.get("start_time") or "")
+        try:
+            start_dt = datetime.fromisoformat(start_iso)
+            stop_dt = datetime.fromisoformat(stop_iso)
+        except ValueError:
+            return "Could not parse start/stop window. Reply REMIND to restart."
+
+        if stop_dt <= start_dt:
+            return "Stop time must be after start time. Reply with a later stop date and time."
+
+        draft["stop_time"] = stop_iso
+        draft["stop_human_time"] = stop_human
+        summary = (
+            f"{draft.get('display_name')} every {draft.get('interval_minutes')} minutes, "
+            f"from {draft.get('start_human_time')} to {draft.get('stop_human_time')}."
+        )
+        draft["summary"] = summary
+        save_session(from_number, state=STATE_PENDING_CONFIRM, draft=draft)
+        return (
+            f"Reminder draft:\n{summary}\n"
+            "Reply SAVE to activate, EDIT to change, or DELETE to cancel."
+        )
+
     if state == STATE_PENDING_CONFIRM:
         if message not in CONFIRM_KEYWORDS:
             return "Reply SAVE to activate, EDIT to change, or DELETE to cancel."
@@ -513,10 +808,13 @@ def handle_inbound_market_sms(from_number: str, body: str) -> str:
                 return "Reply with a new trigger price. Example: 60000"
             if notification_type == "one_time_reminder":
                 save_session(from_number, state=STATE_TIME_CHOOSE_TIME, draft=draft)
-                return "Reply with a new time. Example: 9:30 AM"
+                return "Reply with a new date and time. Example: 2026-06-20 9:30 AM"
             if notification_type == "daily_reminder":
                 save_session(from_number, state=STATE_DAILY_CHOOSE_TIME, draft=draft)
                 return "Reply with a new daily time. Example: 9:30 AM"
+            if notification_type == "interval_reminder":
+                save_session(from_number, state=STATE_INTERVAL_CHOOSE_STOP, draft=draft)
+                return "Reply with a new stop date and time. Example: 2026-06-20 18:00"
             clear_session(from_number)
             return "Could not edit that draft. Reply REMIND to start again."
 

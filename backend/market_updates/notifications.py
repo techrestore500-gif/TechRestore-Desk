@@ -19,7 +19,9 @@ def create_notification(
     condition: str | None,
     threshold: float | None,
     reminder_time: str | None,
+    stop_time: str | None,
     recurrence: str | None,
+    interval_minutes: int | None,
     original_text: str,
 ) -> dict[str, Any]:
     ensure_tables()
@@ -35,6 +37,8 @@ def create_notification(
               AND COALESCE(condition, '') = COALESCE(?, '')
               AND COALESCE(threshold, -1) = COALESCE(?, -1)
               AND COALESCE(reminder_time, '') = COALESCE(?, '')
+                            AND COALESCE(stop_time, '') = COALESCE(?, '')
+                            AND COALESCE(interval_minutes, -1) = COALESCE(?, -1)
               AND enabled = 1
               AND completed = 0
             """,
@@ -45,6 +49,8 @@ def create_notification(
                 condition,
                 threshold,
                 reminder_time,
+                stop_time,
+                interval_minutes,
             ),
         ).fetchone()
         if duplicate is not None:
@@ -55,9 +61,9 @@ def create_notification(
             """
             INSERT INTO market_notifications(
                 recipient_phone, type, symbol, display_name, condition, threshold,
-                reminder_time, recurrence, enabled, completed, created_at, updated_at,
+                reminder_time, stop_time, recurrence, interval_minutes, enabled, completed, created_at, updated_at,
                 last_triggered_at, original_text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, NULL, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, NULL, ?)
             """,
             (
                 recipient_phone,
@@ -67,7 +73,9 @@ def create_notification(
                 condition,
                 threshold,
                 reminder_time,
+                stop_time,
                 recurrence,
+                interval_minutes,
                 now,
                 now,
                 original_text,
@@ -161,12 +169,18 @@ def build_summary(notification: dict[str, Any]) -> str:
     if notification_type == "daily_reminder":
         return f"Daily update at {notification.get('reminder_time')}"
 
+    if notification_type == "interval_reminder":
+        minutes = int(notification.get("interval_minutes") or 0)
+        start = notification.get("reminder_time")
+        stop = notification.get("stop_time")
+        return f"Every {minutes}m from {start} to {stop}"
+
     return "Notification"
 
 
-def mark_notification_triggered(notification_id: int, *, complete: bool) -> None:
+def mark_notification_triggered(notification_id: int, *, complete: bool, triggered_at: str | None = None) -> None:
     ensure_tables()
-    now = _now_iso()
+    now = triggered_at or _now_iso()
     with get_connection() as connection:
         connection.execute(
             """
@@ -179,9 +193,9 @@ def mark_notification_triggered(notification_id: int, *, complete: bool) -> None
         connection.commit()
 
 
-def update_last_triggered(notification_id: int) -> None:
+def update_last_triggered(notification_id: int, *, triggered_at: str | None = None) -> None:
     ensure_tables()
-    now = _now_iso()
+    now = triggered_at or _now_iso()
     with get_connection() as connection:
         connection.execute(
             "UPDATE market_notifications SET last_triggered_at = ?, updated_at = ? WHERE id = ?",

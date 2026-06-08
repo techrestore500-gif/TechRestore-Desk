@@ -85,6 +85,36 @@ def _price_due(notification: dict) -> bool:
     return latest <= trigger_value
 
 
+def _interval_due(notification: dict, now: datetime) -> bool:
+    start_raw = notification.get("reminder_time")
+    stop_raw = notification.get("stop_time")
+    interval_minutes = int(notification.get("interval_minutes") or 0)
+
+    if not start_raw or not stop_raw or interval_minutes < 30:
+        return False
+
+    try:
+        start_at = datetime.fromisoformat(str(start_raw))
+        stop_at = datetime.fromisoformat(str(stop_raw))
+    except ValueError:
+        return False
+
+    if now < start_at or now > stop_at:
+        return False
+
+    last_triggered_raw = notification.get("last_triggered_at")
+    if not last_triggered_raw:
+        return True
+
+    try:
+        last_triggered = datetime.fromisoformat(str(last_triggered_raw))
+    except ValueError:
+        return True
+
+    elapsed_seconds = (now - last_triggered).total_seconds()
+    return elapsed_seconds >= interval_minutes * 60
+
+
 def _build_notification_message(notification: dict) -> str:
     notification_type = str(notification.get("type") or "")
     display_name = str(notification.get("display_name") or notification.get("symbol") or "Market")
@@ -102,6 +132,10 @@ def _build_notification_message(notification: dict) -> str:
     if notification_type == "daily_reminder":
         original = str(notification.get("original_text") or "Daily market reminder")
         return f"Daily update: {original}"
+
+    if notification_type == "interval_reminder":
+        original = str(notification.get("original_text") or "Interval market reminder")
+        return f"Update: {original}"
 
     return "Market notification"
 
@@ -121,11 +155,24 @@ def run(argv: Sequence[str] | None = None) -> int:
     due_items: list[dict] = []
     for item in notifications:
         notification_type = str(item.get("type") or "")
+        if notification_type == "interval_reminder":
+            stop_raw = item.get("stop_time")
+            if stop_raw:
+                try:
+                    stop_at = datetime.fromisoformat(str(stop_raw))
+                    if now > stop_at:
+                        mark_notification_triggered(int(item["id"]), complete=True, triggered_at=now.isoformat())
+                        continue
+                except ValueError:
+                    pass
+
         if notification_type == "price_alert" and _price_due(item):
             due_items.append(item)
         elif notification_type == "one_time_reminder" and _one_time_due(item, now):
             due_items.append(item)
         elif notification_type == "daily_reminder" and _daily_due(item, now):
+            due_items.append(item)
+        elif notification_type == "interval_reminder" and _interval_due(item, now):
             due_items.append(item)
 
     if not due_items:
@@ -159,9 +206,21 @@ def run(argv: Sequence[str] | None = None) -> int:
 
         notification_type = str(item.get("type") or "")
         if notification_type in {"price_alert", "one_time_reminder"}:
-            mark_notification_triggered(notification_id, complete=True)
+            mark_notification_triggered(notification_id, complete=True, triggered_at=now.isoformat())
         elif notification_type == "daily_reminder":
-            update_last_triggered(notification_id)
+            update_last_triggered(notification_id, triggered_at=now.isoformat())
+        elif notification_type == "interval_reminder":
+            if item.get("stop_time"):
+                try:
+                    stop_at = datetime.fromisoformat(str(item.get("stop_time")))
+                    if now >= stop_at:
+                        mark_notification_triggered(notification_id, complete=True, triggered_at=now.isoformat())
+                    else:
+                        update_last_triggered(notification_id, triggered_at=now.isoformat())
+                except ValueError:
+                    update_last_triggered(notification_id, triggered_at=now.isoformat())
+            else:
+                update_last_triggered(notification_id, triggered_at=now.isoformat())
 
     return 0
 
