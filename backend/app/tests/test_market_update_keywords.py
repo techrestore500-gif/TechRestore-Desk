@@ -211,6 +211,8 @@ def test_market_updates_sms_webhook_returns_twiml_public_route(client_auth: Test
 
 def test_blocked_number_receives_request_prompt(market_updates_db: Path) -> None:
     reply = handle_inbound_market_sms(from_number="+15550001111", body="HELP")
+    assert "tech restore" in reply.lower()
+    assert "market" not in reply.lower()
     assert "please call us instead of texting" in reply.lower()
     assert "8483291230" in reply
 
