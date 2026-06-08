@@ -18,6 +18,7 @@ from app.routes.health import router as health_router
 from app.routes.hours import router as hours_router
 from app.routes.inventory import router as inventory_router
 from app.routes.loaners import router as loaner_router
+from app.routes.market_updates_public import router as market_updates_public_router
 from app.routes.pricing import router as pricing_router
 from app.routes.repair_categories import router as repair_category_router
 from app.routes.queue import router as queue_router
@@ -79,6 +80,7 @@ app.include_router(inventory_router)
 app.include_router(reports_router)
 app.include_router(system_router)
 app.include_router(twilio_public_router)
+app.include_router(market_updates_public_router)
 app.include_router(twilio_router)
 app.include_router(status_workflow_router)
 app.include_router(attachment_router)

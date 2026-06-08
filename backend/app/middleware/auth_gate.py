@@ -14,6 +14,7 @@ PUBLIC_API_PATHS = {
     "/api/auth/bootstrap/resend",
     "/api/twilio/voice",
     "/api/twilio/recording",
+    "/api/market-updates/sms",
 }
 
 
