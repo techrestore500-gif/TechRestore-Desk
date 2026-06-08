@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
+import os
 from typing import Any
+
+import requests
 
 from market_updates.allowlist import normalize_phone
 from market_updates.storage import ensure_tables, get_connection
+
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -35,7 +41,34 @@ def create_feedback_entry(phone_number: str, feedback_text: str, source: str = "
         ).fetchone()
         connection.commit()
 
+    _forward_feedback_to_portal(normalized, text, source.strip() or "sms")
+
     return dict(row) if row is not None else {}
+
+
+def _forward_feedback_to_portal(phone_number: str, feedback_text: str, source: str) -> None:
+    ingest_url = os.getenv("FEEDBACK_PORTAL_INGEST_URL", "").strip()
+    if not ingest_url:
+        return
+
+    token = os.getenv("FEEDBACK_PORTAL_INGEST_TOKEN", "").strip()
+    headers: dict[str, str] = {}
+    if token:
+        headers["X-Feedback-Token"] = token
+
+    try:
+        requests.post(
+            ingest_url,
+            data={
+                "phone_number": phone_number,
+                "feedback_text": feedback_text,
+                "source": source,
+            },
+            headers=headers,
+            timeout=8,
+        )
+    except Exception:
+        logger.exception("Failed forwarding feedback entry to portal ingest endpoint")
 
 
 def list_feedback_entries(limit: int = 200) -> list[dict[str, Any]]:

@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
     { to: "/pricing", label: "Pricing", group: "Operations" },
     { to: "/operations", label: "Shop Tools", group: "Operations", hiddenFor: ["viewer"] },
     { to: "/reports", label: "Reports", group: "Operations" },
+    { to: "/market-updates-admin", label: "Market SMS Admin", group: "Administration", visibleFor: ["owner", "admin"] },
     { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin"] },
     { to: "/users-invites", label: "Team Access", group: "Administration", visibleFor: ["owner"] },
 ];

@@ -15,4 +15,5 @@ boto3==1.35.99
 sentry-sdk==2.23.1
 cryptography==45.0.3
 yfinance==0.2.52
+requests==2.32.3
 twilio==9.2.3

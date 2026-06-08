@@ -35,6 +35,10 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
+      - key: FEEDBACK_PORTAL_INGEST_URL
+        sync: false
+      - key: FEEDBACK_PORTAL_INGEST_TOKEN
+        sync: false
 
   - type: static
     name: tech-restore-desk

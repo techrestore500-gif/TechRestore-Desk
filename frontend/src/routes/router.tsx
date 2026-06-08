@@ -20,6 +20,7 @@ import SettingsPage from "../pages/SettingsPage";
 import TicketDetailPage from "../pages/TicketDetailPage";
 import TicketsPage from "../pages/TicketsPage";
 import VoicemailPage from "../pages/VoicemailPage";
+import MarketUpdatesAdminPage from "../pages/MarketUpdatesAdminPage";
 
 export const router = createBrowserRouter([
     {
@@ -125,6 +126,18 @@ export const router = createBrowserRouter([
             {
                 path: "voicemail",
                 element: <VoicemailPage />,
+            },
+            {
+                path: "market-updates-admin",
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner", "admin"]}
+                        deniedTitle="Market Updates Admin access is restricted"
+                        deniedDescription="Only owner/admin roles can manage market SMS controls."
+                    >
+                        <MarketUpdatesAdminPage />
+                    </RequireRole>
+                ),
             },
         ],
     },

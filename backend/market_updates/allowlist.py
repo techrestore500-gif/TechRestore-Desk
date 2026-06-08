@@ -22,12 +22,17 @@ def normalize_phone(phone: str) -> str:
 
 
 def _seed_from_env(connection) -> None:
-    raw = os.getenv("MARKET_UPDATES_ALLOWED_NUMBERS", "")
-    if not raw.strip():
+    candidates: list[str] = []
+    for key in ("MARKET_UPDATES_ALLOWED_NUMBERS", "MARKET_UPDATE_TO_NUMBERS", "MARKET_UPDATE_TO_NUMBER"):
+        raw = os.getenv(key, "")
+        if raw.strip():
+            candidates.extend(raw.split(","))
+
+    if not candidates:
         return
 
     now = _now_iso()
-    for part in raw.split(","):
+    for part in candidates:
         phone = normalize_phone(part)
         if not phone:
             continue
