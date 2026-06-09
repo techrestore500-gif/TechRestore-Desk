@@ -170,6 +170,99 @@ def test_fetch_market_data_for_date_handles_partial_symbol_failure(monkeypatch: 
     assert second.close_price is None
 
 
+def test_fetch_market_data_prefers_intraday_last_trade(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self._payload
+
+    def fake_get(_url: str, *, params: dict, **_kwargs):
+        if params["interval"] == "1m":
+            return FakeResponse(
+                {
+                    "chart": {
+                        "result": [
+                            {
+                                "meta": {
+                                    "chartPreviousClose": 100.0,
+                                    "regularMarketPrice": 999.0,
+                                },
+                                "timestamp": [1717779540, 1717779600],
+                                "indicators": {"quote": [{"close": [101.25, 101.75]}]},
+                            }
+                        ]
+                    }
+                }
+            )
+
+        raise AssertionError("Daily fallback should not be used when intraday data exists")
+
+    monkeypatch.setattr("market_updates.market_data._REQUEST_SESSION.get", fake_get)
+
+    quotes = fetch_market_data(["AAPL"], provider="yfinance")
+
+    assert len(quotes) == 1
+    assert quotes[0].latest_price == 101.75
+    assert quotes[0].daily_change == pytest.approx(1.75)
+    assert quotes[0].daily_percent_change == pytest.approx(1.75)
+
+
+def test_fetch_market_data_falls_back_to_daily_when_intraday_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self._payload
+
+    def fake_get(_url: str, *, params: dict, **_kwargs):
+        if params["interval"] == "1m":
+            return FakeResponse(
+                {
+                    "chart": {
+                        "result": [
+                            {
+                                "meta": {"chartPreviousClose": 200.0},
+                                "timestamp": [],
+                                "indicators": {"quote": [{"close": []}]},
+                            }
+                        ]
+                    }
+                }
+            )
+
+        return FakeResponse(
+            {
+                "chart": {
+                    "result": [
+                        {
+                            "meta": {"chartPreviousClose": 200.0, "regularMarketPrice": 205.5},
+                            "timestamp": [1717693200, 1717779600],
+                            "indicators": {"quote": [{"close": [200.0, 205.0]}]},
+                        }
+                    ]
+                }
+            }
+        )
+
+    monkeypatch.setattr("market_updates.market_data._REQUEST_SESSION.get", fake_get)
+
+    quotes = fetch_market_data(["AAPL"], provider="yfinance")
+
+    assert len(quotes) == 1
+    assert quotes[0].latest_price == 205.5
+    assert quotes[0].daily_change == pytest.approx(5.5)
+    assert quotes[0].daily_percent_change == pytest.approx(2.75)
+
+
 def test_cli_dry_run_does_not_send_sms(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     config = MarketUpdateConfig(
         twilio_account_sid="AC_TEST",

@@ -80,10 +80,10 @@ def _coerce_float(raw_value: object) -> float | None:
         return None
 
 
-def _fetch_quote_from_yahoo_chart(symbol: str) -> MarketQuote:
+def _extract_chart_result(symbol: str, *, params: dict[str, object]) -> dict[str, object]:
     response = _REQUEST_SESSION.get(
         YAHOO_CHART_URL.format(symbol=symbol),
-        params={"range": "2d", "interval": "1d", "includePrePost": "false", "events": "div,splits"},
+        params=params,
         timeout=20,
         verify=False,
     )
@@ -94,38 +94,74 @@ def _fetch_quote_from_yahoo_chart(symbol: str) -> MarketQuote:
     results = chart.get("result") or []
     if not results:
         raise RuntimeError(f"No chart result returned for symbol {symbol}")
+    return results[0]
 
-    result = results[0]
-    meta = result.get("meta") or {}
-    indicators = result.get("indicators") or {}
+
+def _fetch_quote_from_yahoo_chart(symbol: str) -> MarketQuote:
+    intraday_result = _extract_chart_result(
+        symbol,
+        params={"range": "1d", "interval": "1m", "includePrePost": "false", "events": "div,splits"},
+    )
+
+    meta = intraday_result.get("meta") or {}
+    indicators = intraday_result.get("indicators") or {}
     quote_series = indicators.get("quote") or []
-    if not quote_series:
-        raise RuntimeError(f"No quote series returned for symbol {symbol}")
 
-    price_series = quote_series[0]
-    close_values = [float(value) for value in (price_series.get("close") or []) if value is not None]
-    if not close_values:
-        raise RuntimeError(f"No close data returned for symbol {symbol}")
+    latest_price: float | None = None
+    source_time: str | None = None
+    intraday_closes: list[float] = []
 
-    latest_price = _coerce_float(meta.get("regularMarketPrice")) or close_values[-1]
+    if quote_series:
+        price_series = quote_series[0]
+        timestamps = intraday_result.get("timestamp") or []
+        closes = price_series.get("close") or []
+        last_point: tuple[int, float] | None = None
+        for ts, raw_close in zip(timestamps, closes):
+            close_value = _coerce_float(raw_close)
+            if close_value is None:
+                continue
+            intraday_closes.append(close_value)
+            last_point = (int(ts), close_value)
+
+        if last_point is not None:
+            latest_price = last_point[1]
+            source_time = datetime.fromtimestamp(last_point[0], tz=ZoneInfo("UTC")).isoformat()
+
+    if latest_price is None:
+        daily_result = _extract_chart_result(
+            symbol,
+            params={"range": "5d", "interval": "1d", "includePrePost": "false", "events": "div,splits"},
+        )
+        meta = daily_result.get("meta") or meta
+        indicators = daily_result.get("indicators") or {}
+        quote_series = indicators.get("quote") or []
+        if not quote_series:
+            raise RuntimeError(f"No quote series returned for symbol {symbol}")
+
+        price_series = quote_series[0]
+        close_values = [float(value) for value in (price_series.get("close") or []) if value is not None]
+        if not close_values:
+            raise RuntimeError(f"No close data returned for symbol {symbol}")
+
+        latest_price = _coerce_float(meta.get("regularMarketPrice")) or close_values[-1]
+        timestamps = daily_result.get("timestamp") or []
+        if timestamps:
+            source_time = datetime.fromtimestamp(int(timestamps[-1]), tz=ZoneInfo("UTC")).isoformat()
+
     previous_close = (
         _coerce_float(meta.get("chartPreviousClose"))
+        or _coerce_float(meta.get("previousClose"))
         or _coerce_float(meta.get("regularMarketPreviousClose"))
-        or (close_values[-2] if len(close_values) > 1 else None)
-        or _coerce_float(price_series.get("open"))
+        or (intraday_closes[-2] if len(intraday_closes) > 1 else None)
         or latest_price
     )
     daily_change = latest_price - previous_close
     daily_percent_change = 0.0 if previous_close == 0 else (daily_change / previous_close) * 100.0
 
-    source_time: str | None = None
-    market_time = _coerce_float(meta.get("regularMarketTime"))
-    if market_time is not None:
-        source_time = datetime.fromtimestamp(int(market_time), tz=ZoneInfo("UTC")).isoformat()
-    else:
-        timestamps = result.get("timestamp") or []
-        if timestamps:
-            source_time = datetime.fromtimestamp(int(timestamps[-1]), tz=ZoneInfo("UTC")).isoformat()
+    if source_time is None:
+        market_time = _coerce_float(meta.get("regularMarketTime"))
+        if market_time is not None:
+            source_time = datetime.fromtimestamp(int(market_time), tz=ZoneInfo("UTC")).isoformat()
 
     return MarketQuote(
         display_name=_display_name_for_symbol(symbol),
