@@ -24,6 +24,10 @@ import MarketUpdatesAdminPage from "../pages/MarketUpdatesAdminPage";
 
 const MARKET_HOSTNAME = "market.techrestoredesk.com";
 
+function isStrictMarketHost(): boolean {
+    return window.location.hostname.toLowerCase() === MARKET_HOSTNAME;
+}
+
 function canAccessMarketAdminOnThisHost(): boolean {
     const host = window.location.hostname.toLowerCase();
     return host === MARKET_HOSTNAME || host === "localhost" || host === "127.0.0.1" || host.endsWith(".onrender.com");
@@ -32,6 +36,22 @@ function canAccessMarketAdminOnThisHost(): boolean {
 function MarketAdminHostRedirect() {
     window.location.replace(`https://${MARKET_HOSTNAME}/market-updates-admin`);
     return null;
+}
+
+function MarketAdminRouteElement() {
+    if (!canAccessMarketAdminOnThisHost()) {
+        return <MarketAdminHostRedirect />;
+    }
+
+    return (
+        <RequireRole
+            allowedRoles={["owner", "admin"]}
+            deniedTitle="Market Updates Admin access is restricted"
+            deniedDescription="Only owner/admin roles can manage market SMS controls."
+        >
+            <MarketUpdatesAdminPage />
+        </RequireRole>
+    );
 }
 
 export const router = createBrowserRouter([
@@ -49,7 +69,7 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <DashboardPage />,
+                element: isStrictMarketHost() ? <MarketAdminRouteElement /> : <DashboardPage />,
             },
             {
                 path: "intake",
@@ -141,17 +161,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "market-updates-admin",
-                element: canAccessMarketAdminOnThisHost() ? (
-                    <RequireRole
-                        allowedRoles={["owner", "admin"]}
-                        deniedTitle="Market Updates Admin access is restricted"
-                        deniedDescription="Only owner/admin roles can manage market SMS controls."
-                    >
-                        <MarketUpdatesAdminPage />
-                    </RequireRole>
-                ) : (
-                    <MarketAdminHostRedirect />
-                ),
+                element: <MarketAdminRouteElement />,
             },
         ],
     },

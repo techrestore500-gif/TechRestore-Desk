@@ -2,9 +2,16 @@ import { FormEvent, ReactNode, useState } from "react";
 
 import { useAuth } from "./AuthProvider";
 
+const MARKET_HOSTNAME = "market.techrestoredesk.com";
+
+function isMarketHost(): boolean {
+    return window.location.hostname.toLowerCase() === MARKET_HOSTNAME;
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
     const { authEnabled, isAuthenticated, isBootstrapping, authMessage, loginWithCredentials, dismissAuthMessage } = useAuth();
     const isInvitePath = typeof window !== "undefined" && window.location.pathname.startsWith("/invite/");
+    const marketHost = typeof window !== "undefined" && isMarketHost();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +30,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         return (
             <main style={S.page}>
                 <section style={S.card}>
-                    <h1 style={S.title}>Tech Restore Desk</h1>
+                    <h1 style={S.title}>{marketHost ? "Tech Restore Market" : "Tech Restore Desk"}</h1>
                     <p style={S.copy}>Checking session...</p>
                 </section>
             </main>
@@ -60,8 +67,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
         return (
             <main style={S.page}>
                 <section style={S.card}>
-                    <h1 style={S.title}>Tech Restore Desk</h1>
-                    <p style={S.copy}>Sign in with your invited Tech Restore account.</p>
+                    <h1 style={S.title}>{marketHost ? "Tech Restore Market" : "Tech Restore Desk"}</h1>
+                    <p style={S.copy}>
+                        {marketHost
+                            ? "Sign in to manage market SMS controls."
+                            : "Sign in with your invited Tech Restore account."}
+                    </p>
                     <form style={S.form} onSubmit={handleLoginSubmit}>
                         <label style={S.label} htmlFor="email">Email</label>
                         <input
