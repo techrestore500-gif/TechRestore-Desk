@@ -11,6 +11,7 @@ from market_updates.allowlist import is_number_allowed, normalize_phone, upsert_
 from market_updates.feedback_store import list_feedback_entries
 from market_updates.keyword_handlers import handle_inbound_market_sms
 from market_updates.notifications import create_notification, list_notifications_for_recipient
+from market_updates.storage import ensure_tables, get_connection
 
 
 @pytest.fixture
@@ -226,6 +227,24 @@ def test_blocked_number_can_submit_invite_request(market_updates_db: Path) -> No
 def test_normalize_phone_us_ten_digit_defaults_to_plus_one() -> None:
     assert normalize_phone("8483291230") == "+18483291230"
     assert normalize_phone("914 587 0597") == "+19145870597"
+
+
+def test_legacy_allowlist_format_still_allows_number(market_updates_db: Path) -> None:
+    ensure_tables()
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO market_sms_allowlist(phone_number, label, enabled, created_at, updated_at)
+            VALUES (?, ?, 1, datetime('now'), datetime('now'))
+            ON CONFLICT(phone_number) DO UPDATE SET enabled = 1, updated_at = datetime('now')
+            """,
+            ("+8483291230", "Legacy entry"),
+        )
+        connection.commit()
+
+    reply = handle_inbound_market_sms(from_number="+18483291230", body="HELP")
+    assert "market assistant" in reply.lower()
+    assert "this line does not accept text messages" not in reply.lower()
 
 
 def test_at_market_request_notifies_approver(market_updates_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:

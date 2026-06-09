@@ -33,6 +33,24 @@ def normalize_phone(phone: str) -> str:
     return "+" + digits
 
 
+def _match_candidates(phone_number: str) -> tuple[str, ...]:
+    normalized = normalize_phone(phone_number)
+    if not normalized:
+        return ()
+
+    candidates = {normalized}
+    digits = re.sub(r"\D", "", normalized)
+
+    # Backward compatibility for legacy records that were stored as +XXXXXXXXXX
+    # instead of +1XXXXXXXXXX for US numbers.
+    if len(digits) == 11 and digits.startswith("1"):
+        candidates.add("+" + digits[1:])
+    elif len(digits) == 10:
+        candidates.add("+1" + digits)
+
+    return tuple(candidates)
+
+
 def _seed_from_env(connection) -> None:
     candidates: list[str] = []
     for key in ("MARKET_UPDATES_ALLOWED_NUMBERS", "MARKET_UPDATE_TO_NUMBERS", "MARKET_UPDATE_TO_NUMBER"):
@@ -60,15 +78,16 @@ def _seed_from_env(connection) -> None:
 
 def is_number_allowed(phone_number: str) -> bool:
     ensure_tables()
-    normalized = normalize_phone(phone_number)
-    if not normalized:
+    candidates = _match_candidates(phone_number)
+    if not candidates:
         return False
 
     with get_connection() as connection:
         _seed_from_env(connection)
+        placeholders = ", ".join("?" for _ in candidates)
         row = connection.execute(
-            "SELECT 1 FROM market_sms_allowlist WHERE phone_number = ? AND enabled = 1 LIMIT 1",
-            (normalized,),
+            f"SELECT 1 FROM market_sms_allowlist WHERE phone_number IN ({placeholders}) AND enabled = 1 LIMIT 1",
+            candidates,
         ).fetchone()
         connection.commit()
     return row is not None
