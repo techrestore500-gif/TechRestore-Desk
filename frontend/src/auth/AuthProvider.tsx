@@ -12,7 +12,7 @@ type AuthContextValue = {
     isBootstrapping: boolean;
     user: AuthUser | null;
     authMessage: string | null;
-    loginWithCredentials: (email: string, password: string) => Promise<void>;
+    loginWithCredentials: (email: string, password: string) => Promise<AuthUser>;
     logout: (reason?: string) => void;
     dismissAuthMessage: () => void;
 };
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    async function loginWithCredentials(email: string, password: string) {
+    async function loginWithCredentials(email: string, password: string): Promise<AuthUser> {
         const nextEmail = email.trim();
         const nextPassword = password.trim();
         if (!nextEmail) {
@@ -149,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthMessage(null);
         saveSession({ accessToken: nextToken, user: nextUser });
         queryClient.clear();
+        return nextUser;
     }
 
     function logout(reason?: string) {

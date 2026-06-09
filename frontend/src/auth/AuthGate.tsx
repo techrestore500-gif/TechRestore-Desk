@@ -3,6 +3,7 @@ import { FormEvent, ReactNode, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
 const MARKET_HOSTNAME = "market.techrestoredesk.com";
+const VOICEMAIL_LANDING_EMAIL = "techrestore500@gmail";
 
 function isMarketHost(): boolean {
     return window.location.hostname.toLowerCase() === MARKET_HOSTNAME;
@@ -53,7 +54,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
             setError(null);
             dismissAuthMessage();
             try {
-                await loginWithCredentials(email, password);
+                const signedInUser = await loginWithCredentials(email, password);
+                if (signedInUser.email.trim().toLowerCase() === VOICEMAIL_LANDING_EMAIL) {
+                    window.location.replace("/voicemail");
+                }
                 setEmail("");
                 setPassword("");
             } catch (requestError) {

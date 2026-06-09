@@ -22,6 +22,7 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVITE_TOKEN_BYTES = 32
 INVITE_EXPIRY_HOURS = int(os.getenv("TECH_RESTORE_INVITE_EXPIRY_HOURS", "72"))
 MIN_PASSWORD_LENGTH = 8
+LEGACY_ALLOWED_EMAILS = {"techrestore500@gmail"}
 
 
 def _utc_now() -> datetime:
@@ -128,6 +129,8 @@ def _build_username_seed(name: str, email: str) -> str:
 
 def _validate_email(email: str) -> str:
     normalized = email.strip().lower()
+    if normalized in LEGACY_ALLOWED_EMAILS:
+        return normalized
     if not EMAIL_RE.match(normalized):
         raise ValueError("Invalid email address")
     return normalized
