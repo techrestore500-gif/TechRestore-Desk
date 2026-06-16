@@ -273,6 +273,7 @@ def initialize_database() -> None:
                 intake_date TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
+                completed_at TEXT,
                 FOREIGN KEY (customer_id) REFERENCES customers(id),
                 FOREIGN KEY (device_model_id) REFERENCES supported_device_models(id)
             )
@@ -281,6 +282,10 @@ def initialize_database() -> None:
         if not _table_has_column(connection, "repair_tickets", "payment_status"):
             connection.execute(
                 "ALTER TABLE repair_tickets ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'"
+            )
+        if not _table_has_column(connection, "repair_tickets", "completed_at"):
+            connection.execute(
+                "ALTER TABLE repair_tickets ADD COLUMN completed_at TEXT"
             )
         connection.execute(
             """

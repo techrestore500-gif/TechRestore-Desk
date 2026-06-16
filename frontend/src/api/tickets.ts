@@ -60,6 +60,7 @@ export type TicketSummary = {
     estimated_price: number | null;
     final_price: number | null;
     updated_at: string;
+    completed_at: string | null;
 };
 
 export type TicketSummaryList = {

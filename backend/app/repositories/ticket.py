@@ -461,6 +461,11 @@ class TicketRepository:
         previous_status = existing_ticket["status"]
         timestamp = utc_now()
         final_price = payload.get("final_price")
+        new_status = payload["new_status"]
+        
+        # Terminal statuses that mark completion
+        TERMINAL_STATUSES = {"Picked Up / Closed", "Not Repairable", "Returned Unrepaired", "Customer Declined"}
+        completed_at = timestamp if new_status in TERMINAL_STATUSES else None
 
         with get_connection() as connection:
             connection.execute(
@@ -471,22 +476,34 @@ class TicketRepository:
                 (
                     ticket_id,
                     previous_status,
-                    payload["new_status"],
+                    new_status,
                     payload.get("changed_by"),
                     payload.get("note"),
                     timestamp,
                 ),
             )
             if final_price is not None:
-                connection.execute(
-                    "UPDATE repair_tickets SET status = ?, final_price = ?, updated_at = ? WHERE id = ?",
-                    (payload["new_status"], final_price, timestamp, ticket_id),
-                )
+                if completed_at is not None:
+                    connection.execute(
+                        "UPDATE repair_tickets SET status = ?, final_price = ?, updated_at = ?, completed_at = ? WHERE id = ?",
+                        (new_status, final_price, timestamp, completed_at, ticket_id),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE repair_tickets SET status = ?, final_price = ?, updated_at = ? WHERE id = ?",
+                        (new_status, final_price, timestamp, ticket_id),
+                    )
             else:
-                connection.execute(
-                    "UPDATE repair_tickets SET status = ?, updated_at = ? WHERE id = ?",
-                    (payload["new_status"], timestamp, ticket_id),
-                )
+                if completed_at is not None:
+                    connection.execute(
+                        "UPDATE repair_tickets SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?",
+                        (new_status, timestamp, completed_at, ticket_id),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE repair_tickets SET status = ?, updated_at = ? WHERE id = ?",
+                        (new_status, timestamp, ticket_id),
+                    )
             connection.commit()
         return TicketRepository.list_history(ticket_id)[-1]
 

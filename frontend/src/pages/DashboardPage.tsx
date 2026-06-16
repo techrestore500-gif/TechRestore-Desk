@@ -72,7 +72,7 @@ export default function DashboardPage() {
     const metrics = useMemo(() => {
         const today = new Date().toDateString();
         const activeRepairs = tickets.filter((ticket) => !TERMINAL_STATUSES.has(ticket.status)).length;
-        const completedToday = tickets.filter((ticket) => ticket.status === "Picked Up / Closed" && new Date(ticket.updated_at).toDateString() === today).length;
+        const completedToday = tickets.filter((ticket) => ticket.completed_at && new Date(ticket.completed_at).toDateString() === today).length;
         const waitingForParts = tickets.filter((ticket) => ticket.status === "Waiting for Parts").length;
         const unpaidRepairs = tickets.filter((ticket) => isChargeableOpenBalance(ticket)).length;
 

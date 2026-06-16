@@ -446,25 +446,39 @@ def _upsert_customers(connection: sqlite3.Connection) -> dict[tuple[str, str], i
 
 
 def _delete_ticket_related_rows(connection: sqlite3.Connection, ticket_id: int) -> None:
-    for table_name in (
+    # Only delete from tables that exist and have ticket_id column
+    tables_to_clean = [
         "ticket_notes",
         "ticket_status_history",
-        "repair_actions",
-        "loaner_checkouts",
-        "part_usage",
-        "inventory_movements",
-        "attachments",
-    ):
-        _delete_where(connection, table_name, "ticket_id = ?", (ticket_id,))
+    ]
+    
+    for table_name in tables_to_clean:
+        try:
+            _delete_where(connection, table_name, "ticket_id = ?", (ticket_id,))
+        except Exception:
+            # Table may not exist yet, skip
+            pass
 
 
 def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str, str], int]) -> dict[str, int]:
     ticket_ids: dict[str, int] = {}
     current_timestamp = "2026-06-15T12:00:00+00:00"
+    
+    # Terminal statuses that mark completion
+    TERMINAL_STATUSES = {"Picked Up / Closed", "Not Repairable", "Returned Unrepaired", "Customer Declined"}
+    
     for customer in REAL_SEED_CUSTOMERS:
         customer_key = (customer["full_name"], _normalize_phone(customer["phone"]))
         customer_id = customer_ids[customer_key]
         for ticket in customer["jobs"]:
+            # Calculate completed_at from status_history if ticket reached a terminal status
+            completed_at = None
+            if ticket["status"] in TERMINAL_STATUSES:
+                for old_status, new_status, changed_by, note, created_at in ticket["status_history"]:
+                    if new_status in TERMINAL_STATUSES:
+                        completed_at = created_at
+                        break
+            
             existing = connection.execute(
                 "SELECT id FROM repair_tickets WHERE ticket_number = ?",
                 (ticket["ticket_number"],),
@@ -502,8 +516,9 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                         assigned_technician,
                         intake_date,
                         created_at,
-                        updated_at
-                    ) VALUES (?, ?, NULL, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, 'unknown', 'unknown', 'unknown', 'unknown', NULL, 0, 0, ?, ?, ?, 0, ?, 'normal', 'Mattis', 'Mattis', ?, ?, ?)
+                        updated_at,
+                        completed_at
+                    ) VALUES (?, ?, NULL, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, 'unknown', 'unknown', 'unknown', 'unknown', NULL, 0, 0, ?, ?, ?, 0, ?, 'normal', 'Mattis', 'Mattis', ?, ?, ?, ?)
                     """,
                     (
                         ticket["ticket_number"],
@@ -519,6 +534,7 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                         ticket["intake_date"],
                         current_timestamp,
                         current_timestamp,
+                        completed_at,
                     ),
                 )
                 ticket_id = int(cursor.lastrowid)
@@ -555,7 +571,8 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                         intake_staff = 'Mattis',
                         assigned_technician = 'Mattis',
                         intake_date = ?,
-                        updated_at = ?
+                        updated_at = ?,
+                        completed_at = ?
                     WHERE id = ?
                     """,
                     (
@@ -570,6 +587,7 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                         ticket["status"],
                         ticket["intake_date"],
                         current_timestamp,
+                        completed_at,
                         ticket_id,
                     ),
                 )

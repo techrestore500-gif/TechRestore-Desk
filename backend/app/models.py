@@ -189,6 +189,7 @@ class TicketSummaryResponse(BaseModel):
     estimated_price: float | None
     final_price: float | None
     updated_at: str
+    completed_at: str | None = None
 
 
 class TicketStatusHistoryResponse(BaseModel):
