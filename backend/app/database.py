@@ -3048,6 +3048,12 @@ def seed_operational_records(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def seed_operational_records(connection: sqlite3.Connection) -> None:
+    from app.real_seed_data import sync_real_customer_job_data
+
+    sync_real_customer_job_data(connection, replace_existing=False)
+
+
 def get_notification_templates() -> dict:
     with get_connection() as connection:
         rows = connection.execute(

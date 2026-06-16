@@ -16,6 +16,10 @@ import * as t from "../styles/theme";
 
 const TERMINAL_STATUSES = new Set(["Picked Up / Closed", "Not Repairable", "Returned Unrepaired", "Customer Declined"]);
 
+function isChargeableOpenBalance(ticket: TicketSummary): boolean {
+    return ticket.status === "Picked Up / Closed" && ticket.payment_status !== "paid";
+}
+
 const DEFAULT_TRANSITIONS: Record<string, string[]> = {
     "New Intake": ["Needs Diagnosis"],
     "Needs Diagnosis": ["Diagnosed", "Not Repairable", "Returned Unrepaired"],
@@ -70,7 +74,7 @@ export default function DashboardPage() {
         const activeRepairs = tickets.filter((ticket) => !TERMINAL_STATUSES.has(ticket.status)).length;
         const completedToday = tickets.filter((ticket) => ticket.status === "Picked Up / Closed" && new Date(ticket.updated_at).toDateString() === today).length;
         const waitingForParts = tickets.filter((ticket) => ticket.status === "Waiting for Parts").length;
-        const unpaidRepairs = tickets.filter((ticket) => ticket.payment_status !== "paid").length;
+        const unpaidRepairs = tickets.filter((ticket) => isChargeableOpenBalance(ticket)).length;
 
         const recentCustomers = Array.from(
             new Map(

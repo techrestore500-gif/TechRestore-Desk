@@ -175,4 +175,83 @@ describe("DashboardPage", () => {
         expect((await screen.findAllByText("Dashboard Customer")).length).toBeGreaterThan(0);
         expect(screen.getByText("Active Repairs")).toBeInTheDocument();
     });
+
+    it("counts only completed unpaid tickets as unpaid repairs", async () => {
+        vi.mocked(fetchStatusWorkflowRules).mockResolvedValue({
+            transitions: {
+                "New Intake": ["Needs Diagnosis"],
+                "Needs Diagnosis": ["Diagnosed"],
+                Diagnosed: ["Ready for Repair"],
+                "Ready for Repair": ["In Repair"],
+                "In Repair": ["Ready for Pickup"],
+                "Ready for Pickup": ["Picked Up / Closed"],
+                "Picked Up / Closed": [],
+            },
+            guardrails: {
+                enforce_no_active_loaner_for_ready_for_pickup: true,
+                enforce_no_active_loaner_for_closed_statuses: true,
+                enforce_final_price_for_ready_for_pickup: true,
+                enforce_final_price_for_closed_paid_statuses: true,
+            },
+            updated_at: new Date().toISOString(),
+        });
+
+        vi.mocked(fetchTickets).mockResolvedValue([
+            {
+                id: 101,
+                ticket_number: "TR-00101",
+                customer_id: 21,
+                customer_name: "Closed Unpaid",
+                customer_phone: "5551112222",
+                device_label: "Phone A",
+                issue_category: "Screen",
+                status: "Picked Up / Closed",
+                payment_status: "unpaid",
+                intake_date: new Date().toISOString(),
+                estimated_price: null,
+                final_price: 25,
+                updated_at: new Date().toISOString(),
+            },
+            {
+                id: 102,
+                ticket_number: "TR-00102",
+                customer_id: 22,
+                customer_name: "Open Unpaid",
+                customer_phone: "5553334444",
+                device_label: "Phone B",
+                issue_category: "Battery",
+                status: "In Repair",
+                payment_status: "unpaid",
+                intake_date: new Date().toISOString(),
+                estimated_price: null,
+                final_price: 50,
+                updated_at: new Date().toISOString(),
+            },
+            {
+                id: 103,
+                ticket_number: "TR-00103",
+                customer_id: 23,
+                customer_name: "Closed Paid",
+                customer_phone: "5555556666",
+                device_label: "Phone C",
+                issue_category: "Port",
+                status: "Picked Up / Closed",
+                payment_status: "paid",
+                intake_date: new Date().toISOString(),
+                estimated_price: null,
+                final_price: 40,
+                updated_at: new Date().toISOString(),
+            },
+        ]);
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText("TR-00101");
+        const unpaidMetric = await screen.findByText("Unpaid Repairs");
+        expect(unpaidMetric.parentElement?.parentElement).toHaveTextContent("1");
+    });
 });

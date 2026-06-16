@@ -42,7 +42,7 @@ export default function TicketsPage() {
         [tickets]
     );
 
-    const unpaidCount = filtered.filter((ticket) => ticket.payment_status !== "paid").length;
+    const unpaidCount = filtered.filter((ticket) => ticket.status === "Picked Up / Closed" && ticket.payment_status !== "paid").length;
     const openCount = filtered.filter((ticket) => ticket.status !== "Picked Up / Closed").length;
 
     const bulkActions = [
@@ -103,12 +103,12 @@ export default function TicketsPage() {
             key: "balance",
             header: "Balance",
             sortable: true,
-            sortValue: (ticket: TicketSummary) => Number(ticket.final_price ?? ticket.estimated_price ?? 0),
+            sortValue: (ticket: TicketSummary) => Number(ticket.status === "Picked Up / Closed" && ticket.payment_status !== "paid" ? ticket.final_price ?? ticket.estimated_price ?? 0 : 0),
             render: (ticket: TicketSummary) => {
-                const due = Math.max(Number(ticket.final_price ?? ticket.estimated_price ?? 0), 0);
-                if (ticket.payment_status === "paid") {
+                if (ticket.status !== "Picked Up / Closed" || ticket.payment_status === "paid") {
                     return "Paid";
                 }
+                const due = Math.max(Number(ticket.final_price ?? ticket.estimated_price ?? 0), 0);
                 return formatMoney(due, "$0.00");
             },
         },

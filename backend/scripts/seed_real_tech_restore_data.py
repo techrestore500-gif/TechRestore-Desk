@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import app.database as database
+from app.real_seed_data import sync_real_customer_job_data
 
 
 HOURLY_RATE = 20.0
@@ -752,41 +753,40 @@ def _assert_protected_tables_unchanged(summary: ImportSummary) -> None:
 def _validate_import(connection: sqlite3.Connection) -> None:
     ticket_count = _count_table(connection, "repair_tickets")
     hours_count = _count_table(connection, "technician_hours")
-    total_hours_row = connection.execute(
-        "SELECT ROUND(COALESCE(SUM(hours_worked), 0), 2) FROM technician_hours"
-    ).fetchone()
-    total_hours = float(total_hours_row[0]) if total_hours_row is not None else 0.0
 
-    if ticket_count != 4:
-        raise RuntimeError(f"Expected 4 real tickets after import, found {ticket_count}")
-    if hours_count != 10:
-        raise RuntimeError(f"Expected 10 real hour entries after import, found {hours_count}")
-    if round(total_hours, 2) != 14.0:
-        raise RuntimeError(f"Expected 14.00 total hours after import, found {total_hours:.2f}")
-
-    zero_hour_count = _count_where(connection, "technician_hours", "hours_worked <= 0")
-    if zero_hour_count != 0:
-        raise RuntimeError("Zero-hour technician entries remain after import")
-
-    may_11_count = _count_where(connection, "technician_hours", "work_date = ?", ("2026-05-11",))
-    if may_11_count != 0:
-        raise RuntimeError("Unexpected May 11 technician-hours entry remains after import")
+    if ticket_count != 11:
+        raise RuntimeError(f"Expected 11 real tickets after import, found {ticket_count}")
+    if hours_count != 0:
+        raise RuntimeError(f"Expected 0 real hour entries after import, found {hours_count}")
 
     yossi_weiss = connection.execute(
         """
-        SELECT rt.final_price, rt.payment_status, tn.body
+        SELECT rt.final_price, rt.payment_status, rt.status
         FROM repair_tickets rt
         JOIN customers c ON c.id = rt.customer_id
-        LEFT JOIN ticket_notes tn ON tn.ticket_id = rt.id AND tn.note_type = 'pricing'
         WHERE c.full_name = 'Yossi Weiss'
-        ORDER BY tn.id ASC
+        ORDER BY rt.updated_at DESC
+        LIMIT 2
+        """
+    ).fetchall()
+    if len(yossi_weiss) < 2:
+        raise RuntimeError("Yossi Weiss validation failed")
+    if any(float(row["final_price"]) != 25.0 or row["payment_status"] != "unpaid" or row["status"] != "Picked Up / Closed" for row in yossi_weiss):
+        raise RuntimeError("Yossi Weiss validation failed")
+
+    laptop_pending = connection.execute(
+        """
+        SELECT rt.final_price, rt.payment_status, rt.status
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Yossi Weiss' AND rt.device_model_text_override LIKE '%Lenovo IdeaPad%'
         LIMIT 1
         """
     ).fetchone()
-    if yossi_weiss is None or float(yossi_weiss["final_price"]) != 25.0 or yossi_weiss["payment_status"] != "unpaid":
-        raise RuntimeError("Yossi Weiss validation failed")
-    if "$35" not in str(yossi_weiss["body"]):
-        raise RuntimeError("Yossi Weiss pricing note did not preserve the $35 standard price")
+    if laptop_pending is None or laptop_pending["status"] != "In Repair" or laptop_pending["payment_status"] != "unpaid":
+        raise RuntimeError("Yossi Weiss laptop pending validation failed")
+    if laptop_pending["final_price"] is not None:
+        raise RuntimeError("Yossi Weiss laptop should remain charge TBD until completed")
 
     ungar = connection.execute(
         """
@@ -801,8 +801,8 @@ def _validate_import(connection: sqlite3.Connection) -> None:
     ).fetchone()
     if ungar is None or float(ungar["final_price"]) != 0.0 or ungar["payment_status"] != "paid":
         raise RuntimeError("Ungar validation failed")
-    if "$85" not in str(ungar["notes_blob"]) or "on the house" not in str(ungar["notes_blob"]).lower():
-        raise RuntimeError("Ungar notes did not preserve the standard $85 / on-the-house wording")
+    if "on the house" not in str(ungar["notes_blob"]).lower():
+        raise RuntimeError("Ungar notes did not preserve the on-the-house wording")
 
     unknown_screen = connection.execute(
         """
@@ -834,6 +834,72 @@ def _validate_import(connection: sqlite3.Connection) -> None:
     if float(yossi_toder["final_price"]) != 0.0 or yossi_toder["status"] != "Customer Declined":
         raise RuntimeError("Yossi Toder declined/no-charge validation failed")
 
+    miriam_drew = connection.execute(
+        """
+        SELECT rt.final_price, rt.payment_status, rt.status
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Miriam Drew'
+        LIMIT 1
+        """
+    ).fetchone()
+    if miriam_drew is None or float(miriam_drew["final_price"]) != 75.0 or miriam_drew["payment_status"] != "paid" or miriam_drew["status"] != "Picked Up / Closed":
+        raise RuntimeError("Miriam Drew paid validation failed")
+
+    globerman = connection.execute(
+        """
+        SELECT rt.final_price, rt.payment_status, rt.status
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Globerman'
+        LIMIT 1
+        """
+    ).fetchone()
+    if globerman is None or float(globerman["final_price"]) != 100.0 or globerman["payment_status"] != "paid" or globerman["status"] != "Picked Up / Closed":
+        raise RuntimeError("Globerman paid-by-check validation failed")
+
+    miriam_braun = connection.execute(
+        """
+        SELECT rt.status, rt.payment_status, rt.final_price
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Miriam Braun'
+        LIMIT 1
+        """
+    ).fetchone()
+    if miriam_braun is None or miriam_braun["status"] != "Waiting for Parts":
+        raise RuntimeError("Miriam Braun open/part-ordered validation failed")
+    if miriam_braun["payment_status"] != "unpaid" or miriam_braun["final_price"] is not None:
+        raise RuntimeError("Miriam Braun charge TBD validation failed")
+
+    dorpman = connection.execute(
+        """
+        SELECT rt.status, rt.payment_status, rt.final_price
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Dorfman'
+        LIMIT 1
+        """
+    ).fetchone()
+    if dorpman is None or dorpman["status"] != "New Intake":
+        raise RuntimeError("Dorfman open/new validation failed")
+    if dorpman["payment_status"] != "unpaid" or dorpman["final_price"] is not None:
+        raise RuntimeError("Dorfman charge TBD validation failed")
+
+    walk_in = connection.execute(
+        """
+        SELECT rt.status, rt.payment_status, rt.final_price
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Unknown / walk-in'
+        LIMIT 1
+        """
+    ).fetchone()
+    if walk_in is None or walk_in["status"] != "Picked Up / Closed":
+        raise RuntimeError("Unknown / walk-in validation failed")
+    if walk_in["payment_status"] != "paid" or float(walk_in["final_price"]) != 35.0:
+        raise RuntimeError("Unknown / walk-in payment validation failed")
+
 
 def run_real_data_reset_import() -> ImportSummary:
     database_url = os.getenv("DATABASE_URL", "").strip()
@@ -858,10 +924,7 @@ def run_real_data_reset_import() -> ImportSummary:
         connection.execute("BEGIN")
         try:
             summary.protected_table_counts_before = _record_protected_counts(connection)
-            _wipe_ticket_and_hour_data(connection, summary)
-            customer_ids = _upsert_customers(connection, summary)
-            ticket_ids = _insert_ticket_records(connection, customer_ids, summary)
-            _insert_hours(connection, ticket_ids, summary)
+            sync_real_customer_job_data(connection, replace_existing=True)
             _upsert_inventory_purchase(connection, summary)
             summary.protected_table_counts_after = _record_protected_counts(connection)
             _assert_protected_tables_unchanged(summary)
@@ -896,7 +959,6 @@ def _print_summary(summary: ImportSummary) -> None:
     print(f"Inventory notes result: {summary.inventory_notes_result}")
     if summary.skipped_tables:
         print(f"Skipped tables: {sorted(set(summary.skipped_tables))}")
-    print(f"Hours total check: 14.00 hours @ ${HOURLY_RATE:.2f}/hour = ${14 * HOURLY_RATE:.2f}")
     print("Protected tables preserved: auth users, invites, settings, Twilio settings, voicemail records row count")
 
 

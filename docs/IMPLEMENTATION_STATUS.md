@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-16 Real Tech Restore seed data + balance summary fix complete: centralized the real customer/job seed source for bootstrap and reset-import flows, made the operational seed idempotent, updated dashboard/ticket unpaid summaries to count only completed unpaid jobs, and added backend/frontend regression tests for duplicate-safe reseeding and balance rendering
 - 2026-06-09 Voicemail callback center removed: deleted the callback center section and related dialer/contact-search UI from the voicemail page, including row-level call-back action wiring, while preserving voicemail playback, filtering, notes, copy-caller-number, and delete workflows
 - 2026-06-04 Production CORS hardening complete: pinned desk/api domain env values in Render config, added backend origin normalization for `FRONTEND_BASE_URL`, and added automatic `desk.<domain>` inference from `PUBLIC_API_BASE_URL=https://api.<domain>` to prevent browser-level cross-origin fetch failures
 - 2026-06-04 Voicemail callback dialer complete: added a callback center to the voicemail page with dialpad, customer search, recent caller shortcuts, per-voicemail call-back actions, and a protected outbound Twilio call endpoint with a public TwiML callback route
