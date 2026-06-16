@@ -56,10 +56,10 @@ describe("DashboardPage", () => {
         );
 
         const ticketNumber = await screen.findByText("TR-00077");
-        const card = ticketNumber.closest("article");
-        expect(card).not.toBeNull();
-        expect(within(card as HTMLElement).queryByRole("button", { name: "Canceled" })).not.toBeInTheDocument();
-        expect(screen.getByText("+1 555-444-3333")).toBeInTheDocument();
+        const row = ticketNumber.closest("tr");
+        expect(row).not.toBeNull();
+        expect(within(row as HTMLElement).queryByRole("button", { name: "Canceled" })).not.toBeInTheDocument();
+        expect(within(row as HTMLElement).getByText("+1 555-444-3333")).toBeInTheDocument();
     });
 
     it("executes transition path for selected valid action", async () => {
@@ -116,9 +116,9 @@ describe("DashboardPage", () => {
         );
 
         const ticketNumber = await screen.findByText("TR-00078");
-        const card = ticketNumber.closest("article");
-        expect(card).not.toBeNull();
-        fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "In Repair" }));
+        const row = ticketNumber.closest("tr");
+        expect(row).not.toBeNull();
+        fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "In Repair" }));
 
         await waitFor(() => expect(updateTicketStatus).toHaveBeenCalledTimes(3));
         expect(updateTicketStatus).toHaveBeenNthCalledWith(1, 78, "Diagnosed", "", "");

@@ -203,85 +203,122 @@ export default function DashboardPage() {
 
             <div style={deskLanesStyle}>
                 <SectionCard title={`Live tickets (${filteredTickets.length})`} description="Most recently updated tickets first.">
-                    <div style={boardGridStyle}>
-                        {filteredTickets.map((ticket) => {
-                            const uiStatus = toUiStatus(ticket.status);
-                            const statusColors = QUICK_REPAIR_STATUS_COLORS[uiStatus];
-                            const updatedLabel = new Date(ticket.updated_at).toLocaleString();
-                            const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
-                            const rankedActions = getWorkflowAwareUiActions(ticket.status, transitions);
-                            const primaryActions = rankedActions.slice(0, 2);
-                            const overflowActions = rankedActions.slice(2);
-                            const isOverflowOpen = openOverflowTicketId === ticket.id;
-                            return (
-                                <article key={ticket.id} style={ticketCardStyle}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "start" }}>
-                                        <Link to={`/tickets/${ticket.id}`} style={{ textDecoration: "none", color: "#163731", fontWeight: 800 }}>
-                                            {ticket.ticket_number}
-                                        </Link>
-                                        <span style={{ borderRadius: "999px", padding: "6px 10px", background: statusColors.bg, color: statusColors.text, border: `1px solid ${statusColors.border}`, fontSize: "0.78rem", fontWeight: 700 }}>
-                                            {uiStatus}
-                                        </span>
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#193d35", marginTop: "8px" }}>{ticket.customer_name}</div>
-                                    <div style={{ marginTop: "4px", color: "#3d5d55", fontSize: "0.9rem" }}>{ticket.device_label}</div>
-                                    <div style={{ marginTop: "4px", color: "#5a726c", fontSize: "0.85rem" }}>{ticket.issue_category}</div>
-                                    <div style={{ marginTop: "8px", color: "#6d807b", fontSize: "0.77rem" }}>Updated {updatedLabel}</div>
+                    <div style={tableScrollStyle}>
+                        <table style={dashboardTableStyle}>
+                            <thead>
+                                <tr>
+                                    <th style={dashboardThStyle}>Ticket</th>
+                                    <th style={dashboardThStyle}>Customer</th>
+                                    <th style={dashboardThStyle}>Device</th>
+                                    <th style={dashboardThStyle}>Issue</th>
+                                    <th style={dashboardThStyle}>Status</th>
+                                    <th style={dashboardThStyle}>Updated</th>
+                                    <th style={dashboardThStyle}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredTickets.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} style={dashboardTdStyle}>
+                                            No tickets match the current filters.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredTickets.map((ticket) => {
+                                        const uiStatus = toUiStatus(ticket.status);
+                                        const statusColors = QUICK_REPAIR_STATUS_COLORS[uiStatus];
+                                        const updatedLabel = new Date(ticket.updated_at).toLocaleString();
+                                        const transitions = statusRules?.transitions ?? DEFAULT_TRANSITIONS;
+                                        const rankedActions = getWorkflowAwareUiActions(ticket.status, transitions);
+                                        const primaryActions = rankedActions.slice(0, 2);
+                                        const overflowActions = rankedActions.slice(2);
+                                        const isOverflowOpen = openOverflowTicketId === ticket.id;
 
-                                    <div style={{ ...t.formActionsRow, gap: "8px", marginTop: "12px" }}>
-                                        {primaryActions.map(({ status }) => (
-                                            <button
-                                                key={status}
-                                                type="button"
-                                                onClick={() => void handleQuickStatusChange(ticket, status)}
-                                                disabled={updatingTicketId === ticket.id}
-                                                style={quickActionChipStyle}
-                                            >
-                                                {status}
-                                            </button>
-                                        ))}
-                                        {overflowActions.length > 0 ? (
-                                            <div>
-                                                <button
-                                                    type="button"
-                                                    ref={(element) => {
-                                                        ticketMenuButtonRefs.current[ticket.id] = element;
-                                                    }}
-                                                    aria-label="More status actions"
-                                                    onClick={() => setOpenOverflowTicketId(isOverflowOpen ? null : ticket.id)}
-                                                    disabled={updatingTicketId === ticket.id}
-                                                    style={overflowToggleButtonStyle}
-                                                >
-                                                    ⋮
-                                                </button>
-                                                <FloatingMenu
-                                                    open={isOverflowOpen}
-                                                    anchorElement={ticketMenuButtonRefs.current[ticket.id]}
-                                                    onClose={() => setOpenOverflowTicketId(null)}
-                                                    align="right"
-                                                    style={overflowMenuStyle}
-                                                >
-                                                    {overflowActions.map(({ status }) => (
-                                                        <button
-                                                            key={status}
-                                                            type="button"
-                                                            onClick={() => void handleQuickStatusChange(ticket, status)}
-                                                            disabled={updatingTicketId === ticket.id}
-                                                            style={overflowMenuItemStyle}
-                                                        >
-                                                            {status}
-                                                        </button>
-                                                    ))}
-                                                </FloatingMenu>
-                                            </div>
-                                        ) : null}
-                                        {primaryActions.length === 0 && overflowActions.length === 0 ? (
-                                            <span style={{ ...t.meta, fontSize: "0.78rem" }}>No next status action</span>
-                                        ) : null}
-                                    </div>
-                                </article>
-                            );
-                        })}
+                                        return (
+                                            <tr key={ticket.id}>
+                                                <td style={dashboardTdStyle}>
+                                                    <Link to={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+                                                        {ticket.ticket_number}
+                                                    </Link>
+                                                </td>
+                                                <td style={dashboardTdStyle}>
+                                                    <div style={ticketPrimaryCellStyle}>{ticket.customer_name}</div>
+                                                    <div style={ticketSecondaryCellStyle}>{formatPhone(ticket.customer_phone)}</div>
+                                                </td>
+                                                <td style={dashboardTdStyle}>{ticket.device_label}</td>
+                                                <td style={dashboardTdStyle}>{ticket.issue_category}</td>
+                                                <td style={dashboardTdStyle}>
+                                                    <span
+                                                        style={{
+                                                            ...statusBadgeStyle,
+                                                            background: statusColors.bg,
+                                                            color: statusColors.text,
+                                                            borderColor: statusColors.border,
+                                                        }}
+                                                    >
+                                                        {uiStatus}
+                                                    </span>
+                                                </td>
+                                                <td style={dashboardTdStyle}>{updatedLabel}</td>
+                                                <td style={dashboardTdStyle}>
+                                                    <div style={rowActionStyle}>
+                                                        {primaryActions.map(({ status }) => (
+                                                            <button
+                                                                key={status}
+                                                                type="button"
+                                                                onClick={() => void handleQuickStatusChange(ticket, status)}
+                                                                disabled={updatingTicketId === ticket.id}
+                                                                style={quickActionChipStyle}
+                                                            >
+                                                                {status}
+                                                            </button>
+                                                        ))}
+                                                        {overflowActions.length > 0 ? (
+                                                            <div>
+                                                                <button
+                                                                    type="button"
+                                                                    ref={(element) => {
+                                                                        ticketMenuButtonRefs.current[ticket.id] = element;
+                                                                    }}
+                                                                    aria-label="More status actions"
+                                                                    onClick={() => setOpenOverflowTicketId(isOverflowOpen ? null : ticket.id)}
+                                                                    disabled={updatingTicketId === ticket.id}
+                                                                    style={overflowToggleButtonStyle}
+                                                                >
+                                                                    ⋮
+                                                                </button>
+                                                                <FloatingMenu
+                                                                    open={isOverflowOpen}
+                                                                    anchorElement={ticketMenuButtonRefs.current[ticket.id]}
+                                                                    onClose={() => setOpenOverflowTicketId(null)}
+                                                                    align="right"
+                                                                    style={overflowMenuStyle}
+                                                                >
+                                                                    {overflowActions.map(({ status }) => (
+                                                                        <button
+                                                                            key={status}
+                                                                            type="button"
+                                                                            onClick={() => void handleQuickStatusChange(ticket, status)}
+                                                                            disabled={updatingTicketId === ticket.id}
+                                                                            style={overflowMenuItemStyle}
+                                                                        >
+                                                                            {status}
+                                                                        </button>
+                                                                    ))}
+                                                                </FloatingMenu>
+                                                            </div>
+                                                        ) : null}
+                                                        {primaryActions.length === 0 && overflowActions.length === 0 ? (
+                                                            <span style={{ ...t.meta, fontSize: "0.78rem" }}>No next status action</span>
+                                                        ) : null}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </SectionCard>
 
@@ -365,23 +402,76 @@ const activeFilterChipStyle = {
     color: "#ffffff",
 };
 
-const boardGridStyle = {
-    display: "grid",
-    gap: "12px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-};
-
 const deskLanesStyle = {
     display: "grid",
     gap: "12px",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
 };
 
-const ticketCardStyle = {
-    ...t.panel,
-    padding: "14px",
-    borderRadius: "16px",
-    boxShadow: "0 12px 20px rgba(26, 46, 41, 0.08)",
+const tableScrollStyle = {
+    overflowX: "auto",
+    border: "1px solid rgba(20, 50, 58, 0.18)",
+    borderRadius: "14px",
+    boxShadow: "0 12px 24px rgba(20, 49, 56, 0.12)",
+};
+
+const dashboardTableStyle = {
+    width: "100%",
+    minWidth: "1080px",
+    borderCollapse: "collapse" as const,
+    backgroundColor: "rgba(255,255,255,0.95)",
+};
+
+const dashboardThStyle = {
+    padding: "11px 10px",
+    textAlign: "left" as const,
+    borderBottom: "1px solid rgba(236, 255, 251, 0.18)",
+    fontSize: "0.85rem",
+    letterSpacing: "0.03em",
+    textTransform: "uppercase" as const,
+    whiteSpace: "nowrap" as const,
+};
+
+const dashboardTdStyle = {
+    padding: "11px 10px",
+    borderBottom: "1px solid rgba(28, 58, 67, 0.09)",
+    verticalAlign: "top" as const,
+};
+
+const ticketLinkStyle = {
+    textDecoration: "none",
+    color: "#163731",
+    fontWeight: 800,
+};
+
+const ticketPrimaryCellStyle = {
+    fontWeight: 700,
+    color: "#193d35",
+};
+
+const ticketSecondaryCellStyle = {
+    marginTop: "4px",
+    color: "#5a726c",
+    fontSize: "0.85rem",
+};
+
+const statusBadgeStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    border: "1px solid transparent",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    whiteSpace: "nowrap" as const,
+};
+
+const rowActionStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap" as const,
 };
 
 const quickActionChipStyle = {
