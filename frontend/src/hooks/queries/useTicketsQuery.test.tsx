@@ -23,6 +23,7 @@ describe("useTicketsQuery", () => {
                 status: "New Intake",
                 payment_status: "unpaid",
                 intake_date: new Date().toISOString(),
+                completed_at: null,
                 estimated_price: null,
                 final_price: null,
                 updated_at: new Date().toISOString(),

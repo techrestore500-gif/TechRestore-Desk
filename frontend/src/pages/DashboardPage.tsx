@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -408,7 +408,7 @@ const deskLanesStyle = {
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
 };
 
-const tableScrollStyle = {
+const tableScrollStyle: CSSProperties = {
     overflowX: "auto",
     border: "1px solid rgba(20, 50, 58, 0.18)",
     borderRadius: "14px",
