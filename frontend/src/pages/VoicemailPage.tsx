@@ -5,6 +5,7 @@ import { deleteVoicemail, fetchVoicemailAudio, fetchVoicemails, updateVoicemail,
 import { useAsyncData } from "../hooks/useAsyncData";
 import { formatDeskDateTime, formatDurationSeconds, formatPhone } from "../lib/format";
 import { PageHeader, SectionCard } from "../components/PageChrome";
+import { FloatingMenu } from "../components/FloatingMenu";
 import * as t from "../styles/theme";
 
 type VoicemailQuickFilter = "all" | "new" | "listened" | "archived" | "today" | "last7";
@@ -27,6 +28,7 @@ export default function VoicemailPage() {
     const [pendingAutoPlayId, setPendingAutoPlayId] = useState<number | null>(null);
 
     const audioElementRefs = useRef<Record<number, HTMLAudioElement | null>>({});
+    const voicemailMenuButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
     const { data: voicemails = [], error } = useAsyncData<VoicemailRecord[]>(() => fetchVoicemails(), [refreshKey]);
 
     const filteredVoicemails = voicemails.filter((voicemail) => {
@@ -83,27 +85,6 @@ export default function VoicemailPage() {
         };
     }, []);
 
-    useEffect(() => {
-        function onDocumentClick(event: MouseEvent) {
-            const target = event.target as HTMLElement | null;
-            if (!target?.closest("[data-voicemail-menu]")) {
-                setOpenMenuVoicemailId(null);
-            }
-        }
-
-        function onEscape(event: KeyboardEvent) {
-            if (event.key === "Escape") {
-                setOpenMenuVoicemailId(null);
-            }
-        }
-
-        document.addEventListener("mousedown", onDocumentClick);
-        document.addEventListener("keydown", onEscape);
-        return () => {
-            document.removeEventListener("mousedown", onDocumentClick);
-            document.removeEventListener("keydown", onEscape);
-        };
-    }, []);
 
     useEffect(() => {
         if (pendingAutoPlayId === null) {
@@ -345,6 +326,9 @@ export default function VoicemailPage() {
                                     <div data-voicemail-menu style={menuWrapStyle}>
                                         <button
                                             type="button"
+                                            ref={(element) => {
+                                                voicemailMenuButtonRefs.current[voicemail.id] = element;
+                                            }}
                                             aria-haspopup="menu"
                                             aria-expanded={isMenuOpen}
                                             aria-label={`More actions for voicemail ${voicemail.id}`}
@@ -354,23 +338,27 @@ export default function VoicemailPage() {
                                             ⋮
                                         </button>
 
-                                        {isMenuOpen ? (
-                                            <div role="menu" style={menuPanelStyle}>
-                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
-                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
-                                                <button type="button" role="menuitem" style={menuItemStyle} onClick={() => openNoteEditor(voicemail.id)}>{voicemail.notes ? "Add/Edit note" : "Add note"}</button>
-                                                <button
-                                                    type="button"
-                                                    role="menuitem"
-                                                    style={menuItemStyle}
-                                                    onClick={() => void copyCallerNumber(voicemail.caller_number)}
-                                                    disabled={!voicemail.caller_number}
-                                                >
-                                                    Copy caller number
-                                                </button>
-                                                <button type="button" role="menuitem" style={menuDeleteStyle} onClick={() => void removeVoicemail(voicemail.id)}>Delete</button>
-                                            </div>
-                                        ) : null}
+                                        <FloatingMenu
+                                            open={isMenuOpen}
+                                            anchorElement={voicemailMenuButtonRefs.current[voicemail.id] ?? null}
+                                            onClose={() => setOpenMenuVoicemailId(null)}
+                                            align="right"
+                                            style={menuPanelStyle}
+                                        >
+                                            <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "listened")}>Mark listened</button>
+                                            <button type="button" role="menuitem" style={menuItemStyle} onClick={() => void setStatus(voicemail.id, "archived")}>Mark done</button>
+                                            <button type="button" role="menuitem" style={menuItemStyle} onClick={() => openNoteEditor(voicemail.id)}>{voicemail.notes ? "Add/Edit note" : "Add note"}</button>
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                style={menuItemStyle}
+                                                onClick={() => void copyCallerNumber(voicemail.caller_number)}
+                                                disabled={!voicemail.caller_number}
+                                            >
+                                                Copy caller number
+                                            </button>
+                                            <button type="button" role="menuitem" style={menuDeleteStyle} onClick={() => void removeVoicemail(voicemail.id)}>Delete</button>
+                                        </FloatingMenu>
                                     </div>
                                 </div>
 
@@ -509,10 +497,6 @@ const menuTriggerStyle: React.CSSProperties = {
 };
 
 const menuPanelStyle: React.CSSProperties = {
-    position: "absolute",
-    top: "36px",
-    right: 0,
-    zIndex: 20,
     minWidth: "170px",
     background: "#ffffff",
     border: "1px solid rgba(29,43,40,0.16)",

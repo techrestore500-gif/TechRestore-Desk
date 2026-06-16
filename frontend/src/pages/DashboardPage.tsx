@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -12,6 +12,7 @@ import { useAsyncData } from "../hooks/useAsyncData";
 import { formatPhone } from "../lib/format";
 import { buildTransitionPath, getWorkflowAwareUiActions, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
 import { MetricTile, PageHeader, SectionCard } from "../components/PageChrome";
+import { FloatingMenu } from "../components/FloatingMenu";
 import * as t from "../styles/theme";
 
 const TERMINAL_STATUSES = new Set(["Picked Up / Closed", "Not Repairable", "Returned Unrepaired", "Customer Declined"]);
@@ -45,8 +46,10 @@ export default function DashboardPage() {
     const [updatingTicketId, setUpdatingTicketId] = useState<number | null>(null);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [openOverflowTicketId, setOpenOverflowTicketId] = useState<number | null>(null);
+    const ticketMenuButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
     const { data: tickets = [], error } = useAsyncData<TicketSummary[]>(() => fetchTickets(), [reloadCounter]);
+
     const { data: statusRules } = useAsyncData<StatusWorkflowRules>(() => fetchStatusWorkflowRules(), []);
 
     const filteredTickets = useMemo(() => {
@@ -238,9 +241,12 @@ export default function DashboardPage() {
                                             </button>
                                         ))}
                                         {overflowActions.length > 0 ? (
-                                            <div style={{ position: "relative" }}>
+                                            <div>
                                                 <button
                                                     type="button"
+                                                    ref={(element) => {
+                                                        ticketMenuButtonRefs.current[ticket.id] = element;
+                                                    }}
                                                     aria-label="More status actions"
                                                     onClick={() => setOpenOverflowTicketId(isOverflowOpen ? null : ticket.id)}
                                                     disabled={updatingTicketId === ticket.id}
@@ -248,21 +254,25 @@ export default function DashboardPage() {
                                                 >
                                                     ⋮
                                                 </button>
-                                                {isOverflowOpen ? (
-                                                    <div style={overflowMenuStyle}>
-                                                        {overflowActions.map(({ status }) => (
-                                                            <button
-                                                                key={status}
-                                                                type="button"
-                                                                onClick={() => void handleQuickStatusChange(ticket, status)}
-                                                                disabled={updatingTicketId === ticket.id}
-                                                                style={overflowMenuItemStyle}
-                                                            >
-                                                                {status}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                ) : null}
+                                                <FloatingMenu
+                                                    open={isOverflowOpen}
+                                                    anchorElement={ticketMenuButtonRefs.current[ticket.id]}
+                                                    onClose={() => setOpenOverflowTicketId(null)}
+                                                    align="right"
+                                                    style={overflowMenuStyle}
+                                                >
+                                                    {overflowActions.map(({ status }) => (
+                                                        <button
+                                                            key={status}
+                                                            type="button"
+                                                            onClick={() => void handleQuickStatusChange(ticket, status)}
+                                                            disabled={updatingTicketId === ticket.id}
+                                                            style={overflowMenuItemStyle}
+                                                        >
+                                                            {status}
+                                                        </button>
+                                                    ))}
+                                                </FloatingMenu>
                                             </div>
                                         ) : null}
                                         {primaryActions.length === 0 && overflowActions.length === 0 ? (
@@ -398,15 +408,11 @@ const overflowToggleButtonStyle = {
 };
 
 const overflowMenuStyle = {
-    position: "absolute" as const,
-    top: "110%",
-    right: 0,
     minWidth: "180px",
     borderRadius: "10px",
     border: "1px solid rgba(29, 43, 40, 0.16)",
     background: "#ffffff",
     boxShadow: "0 8px 18px rgba(19, 45, 40, 0.15)",
-    zIndex: 10,
     display: "grid",
     padding: "6px",
     gap: "4px",

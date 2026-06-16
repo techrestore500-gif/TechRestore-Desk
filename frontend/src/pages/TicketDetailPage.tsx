@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -12,6 +12,7 @@ import {
 import { fetchRepairActionPartUsage, type PartUsage } from "../api/inventory";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { buildTransitionPath, getWorkflowAwareUiActions, QUICK_REPAIR_STATUS_COLORS, QUICK_REPAIR_STATUSES, toUiStatus } from "../lib/repairFlow";
+import { FloatingMenu } from "../components/FloatingMenu";
 import * as t from "../styles/theme";
 
 const DEFAULT_TRANSITIONS: Record<string, string[]> = {
@@ -41,6 +42,7 @@ export default function TicketDetailPage() {
     const [updatingStatus, setUpdatingStatus] = useState<null | string>(null);
     const [error, setError] = useState<string | null>(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const statusMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
     const { data: ticket, error: ticketLoadError } = useAsyncData<TicketDetail>(() => fetchTicket(ticketId), [ticketId, refreshKey]);
     const { data: statusRules } = useAsyncData<StatusWorkflowRules>(() => fetchStatusWorkflowRules(), []);
@@ -184,9 +186,10 @@ export default function TicketDetailPage() {
                         </button>
                     ))}
                     {overflowActions.length > 0 ? (
-                        <div style={{ position: "relative" }}>
+                        <div>
                             <button
                                 type="button"
+                                ref={statusMenuButtonRef}
                                 aria-label="More status actions"
                                 onClick={() => setStatusMenuOpen((open) => !open)}
                                 disabled={updatingStatus !== null}
@@ -194,21 +197,25 @@ export default function TicketDetailPage() {
                             >
                                 ⋮
                             </button>
-                            {statusMenuOpen ? (
-                                <div style={overflowMenuStyle}>
-                                    {overflowActions.map((status) => (
-                                        <button
-                                            key={status}
-                                            type="button"
-                                            onClick={() => void moveToStatus(status)}
-                                            disabled={updatingStatus !== null}
-                                            style={overflowMenuItemStyle}
-                                        >
-                                            {status}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : null}
+                            <FloatingMenu
+                                open={statusMenuOpen}
+                                anchorElement={statusMenuButtonRef.current}
+                                onClose={() => setStatusMenuOpen(false)}
+                                align="right"
+                                style={overflowMenuStyle}
+                            >
+                                {overflowActions.map((status) => (
+                                    <button
+                                        key={status}
+                                        type="button"
+                                        onClick={() => void moveToStatus(status)}
+                                        disabled={updatingStatus !== null}
+                                        style={overflowMenuItemStyle}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
+                            </FloatingMenu>
                         </div>
                     ) : null}
                     {primaryActions.length === 0 && overflowActions.length === 0 ? (
@@ -383,15 +390,11 @@ const overflowToggleButtonStyle = {
 };
 
 const overflowMenuStyle = {
-    position: "absolute" as const,
-    top: "110%",
-    right: 0,
     minWidth: "180px",
     borderRadius: "10px",
     border: "1px solid rgba(29, 43, 40, 0.16)",
     background: "#ffffff",
     boxShadow: "0 8px 18px rgba(19, 45, 40, 0.15)",
-    zIndex: 10,
     display: "grid",
     padding: "6px",
     gap: "4px",

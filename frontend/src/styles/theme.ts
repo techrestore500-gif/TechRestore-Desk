@@ -218,6 +218,8 @@ export const pageWrap: CSSProperties = {
     animation: "riseIn 280ms ease",
 };
 
+export const zDropdown = 1000;
+
 export const pageHeader: CSSProperties = {
     display: "grid",
     gap: "6px",
