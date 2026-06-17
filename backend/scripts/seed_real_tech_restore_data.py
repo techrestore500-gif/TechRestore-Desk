@@ -834,17 +834,19 @@ def _validate_import(connection: sqlite3.Connection) -> None:
     if float(yossi_toder["final_price"]) != 0.0 or yossi_toder["status"] != "Customer Declined":
         raise RuntimeError("Yossi Toder declined/no-charge validation failed")
 
-    miriam_drew = connection.execute(
+    zaks = connection.execute(
         """
-        SELECT rt.final_price, rt.payment_status, rt.status
+        SELECT rt.final_price, rt.payment_status, rt.status, rt.issue_category, rt.device_model_text_override
         FROM repair_tickets rt
         JOIN customers c ON c.id = rt.customer_id
-        WHERE c.full_name = 'Miriam Drew'
+        WHERE c.full_name = 'Zaks'
         LIMIT 1
         """
     ).fetchone()
-    if miriam_drew is None or float(miriam_drew["final_price"]) != 75.0 or miriam_drew["payment_status"] != "paid" or miriam_drew["status"] != "Picked Up / Closed":
-        raise RuntimeError("Miriam Drew paid validation failed")
+    if zaks is None or float(zaks["final_price"]) != 20.0 or zaks["payment_status"] != "unpaid" or zaks["status"] != "Completed":
+        raise RuntimeError("Zaks unpaid completed validation failed")
+    if zaks["issue_category"] != "Display not turning on" or "Canon SX740" not in str(zaks["device_model_text_override"]):
+        raise RuntimeError("Zaks issue/device validation failed")
 
     globerman = connection.execute(
         """

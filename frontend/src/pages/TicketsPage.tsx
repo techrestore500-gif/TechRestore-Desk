@@ -11,6 +11,90 @@ import { formatDeskDateTime, formatMoney, formatPhone } from "../lib/format";
 import { useUiStore } from "../store/uiStore";
 import * as t from "../styles/theme";
 
+const NO_CHARGE_STATUSES = new Set(["customer declined", "canceled", "cancelled", "not repairable", "returned unrepaired"]);
+
+function titleCase(value: string): string {
+    return value
+        .split(/(\s+|\/|-)/)
+        .map((part) => {
+            if (!/[a-z]/i.test(part) || part !== part.toLowerCase()) {
+                return part;
+            }
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        })
+        .join("");
+}
+
+function normalizeCustomerName(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) {
+        return "Unknown";
+    }
+    return titleCase(trimmed);
+}
+
+function normalizeDeviceLabel(label: string): string {
+    const compact = label.replace(/\s+/g, " ").trim().replace(/lapton/gi, "laptop");
+    const words = compact.split(" ");
+    if (words.length >= 2 && words[0].toLowerCase() === words[1].toLowerCase()) {
+        words.splice(0, 1);
+    }
+    return titleCase(words.join(" "));
+}
+
+function getPaymentDisplay(ticket: TicketSummary): string {
+    const payment = (ticket.payment_status || "").trim().toLowerCase();
+    const status = (ticket.status || "").trim().toLowerCase();
+    const finalPrice = ticket.final_price;
+    const estimatedPrice = ticket.estimated_price;
+    const hasFinal = finalPrice != null;
+    const hasEstimated = estimatedPrice != null;
+    const finalValue = Number(finalPrice ?? 0);
+    const pendingAmount = hasFinal ? finalValue : Number(estimatedPrice ?? 0);
+
+    if (payment && !["paid", "unpaid", "partial"].includes(payment)) {
+        return "Unknown";
+    }
+
+    if (NO_CHARGE_STATUSES.has(status) && (!hasFinal || finalValue <= 0)) {
+        return "No charge";
+    }
+
+    if (hasFinal && finalValue <= 0) {
+        return "No charge";
+    }
+
+    if (hasFinal && payment === "paid") {
+        return "Paid";
+    }
+
+    if (hasFinal && payment === "unpaid") {
+        return `Unpaid ${formatMoney(finalValue, "$0.00")}`;
+    }
+
+    if (hasFinal && payment === "partial") {
+        return `Partial ${formatMoney(finalValue, "$0.00")}`;
+    }
+
+    const isCompleted = status === "picked up / closed" || status === "completed";
+    if (isCompleted && !hasFinal) {
+        return "Needs final";
+    }
+
+    if (!isCompleted) {
+        if (pendingAmount > 0) {
+            return `Pending ${formatMoney(pendingAmount, "$0.00")}`;
+        }
+        return "TBD";
+    }
+
+    if (!payment) {
+        return "Unknown";
+    }
+
+    return "Unknown";
+}
+
 export default function TicketsPage() {
     const [page, setPage] = useState(1);
     const [viewName, setViewName] = useState("");
@@ -73,7 +157,7 @@ export default function TicketsPage() {
             sortValue: (ticket: TicketSummary) => ticket.customer_name,
             render: (ticket: TicketSummary) => (
                 <div>
-                    <Link to={`/customers/${ticket.customer_id}`}>{ticket.customer_name}</Link>
+                    <Link to={`/customers/${ticket.customer_id}`}>{normalizeCustomerName(ticket.customer_name)}</Link>
                     <div style={metaStyle}>{formatPhone(ticket.customer_phone)}</div>
                 </div>
             ),
@@ -83,7 +167,7 @@ export default function TicketsPage() {
             header: "Device",
             sortable: true,
             sortValue: (ticket: TicketSummary) => ticket.device_label,
-            render: (ticket: TicketSummary) => <strong>{ticket.device_label}</strong>,
+            render: (ticket: TicketSummary) => <strong>{normalizeDeviceLabel(ticket.device_label)}</strong>,
         },
         {
             key: "issue",
@@ -101,16 +185,10 @@ export default function TicketsPage() {
         },
         {
             key: "balance",
-            header: "Balance",
+            header: "Payment",
             sortable: true,
-            sortValue: (ticket: TicketSummary) => Number(ticket.status === "Picked Up / Closed" && ticket.payment_status !== "paid" ? ticket.final_price ?? ticket.estimated_price ?? 0 : 0),
-            render: (ticket: TicketSummary) => {
-                if (ticket.status !== "Picked Up / Closed" || ticket.payment_status === "paid") {
-                    return "Paid";
-                }
-                const due = Math.max(Number(ticket.final_price ?? ticket.estimated_price ?? 0), 0);
-                return formatMoney(due, "$0.00");
-            },
+            sortValue: (ticket: TicketSummary) => Number(ticket.final_price ?? ticket.estimated_price ?? 0),
+            render: (ticket: TicketSummary) => getPaymentDisplay(ticket),
         },
         {
             key: "updated_at",

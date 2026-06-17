@@ -139,12 +139,12 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
             LIMIT 1
             """
         ).fetchone()
-        miriam_drew = connection.execute(
+        zaks = connection.execute(
             """
-            SELECT rt.payment_status, rt.status
+            SELECT rt.payment_status, rt.status, rt.final_price, rt.issue_category, rt.device_model_text_override
             FROM repair_tickets rt
             JOIN customers c ON c.id = rt.customer_id
-            WHERE c.full_name = 'Miriam Drew'
+            WHERE c.full_name = 'Zaks'
             LIMIT 1
             """
         ).fetchone()
@@ -221,8 +221,11 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
     assert unknown_screen["primary_phone"] == "732-237-4070"
     assert "Samsung Galaxy A13 5G / SM-A136U1" in unknown_screen["device_model_text_override"]
     assert unknown_screen["status"] == "Customer Declined"
-    assert miriam_drew["payment_status"] == "paid"
-    assert miriam_drew["status"] == "Picked Up / Closed"
+    assert zaks["payment_status"] == "unpaid"
+    assert zaks["status"] == "Completed"
+    assert zaks["final_price"] == 20.0
+    assert zaks["issue_category"] == "Display not turning on"
+    assert "Canon SX740" in zaks["device_model_text_override"]
     assert globerman["payment_status"] == "paid"
     assert globerman["status"] == "Picked Up / Closed"
     assert miriam_braun["payment_status"] == "unpaid"
