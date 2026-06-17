@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-16 Dashboard table widened to full row width: live tickets now span the full dashboard content area, with Fast Actions and Recent Customers moved into a separate support grid below
 - 2026-06-16 Frontend Render build fix complete: typed the dashboard table scroll container correctly and updated ticket test fixtures to include required `completed_at` fields so the production frontend build passes again
 - 2026-06-16 Dashboard live tickets converted from card tiles to a table layout, preserving quick status actions and overflow menus while matching the app's existing table presentation pattern
 - 2026-06-16 Dashboard completion timestamp semantics fixed: added `completed_at` column to repair_tickets schema, populated on status transitions to terminal statuses, seed import calculates `completed_at` from first terminal status-history event, dashboard `completedToday` metric now uses `completed_at` (not `updated_at`) to prevent historical imported jobs from inflating daily completion counts, frontend and backend types updated to include `completed_at` field with null support for open jobs, all 57 frontend tests passing
