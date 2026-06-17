@@ -145,6 +145,20 @@ class TestTwilioWebhooks:
         assert "<Pause" in response.text
         assert "transcribe=\"true\"" not in response.text
 
+    def test_voice_menu_remains_public_when_auth_is_enabled(self, client, monkeypatch):
+        from app.middleware import auth_gate
+
+        monkeypatch.setattr(auth_gate, "auth_enforcement_enabled", lambda: True)
+
+        response = client.post(
+            "/api/twilio/voice/menu",
+            data={"Digits": "2", "From": "+15555550155", "To": "+15555550100", "CallSid": "CA999"},
+        )
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/xml")
+        assert "After the tone, please leave a clear, detailed message" in response.text
+
     def test_voice_menu_option_1_returns_to_main_menu(self, client):
         response = client.post(
             "/api/twilio/voice/menu",

@@ -13,6 +13,8 @@ PUBLIC_API_PATHS = {
     "/api/auth/login",
     "/api/auth/bootstrap/resend",
     "/api/twilio/voice",
+    "/api/twilio/voice/menu",
+    "/api/twilio/live-accept",
     "/api/twilio/recording",
     "/api/market-updates/sms",
 }
