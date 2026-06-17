@@ -1,3 +1,4 @@
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 import base64
@@ -43,6 +44,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("PUBLIC_API_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
+    monkeypatch.delenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", raising=False)
 
     database.initialize_database()
 
@@ -133,14 +135,99 @@ class TestTwilioWebhooks:
         )
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("application/xml")
-        assert "Tech Restore" in response.text
+        assert "Tech Restore — your tech, restored" in response.text
+        assert "For hours and location, press 1." in response.text
+        assert "To leave us a message, press 2." in response.text
+        assert "To speak with a technician, press 3." in response.text
         assert "/api/twilio/recording" in response.text
         assert "<Record" in response.text
         assert "Polly.Joanna" in response.text
         assert "<Pause" in response.text
         assert "transcribe=\"true\"" not in response.text
 
-    def test_voice_webhook_prefers_play_when_audio_greeting_url_is_set(self, client):
+    def test_voice_menu_option_1_returns_to_main_menu(self, client):
+        response = client.post(
+            "/api/twilio/voice/menu",
+            data={"Digits": "1", "From": "+15555550155", "To": "+15555550100", "CallSid": "CA124"},
+        )
+        assert response.status_code == 200
+        assert "500 West Kennedy Boulevard, in the back of the TAG office" in response.text
+        assert "6 to 8 PM" in response.text
+        assert "To return to the main menu, press 0." in response.text
+        assert "<Gather numDigits=\"1\" action=\"/api/twilio/voice/menu\"" in response.text
+        assert "<Redirect>/api/twilio/voice</Redirect>" in response.text
+
+    def test_voice_menu_option_2_uses_normal_voicemail_prompt(self, client):
+        response = client.post(
+            "/api/twilio/voice/menu",
+            data={"Digits": "2", "From": "+15555550155", "To": "+15555550100", "CallSid": "CA125"},
+        )
+        assert response.status_code == 200
+        assert "After the tone, please leave a clear, detailed message with your name, phone number, which device you have, and a description of the issue you are experiencing." in response.text
+        assert "We’ll get back to you as soon as possible, usually within 24 hours." in response.text
+        assert "<Record" in response.text
+        assert "/api/twilio/recording" in response.text
+
+    def test_voice_menu_option_3_uses_live_call_prompt_and_25_second_timeout(self, client):
+        monkeypatch = pytest.MonkeyPatch()
+        try:
+            monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+            response = client.post(
+                "/api/twilio/voice/menu",
+                data={"Digits": "3", "From": "+15555550155", "To": "+15555550100", "CallSid": "CA126"},
+            )
+        finally:
+            monkeypatch.undo()
+        assert response.status_code == 200
+        assert "Please hold while we try reaching a technician." in response.text
+        assert "No one is available right now. Please leave a message after the tone." in response.text
+        assert "<Pause length=\"25\"/>" in response.text
+        assert "<Record" in response.text
+
+    def test_admin_sms_reply_only_consumes_pending_live_request(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+        reply = TwilioService.handle_admin_live_sms_reply(
+            from_number="+15555550199",
+            message_body="accept",
+        )
+        assert reply is None
+
+    def test_admin_sms_request_message_wording(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+        monkeypatch.setenv("TWILIO_PHONE_NUMBER", "+15555550100")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://example.ngrok.app")
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+
+        request = database.create_live_call_request(
+            {
+                "call_sid": "CA_LIVE_010",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
+        )
+
+        sent_messages: list[dict] = []
+
+        class FakeHttpxClient:
+            def __init__(self, *args, **kwargs): pass
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def post(self, url, data=None, **kwargs):
+                sent_messages.append(data or {})
+                class FakeResponse:
+                    status_code = 201
+                return FakeResponse()
+
+        monkeypatch.setattr(httpx, "Client", FakeHttpxClient)
+
+        TwilioService._send_live_call_request_sms(request)
+        assert len(sent_messages) == 1
+        assert "Incoming Tech Restore call from" in sent_messages[0]["Body"]
+        assert "Reply accept to take the call, or decline to send the caller to voicemail." in sent_messages[0]["Body"]
+
+    def test_admin_sms_reply_accepts_pending_live_call_request(self, client, monkeypatch):
         save_resp = client.put(
             "/api/settings/twilio",
             json={
@@ -159,39 +246,103 @@ class TestTwilioWebhooks:
         assert response.status_code == 200
         assert "<Play>https://cdn.example.com/greeting.mp3</Play>" in response.text
 
-    def test_outbound_call_route_places_call_and_returns_call_metadata(self, client, monkeypatch):
-        client.put(
-            "/api/settings/twilio",
-            json={
-                "account_sid": "TWILIO_ACCOUNT_SID_TEST_OUTBOUND",
-                "auth_token": "outbound-token",
-                "phone_number": "+15555550100",
-                "public_webhook_base_url": "https://example.ngrok.app",
-            },
+    def test_admin_sms_reply_accepts_pending_live_call_request(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://example.ngrok.app")
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+
+        database.create_live_call_request(
+            {
+                "call_sid": "CA_LIVE_001",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
         )
 
-        def fake_place_call(account_sid: str, auth_token: str, from_number: str, to_number: str, callback_url: str):
-            assert account_sid == "TWILIO_ACCOUNT_SID_TEST_OUTBOUND"
-            assert auth_token == "outbound-token"
-            assert from_number == "+15555550100"
-            assert to_number == "+15555550987"
-            assert callback_url.startswith("https://example.ngrok.app/api/twilio/outbound-call")
-            return {"sid": "CAOUT123", "status": "queued"}
+        redirect_calls: list[dict] = []
 
-        monkeypatch.setattr(TwilioService, "_request_outbound_call", staticmethod(fake_place_call))
+        def fake_redirect_active_call(account_sid: str, auth_token: str, call_sid: str | None, callback_url: str):
+            redirect_calls.append(
+                {
+                    "account_sid": account_sid,
+                    "auth_token": auth_token,
+                    "call_sid": call_sid,
+                    "callback_url": callback_url,
+                }
+            )
+            return {"sid": "CA_LIVE_001"}
+
+        monkeypatch.setattr(TwilioService, "_redirect_active_call", staticmethod(fake_redirect_active_call))
+
+        reply = TwilioService.handle_admin_live_sms_reply(
+            from_number="+15555550199",
+            message_body="accept",
+        )
+
+        assert reply is not None
+        assert "accepted" in reply.lower()
+        assert len(redirect_calls) == 1
+        assert redirect_calls[0]["call_sid"] == "CA_LIVE_001"
+        assert "/api/twilio/live-accept" in redirect_calls[0]["callback_url"]
+
+        request = database.find_live_call_request_for_call_sid("CA_LIVE_001")
+        assert request is not None
+        assert request["status"] == "accepted"
+
+    def test_admin_sms_reply_declines_pending_live_call_request(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+
+        database.create_live_call_request(
+            {
+                "call_sid": "CA_LIVE_002",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
+        )
+
+        reply = TwilioService.handle_admin_live_sms_reply(
+            from_number="+15555550199",
+            message_body="decline",
+        )
+
+        assert reply is not None
+        assert "declined" in reply.lower()
+
+        request = database.find_live_call_request_for_call_sid("CA_LIVE_002")
+        assert request is not None
+        assert request["status"] == "declined"
+
+    def test_market_updates_sms_webhook_handles_live_call_admin_reply(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://example.ngrok.app")
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+
+        database.create_live_call_request(
+            {
+                "call_sid": "CA_LIVE_003",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
+        )
+
+        def fake_redirect_active_call(account_sid: str, auth_token: str, call_sid: str | None, callback_url: str):
+            return {"sid": "CA_LIVE_003"}
+
+        monkeypatch.setattr(TwilioService, "_redirect_active_call", staticmethod(fake_redirect_active_call))
 
         response = client.post(
-            "/api/twilio/outbound-calls",
-            json={"to_number": "+15555550987", "voicemail_id": 44, "contact_name": "Sam Caller"},
+            "/api/market-updates/sms",
+            data={"From": "+15555550199", "Body": "ACCEPT", "MessageSid": "SM_LIVE"},
         )
 
         assert response.status_code == 200
-        payload = response.json()
-        assert payload["call_sid"] == "CAOUT123"
-        assert payload["to_number"] == "+15555550987"
-        assert payload["from_number"] == "+15555550100"
-        assert payload["voicemail_id"] == 44
-        assert payload["contact_name"] == "Sam Caller"
+        assert "<Message>" in response.text
+        assert "accepted" in response.text.lower()
 
     def test_outbound_call_prompt_returns_twiml(self, client):
         response = client.get(
@@ -542,3 +693,54 @@ class TestTwilioWebhooks:
         monkeypatch.setattr(TwilioService, "fetch_recording_audio", staticmethod(lambda _: None))
         response = client.get("/api/voicemails/9999/audio")
         assert response.status_code == 404
+
+    def test_alert_destination_number_returns_none_when_not_configured(self, client, monkeypatch):
+        monkeypatch.delenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", raising=False)
+        result = TwilioService._alert_destination_number()
+        assert result is None, "No hardcoded phone number fallback should exist"
+
+    def test_press_3_routes_to_voicemail_when_alert_to_not_configured(self, client):
+        response = client.post(
+            "/api/twilio/voice/menu",
+            data={"Digits": "3", "From": "+15555550155", "To": "+15555550100", "CallSid": "CA_NO_ENV"},
+        )
+        assert response.status_code == 200
+        assert "<Record" in response.text
+
+    def test_accept_and_decline_are_case_insensitive(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://example.ngrok.app")
+
+        database.create_live_call_request(
+            {
+                "call_sid": "CA_CASE_01",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
+        )
+        monkeypatch.setattr(
+            TwilioService,
+            "_redirect_active_call",
+            staticmethod(lambda *a, **kw: {"sid": "CA_CASE_01"}),
+        )
+        reply = TwilioService.handle_admin_live_sms_reply(
+            from_number="+15555550199", message_body="Accept"
+        )
+        assert reply is not None and "accepted" in reply.lower()
+
+        database.create_live_call_request(
+            {
+                "call_sid": "CA_CASE_02",
+                "caller_number": "+15555550155",
+                "admin_phone_number": "+15555550199",
+                "timeout_seconds": 25,
+            }
+        )
+        reply = TwilioService.handle_admin_live_sms_reply(
+            from_number="+15555550199", message_body="Decline"
+        )
+        assert reply is not None and "declined" in reply.lower()
+

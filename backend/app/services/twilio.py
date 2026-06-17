@@ -4,35 +4,39 @@ import logging
 import os
 import re
 import time
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from xml.sax.saxutils import escape
 
 import httpx
 
+UTC = timezone.utc
+
 from app.database import (
     clear_twilio_settings,
+    create_live_call_request,
     create_voicemail_record,
     delete_voicemail_record,
+    find_live_call_request_for_call_sid,
     get_decrypted_twilio_auth_token,
     get_twilio_settings,
     get_voicemail_record,
+    list_pending_live_call_requests,
     list_voicemail_records,
     update_twilio_settings,
+    update_live_call_request_status,
     update_voicemail_record,
 )
 
 DEFAULT_VOICEMAIL_GREETING = (
-    "Thank you for calling Tech Restore at 500 West Kennedy Boulevard. "
-    "Please leave a detailed message with your name, phone number, which device you have, "
-    "and a description of the issue you are experiencing. "
-    "A technician is usually available between 4 PM and 5 PM daily, "
-    "and we will get back to you within 24 hours. "
-    "Thank you!"
+    "After the tone, please leave a clear, detailed message with your name, phone number, "
+    "which device you have, and a description of the issue you are experiencing. "
+    "We’ll get back to you as soon as possible, usually within 24 hours."
 )
 
 DEFAULT_VOICEMAIL_TTS_VOICE = "Polly.Joanna"
-DEFAULT_NEW_VOICEMAIL_ALERT_TO = "+18483291230"
 NEW_VOICEMAIL_ALERT_TO_ENV = "TWILIO_NEW_VOICEMAIL_ALERT_TO"
+LIVE_CALL_REQUEST_TIMEOUT_SECONDS = 25
 CALL_CONTEXT_TTL_SECONDS = 6 * 60 * 60
 MAX_CALL_CONTEXT_ENTRIES = 500
 
@@ -239,16 +243,92 @@ class TwilioService:
 
     @staticmethod
     def build_voice_twiml(*, from_number: str | None, to_number: str | None) -> str:
-        settings = TwilioService.get_settings()
-        greeting = settings.get("voicemail_greeting") or DEFAULT_VOICEMAIL_GREETING
-        greeting_audio_url = settings.get("voicemail_greeting_audio_url")
-        recording_callback_url = TwilioService._build_callback_url(settings.get("public_webhook_base_url"), "/api/twilio/recording")
-        greeting_block = TwilioService._build_greeting_prompt(greeting, greeting_audio_url)
         return (
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             "<Response>"
-            f"{greeting_block}"
-            "<Pause length=\"2\"/>"
+            "<Gather numDigits=\"1\" action=\"/api/twilio/voice/menu\" method=\"POST\" timeout=\"5\">"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Thank you for calling Tech Restore — your tech, restored. "
+            "For hours and location, press 1. "
+            "To leave us a message, press 2. "
+            "To speak with a technician, press 3.</Say>"
+            "</Gather>"
+            "<Say voice=\"Polly.Joanna\">We did not receive your selection. Please leave a message after the tone.</Say>"
+            f"{TwilioService.build_voicemail_twiml(from_number=from_number, to_number=to_number, skip_response=True)}"
+            "</Response>"
+        )
+
+    @staticmethod
+    def build_voicemail_twiml(*, from_number: str | None, to_number: str | None, include_response: bool = True, skip_response: bool = False, greeting_override: str | None = None) -> str:
+        settings = TwilioService.get_settings()
+        recording_callback_url = TwilioService._build_callback_url(settings.get("public_webhook_base_url"), "/api/twilio/recording")
+        if greeting_override:
+            greeting_block = f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">{escape(greeting_override)}</Say>"
+        else:
+            greeting = settings.get("voicemail_greeting") or DEFAULT_VOICEMAIL_GREETING
+            greeting_audio_url = settings.get("voicemail_greeting_audio_url")
+            greeting_block = TwilioService._build_greeting_prompt(greeting, greeting_audio_url)
+        record_block = (
+            greeting_block
+            + "<Pause length=\"2\"/>"
+            + "<Record"
+            + " maxLength=\"120\""
+            + " timeout=\"5\""
+            + " playBeep=\"true\""
+            + " trim=\"trim-silence\""
+            + f" recordingStatusCallback=\"{escape(recording_callback_url)}\""
+            + " recordingStatusCallbackMethod=\"POST\""
+            + "/>"
+        )
+        if skip_response or not include_response:
+            return record_block
+
+        return (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<Response>"
+            f"{record_block}"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Thanks. We will call you back soon. Goodbye.</Say>"
+            "</Response>"
+        )
+
+    @staticmethod
+    def build_live_call_request_twiml(*, call_sid: str | None, from_number: str | None, to_number: str | None) -> str:
+        admin_number = TwilioService._alert_destination_number()
+        if not admin_number:
+            logger.error(
+                "Tech Restore live-call flow is not configured: TWILIO_NEW_VOICEMAIL_ALERT_TO is required."
+            )
+            settings = TwilioService.get_settings()
+            recording_callback_url = TwilioService._build_callback_url(settings.get("public_webhook_base_url"), "/api/twilio/recording")
+            record_block = TwilioService.build_voicemail_twiml(
+                from_number=from_number,
+                to_number=to_number,
+                skip_response=True,
+            )
+            return (
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                "<Response>"
+                "<Say voice=\"Polly.Joanna\">We could not connect a technician right now. Please leave a message after the tone.</Say>"
+                f"{record_block}"
+                f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Thanks. We will call you back soon. Goodbye.</Say>"
+                "</Response>"
+            )
+        request = create_live_call_request(
+            {
+                "call_sid": TwilioService._first_non_empty(call_sid),
+                "caller_number": TwilioService._normalize_party_number(from_number),
+                "admin_phone_number": admin_number,
+                "timeout_seconds": LIVE_CALL_REQUEST_TIMEOUT_SECONDS,
+            }
+        )
+        TwilioService._send_live_call_request_sms(request)
+        settings = TwilioService.get_settings()
+        recording_callback_url = TwilioService._build_callback_url(settings.get("public_webhook_base_url"), "/api/twilio/recording")
+        return (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<Response>"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Please hold while we try reaching a technician.</Say>"
+            f"<Pause length=\"{LIVE_CALL_REQUEST_TIMEOUT_SECONDS}\"/>"
+            "<Say voice=\"Polly.Joanna\">No one is available right now. Please leave a message after the tone.</Say>"
             "<Record"
             " maxLength=\"120\""
             " timeout=\"5\""
@@ -260,6 +340,68 @@ class TwilioService:
             f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Thanks. We will call you back soon. Goodbye.</Say>"
             "</Response>"
         )
+
+    @staticmethod
+    def _normalize_phone_key(value: str | None) -> str | None:
+        candidate = TwilioService._first_non_empty(value)
+        if candidate is None:
+            return None
+        digits = re.sub(r"\D", "", candidate)
+        return digits or None
+
+    @staticmethod
+    def _has_matching_admin_phone(admin_phone: str | None, candidate_phone: str | None) -> bool:
+        admin_key = TwilioService._normalize_phone_key(admin_phone)
+        candidate_key = TwilioService._normalize_phone_key(candidate_phone)
+        return bool(admin_key and candidate_key and admin_key == candidate_key)
+
+    @staticmethod
+    def handle_admin_live_sms_reply(from_number: str | None, message_body: str | None) -> str | None:
+        if not from_number or not message_body:
+            return None
+
+        message = message_body.strip().upper()
+        if message not in {"ACCEPT", "DECLINE"}:
+            return None
+
+        if not TwilioService._has_matching_admin_phone(TwilioService._alert_destination_number(), from_number):
+            return None
+
+        request = None
+        now = datetime.now(UTC)
+        for pending in list_pending_live_call_requests():
+            if not TwilioService._has_matching_admin_phone(pending.get("admin_phone_number"), from_number):
+                continue
+            expires_at = datetime.fromisoformat(pending["expires_at"])
+            if expires_at <= now:
+                update_live_call_request_status(int(pending["id"]), "expired")
+                continue
+            request = pending
+            break
+
+        if request is None:
+            return None
+
+        if message == "DECLINE":
+            update_live_call_request_status(int(request["id"]), "declined")
+            return "Live technician request declined. Caller will be routed to voicemail."
+
+        account_sid, auth_token = TwilioService._get_credentials()
+        if not account_sid or not auth_token:
+            return "Live technician request could not be connected because Twilio is not configured."
+
+        callback_base = TwilioService.get_settings().get("public_webhook_base_url")
+        if not callback_base:
+            return "Live technician request could not be connected because webhook base URL is not configured."
+
+        callback_url = f"{callback_base.rstrip('/')}/api/twilio/live-accept?call_sid={escape(request['call_sid'] or '')}"
+        try:
+            TwilioService._redirect_active_call(account_sid, auth_token, request["call_sid"], callback_url)
+            update_live_call_request_status(int(request["id"]), "accepted")
+            return "Live technician request accepted. Connecting the caller now."
+        except ValueError:
+            update_live_call_request_status(int(request["id"]), "expired")
+            return "Live technician request could not be connected. The caller will be routed to voicemail."
 
     @staticmethod
     def build_outbound_call_twiml(*, to_number: str | None, contact_name: str | None = None, voicemail_id: int | None = None) -> str:
@@ -411,8 +553,15 @@ class TwilioService:
         )
 
     @staticmethod
-    def _alert_destination_number() -> str:
-        return TwilioService._clean_env(NEW_VOICEMAIL_ALERT_TO_ENV) or DEFAULT_NEW_VOICEMAIL_ALERT_TO
+    def _alert_destination_number() -> str | None:
+        number = TwilioService._clean_env(NEW_VOICEMAIL_ALERT_TO_ENV)
+        if not number:
+            logger.error(
+                "TWILIO_NEW_VOICEMAIL_ALERT_TO is not set. "
+                "Live call routing and voicemail SMS alerts are disabled."
+            )
+            return None
+        return number
 
     @staticmethod
     def _send_new_voicemail_sms_alert(record: dict) -> None:
@@ -428,6 +577,8 @@ class TwilioService:
             return
 
         to_number = TwilioService._alert_destination_number()
+        if not to_number:
+            return
         caller = TwilioService._first_non_empty(record.get("caller_number")) or "Unknown"
         line = TwilioService._first_non_empty(record.get("called_number")) or "Unknown"
         duration_seconds = record.get("recording_duration_seconds")
@@ -457,6 +608,70 @@ class TwilioService:
                 logger.warning("Failed to send voicemail SMS alert: HTTP %d", response.status_code)
         except httpx.TransportError as error:
             logger.warning("Failed to send voicemail SMS alert: %s", error)
+
+    @staticmethod
+    def _send_live_call_request_sms(request: dict) -> None:
+        account_sid, auth_token = TwilioService._get_credentials()
+        if not account_sid or not auth_token:
+            return
+
+        from_number = TwilioService._first_non_empty(
+            TwilioService._clean_env("TWILIO_PHONE_NUMBER"),
+            TwilioService.get_settings().get("phone_number"),
+        )
+        if not from_number:
+            return
+
+        to_number = request.get("admin_phone_number")
+        if not to_number:
+            return
+
+        caller = TwilioService._first_non_empty(request.get("caller_number")) or "Unknown"
+        body = (
+            f"Incoming Tech Restore call from {caller}.\n\n"
+            "Reply accept to take the call, or decline to send the caller to voicemail."
+        )
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        try:
+            with httpx.Client(timeout=10.0, auth=(account_sid, auth_token)) as client:
+                response = client.post(
+                    url,
+                    data={
+                        "From": from_number,
+                        "To": to_number,
+                        "Body": body,
+                    },
+                )
+            if response.status_code >= 400:
+                logger.warning("Failed to send live call request SMS alert: HTTP %d", response.status_code)
+        except httpx.TransportError as error:
+            logger.warning("Failed to send live call request SMS alert: %s", error)
+
+    @staticmethod
+    def _redirect_active_call(account_sid: str, auth_token: str, call_sid: str | None, callback_url: str) -> dict:
+        if not call_sid:
+            raise ValueError("Original call SID is required to redirect an active call.")
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{call_sid}.json"
+        try:
+            with httpx.Client(timeout=15.0, follow_redirects=True, auth=(account_sid, auth_token)) as client:
+                response = client.post(
+                    url,
+                    data={
+                        "Url": callback_url,
+                        "Method": "POST",
+                    },
+                )
+        except httpx.TransportError as error:
+            raise ValueError("Could not connect to Twilio to redirect the active call.") from error
+
+        if response.status_code >= 400:
+            raise ValueError("Twilio rejected the call redirect request.")
+
+        try:
+            return response.json()
+        except ValueError as error:
+            raise ValueError("Twilio returned an invalid call redirect response.") from error
 
     @staticmethod
     def _request_outbound_call(account_sid: str, auth_token: str, from_number: str, to_number: str, callback_url: str) -> dict:
