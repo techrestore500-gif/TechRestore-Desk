@@ -99,6 +99,9 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
             "SELECT COUNT(*) FROM inventory_purchase_items WHERE purchase_id = (SELECT id FROM inventory_purchases WHERE reference_number = ?)",
             ("TR-REAL-STOCK-20260513",),
         ).fetchone()[0]
+        legacy_ticket_number_count = connection.execute(
+            "SELECT COUNT(*) FROM repair_tickets WHERE ticket_number LIKE 'TR-REAL-%'"
+        ).fetchone()[0]
 
         yossi_weiss = connection.execute(
             """
@@ -196,6 +199,7 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
     assert customer_count == 9
     assert ticket_count == 11
     assert distinct_ticket_numbers == 11
+    assert legacy_ticket_number_count == 0
     assert hours_count == 0
     assert users_count == 1
     assert twilio_count == 1

@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-16 Seed ticket numbers normalized: real imported operational tickets now use standard `TR-xxxxx` numbers, and the shared real-data sync upgrades existing legacy `TR-REAL-*` tickets in place during backend startup/import
 - 2026-06-16 Dashboard table widened to full row width: live tickets now span the full dashboard content area, with Fast Actions and Recent Customers moved into a separate support grid below
 - 2026-06-16 Frontend Render build fix complete: typed the dashboard table scroll container correctly and updated ticket test fixtures to include required `completed_at` fields so the production frontend build passes again
 - 2026-06-16 Dashboard live tickets converted from card tiles to a table layout, preserving quick status actions and overflow menus while matching the app's existing table presentation pattern

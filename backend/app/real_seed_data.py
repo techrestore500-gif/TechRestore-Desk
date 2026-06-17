@@ -10,7 +10,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": "Repeat/frequent customer; works for TAG.",
         "jobs": [
             {
-                "ticket_number": "TR-REAL-20260507-01",
+                "ticket_number": "TR-00001",
+                "legacy_ticket_number": "TR-REAL-20260507-01",
                 "device": "Wonder phone",
                 "issue_category": "Touchpad replacement",
                 "issue_description": "Touchpad replacement using a customer-supplied part.",
@@ -40,7 +41,8 @@ REAL_SEED_CUSTOMERS = [
                 ],
             },
             {
-                "ticket_number": "TR-REAL-20260603-01",
+                "ticket_number": "TR-00002",
+                "legacy_ticket_number": "TR-REAL-20260603-01",
                 "device": "Fusion phone, model F2",
                 "issue_category": "Screen replacement",
                 "issue_description": "Screen replacement using a customer-supplied part.",
@@ -63,7 +65,8 @@ REAL_SEED_CUSTOMERS = [
                 ],
             },
             {
-                "ticket_number": "TR-REAL-20260603-02",
+                "ticket_number": "TR-00003",
+                "legacy_ticket_number": "TR-REAL-20260603-02",
                 "device": "Lenovo IdeaPad 5 2-in-1 14Q8X9 ARM/Snapdragon laptop",
                 "issue_category": "BitLocker / Windows update boot loop issue",
                 "issue_description": "BitLocker / Windows update boot loop issue.",
@@ -92,7 +95,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-20260513-01",
+                "ticket_number": "TR-00004",
+                "legacy_ticket_number": "TR-REAL-20260513-01",
                 "device": "Alcatel 4044T",
                 "issue_category": "Not reading SIM card",
                 "issue_description": "Not reading SIM card.",
@@ -122,7 +126,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-UNKNOWN-01",
+                "ticket_number": "TR-00005",
+                "legacy_ticket_number": "TR-REAL-UNKNOWN-01",
                 "device": "Kyocera E4810",
                 "issue_category": "White screen / screen replacement",
                 "issue_description": "White screen / screen replacement.",
@@ -152,7 +157,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-20260525-01",
+                "ticket_number": "TR-00006",
+                "legacy_ticket_number": "TR-REAL-20260525-01",
                 "device": "Samsung Galaxy A13 5G / SM-A136U1",
                 "issue_category": "Screen repair needed",
                 "issue_description": "Customer needed the correct screen with frame for a Samsung Galaxy A13 5G / SM-A136U1.",
@@ -182,7 +188,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-UNKNOWN-02",
+                "ticket_number": "TR-00007",
+                "legacy_ticket_number": "TR-REAL-UNKNOWN-02",
                 "device": "Canon SX740",
                 "issue_category": "Screen not working",
                 "issue_description": "Screen not working.",
@@ -213,7 +220,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-UNKNOWN-03",
+                "ticket_number": "TR-00008",
+                "legacy_ticket_number": "TR-REAL-UNKNOWN-03",
                 "device": "TCL",
                 "issue_category": "White screen / shell job",
                 "issue_description": "White screen / shell job.",
@@ -244,7 +252,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-UNKNOWN-04",
+                "ticket_number": "TR-00009",
+                "legacy_ticket_number": "TR-REAL-UNKNOWN-04",
                 "device": "Dell XPS laptop",
                 "issue_category": "Screen replacement",
                 "issue_description": "Needs screen replacement.",
@@ -274,7 +283,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": "Customer name and phone number were not collected.",
         "jobs": [
             {
-                "ticket_number": "TR-REAL-20260615-01",
+                "ticket_number": "TR-00010",
+                "legacy_ticket_number": "TR-REAL-20260615-01",
                 "device": "Kyocera 4810",
                 "issue_category": "Back bottom piece replacement",
                 "issue_description": "Replaced the back bottom piece where the back screw anchors.",
@@ -304,7 +314,8 @@ REAL_SEED_CUSTOMERS = [
         "notes": None,
         "jobs": [
             {
-                "ticket_number": "TR-REAL-20260615-02",
+                "ticket_number": "TR-00011",
+                "legacy_ticket_number": "TR-REAL-20260615-02",
                 "device": "HP OmniBook laptop",
                 "issue_category": "Broken screen",
                 "issue_description": "Broken screen.",
@@ -460,6 +471,19 @@ def _delete_ticket_related_rows(connection: sqlite3.Connection, ticket_id: int) 
             pass
 
 
+def _find_existing_seed_ticket(connection: sqlite3.Connection, ticket: dict) -> sqlite3.Row | None:
+    legacy_ticket_number = ticket.get("legacy_ticket_number")
+    candidate_numbers = [ticket["ticket_number"]]
+    if legacy_ticket_number:
+        candidate_numbers.append(legacy_ticket_number)
+
+    placeholders = ", ".join("?" for _ in candidate_numbers)
+    return connection.execute(
+        f"SELECT id, ticket_number FROM repair_tickets WHERE ticket_number IN ({placeholders}) ORDER BY id ASC LIMIT 1",
+        tuple(candidate_numbers),
+    ).fetchone()
+
+
 def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str, str], int]) -> dict[str, int]:
     ticket_ids: dict[str, int] = {}
     current_timestamp = "2026-06-15T12:00:00+00:00"
@@ -479,10 +503,7 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                         completed_at = created_at
                         break
             
-            existing = connection.execute(
-                "SELECT id FROM repair_tickets WHERE ticket_number = ?",
-                (ticket["ticket_number"],),
-            ).fetchone()
+            existing = _find_existing_seed_ticket(connection, ticket)
             if existing is None:
                 cursor = connection.execute(
                     """
@@ -544,7 +565,8 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                 connection.execute(
                     """
                     UPDATE repair_tickets
-                    SET customer_id = ?,
+                    SET ticket_number = ?,
+                        customer_id = ?,
                         device_model_id = NULL,
                         device_model_text_override = ?,
                         carrier = NULL,
@@ -576,6 +598,7 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                     WHERE id = ?
                     """,
                     (
+                        ticket["ticket_number"],
                         customer_id,
                         ticket["device"],
                         ticket["issue_category"],
@@ -611,6 +634,8 @@ def _upsert_tickets(connection: sqlite3.Connection, customer_ids: dict[tuple[str
                 )
 
             ticket_ids[ticket["ticket_number"]] = ticket_id
+            if ticket.get("legacy_ticket_number"):
+                ticket_ids[ticket["legacy_ticket_number"]] = ticket_id
 
     return ticket_ids
 
