@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
 
@@ -882,6 +882,21 @@ def initialize_database() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS live_call_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                call_sid TEXT NOT NULL,
+                caller_number TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                admin_phone_number TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                response_at TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
         seed_supported_device_models(connection)
         seed_repair_categories(connection)
         seed_pricing_defaults(connection)
@@ -957,6 +972,123 @@ def _decrypt_twilio_value(value: str | None) -> str | None:
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:
     return dict(row) if row is not None else None
+
+
+def create_live_call_request(payload: dict) -> dict:
+    admin_phone_number = payload.get("admin_phone_number")
+    if admin_phone_number is None:
+        raise ValueError("admin_phone_number is required for live call requests")
+
+    created_at = payload.get("created_at") or utc_now()
+    timeout_seconds = int(payload.get("timeout_seconds", 30))
+    expires_at = (datetime.fromisoformat(created_at) + timedelta(seconds=timeout_seconds)).isoformat()
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO live_call_requests (
+                call_sid,
+                caller_number,
+                status,
+                admin_phone_number,
+                created_at,
+                expires_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload.get("call_sid"),
+                payload.get("caller_number"),
+                payload.get("status", "pending"),
+                admin_phone_number,
+                created_at,
+                expires_at,
+                created_at,
+            ),
+        )
+        connection.commit()
+        request_id = int(cursor.lastrowid)
+    return get_live_call_request(request_id)
+
+
+def get_live_call_request(request_id: int) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM live_call_requests WHERE id = ?",
+            (request_id,),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def get_live_call_request_by_call_sid(call_sid: str) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM live_call_requests WHERE call_sid = ? ORDER BY created_at DESC LIMIT 1",
+            (call_sid,),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def list_pending_live_call_requests() -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM live_call_requests WHERE status = 'pending' ORDER BY created_at DESC"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _expire_live_call_request(request_id: int) -> dict | None:
+    return update_live_call_request_status(request_id, "expired")
+
+
+def update_live_call_request_status(request_id: int, status: str) -> dict | None:
+    with get_connection() as connection:
+        updated_at = utc_now()
+        response_at = updated_at if status in {"accepted", "declined", "expired"} else None
+        connection.execute(
+            """
+            UPDATE live_call_requests
+            SET status = ?, response_at = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (status, response_at, updated_at, request_id),
+        )
+        connection.commit()
+    return get_live_call_request(request_id)
+
+
+def get_active_pending_live_call_request_for_admin(admin_phone_number: str) -> dict | None:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM live_call_requests WHERE admin_phone_number = ? AND status = 'pending' ORDER BY created_at DESC",
+            (admin_phone_number,),
+        ).fetchall()
+    now = datetime.now(UTC)
+    for row in rows:
+        request = row_to_dict(row)
+        if request is None:
+            continue
+        expires_at = datetime.fromisoformat(request["expires_at"])
+        if expires_at > now:
+            return request
+        _expire_live_call_request(request["id"])
+    return None
+
+
+def find_live_call_request_for_call_sid(call_sid: str) -> dict | None:
+    request = get_live_call_request_by_call_sid(call_sid)
+    if request is None:
+        return None
+    if request["status"] != "pending":
+        return request
+    now = datetime.now(UTC)
+    expires_at = datetime.fromisoformat(request["expires_at"])
+    if expires_at <= now:
+        return _expire_live_call_request(request["id"])
+    return request
+
+
+def find_newest_pending_unexpired_live_call_request(admin_phone_number: str) -> dict | None:
+    return get_active_pending_live_call_request_for_admin(admin_phone_number)
 
 
 def to_bool(value: int | None) -> bool | None:
