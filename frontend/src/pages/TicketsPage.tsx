@@ -95,6 +95,18 @@ function getPaymentDisplay(ticket: TicketSummary): string {
     return "Unknown";
 }
 
+function isUnpaidSummaryTicket(ticket: TicketSummary): boolean {
+    const status = (ticket.status || "").trim().toLowerCase();
+    if (!["picked up / closed", "completed", "ready for pickup"].includes(status)) {
+        return false;
+    }
+    if ((ticket.payment_status || "").trim().toLowerCase() === "paid") {
+        return false;
+    }
+    const amount = Number(ticket.final_price ?? ticket.estimated_price ?? 0);
+    return amount > 0;
+}
+
 export default function TicketsPage() {
     const [page, setPage] = useState(1);
     const [viewName, setViewName] = useState("");
@@ -126,7 +138,7 @@ export default function TicketsPage() {
         [tickets]
     );
 
-    const unpaidCount = filtered.filter((ticket) => ticket.status === "Picked Up / Closed" && ticket.payment_status !== "paid").length;
+    const unpaidCount = filtered.filter(isUnpaidSummaryTicket).length;
     const openCount = filtered.filter((ticket) => ticket.status !== "Picked Up / Closed").length;
 
     const bulkActions = [

@@ -184,6 +184,23 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
             LIMIT 1
             """
         ).fetchone()
+        raizy = connection.execute(
+            """
+            SELECT c.primary_phone, rt.device_model_text_override, rt.issue_category, rt.condition_summary,
+                   rt.final_price, rt.payment_status, rt.status
+            FROM repair_tickets rt
+            JOIN customers c ON c.id = rt.customer_id
+            WHERE c.full_name = 'Raizy Krieger'
+            LIMIT 1
+            """
+        ).fetchone()
+        raizy_customer_count = connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM customers
+            WHERE full_name = 'Raizy Krieger' AND primary_phone = '732-732-2743'
+            """
+        ).fetchone()[0]
         confirmed_unpaid_jobs = connection.execute(
             """
             SELECT COUNT(*)
@@ -196,9 +213,9 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
             """
         ).fetchone()[0]
 
-    assert customer_count == 9
-    assert ticket_count == 11
-    assert distinct_ticket_numbers == 11
+    assert customer_count == 10
+    assert ticket_count == 12
+    assert distinct_ticket_numbers == 12
     assert legacy_ticket_number_count == 0
     assert hours_count == 0
     assert users_count == 1
@@ -237,3 +254,11 @@ def test_real_data_seed_script_replaces_demo_ticket_and_hours_data_without_touch
     assert walk_in["payment_status"] == "paid"
     assert walk_in["status"] == "Picked Up / Closed"
     assert walk_in["primary_phone"] is None
+    assert raizy_customer_count == 1
+    assert raizy["primary_phone"] == "732-732-2743"
+    assert "Canon SX740" in raizy["device_model_text_override"]
+    assert raizy["issue_category"] == "Display issue"
+    assert "Display cable replacement" in raizy["condition_summary"]
+    assert raizy["final_price"] == 75.0
+    assert raizy["payment_status"] == "unpaid"
+    assert raizy["status"] == "Ready for Pickup"

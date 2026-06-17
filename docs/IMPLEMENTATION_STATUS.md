@@ -3,6 +3,7 @@
 ## Completed
 
 ### Architecture Gates (Latest)
+- 2026-06-17 Added deterministic real-data seed/import ticket for Raizy Krieger (`Canon SX740`, `Display issue`, `Display cable replacement`, `Ready for Pickup`, `Unpaid $75`) with idempotent rerun safety and regression checks; Tickets page summary logic now counts finalized unpaid jobs across `Picked Up / Closed`, `Completed`, and `Ready for Pickup` statuses so unpaid-ready pickups are visible in unpaid summaries
 - 2026-06-17 Tickets payment/balance semantics corrected: Tickets table now renders explicit payment states (`Paid`, `Unpaid $XX`, `Partial $XX`, `Needs final`, `No charge`, `TBD`, `Unknown`) without dangerous `Paid` defaults, normalizes noisy customer/device labels for cleaner display, and updates the real-seed import dataset + validation so the Canon SX740 Zaks ticket remains completed but unpaid at $20
 - 2026-06-16 Seed ticket numbers normalized: real imported operational tickets now use standard `TR-xxxxx` numbers, and the shared real-data sync upgrades existing legacy `TR-REAL-*` tickets in place during backend startup/import
 - 2026-06-16 Dashboard table widened to full row width: live tickets now span the full dashboard content area, with Fast Actions and Recent Customers moved into a separate support grid below

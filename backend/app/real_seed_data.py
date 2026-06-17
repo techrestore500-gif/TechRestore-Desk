@@ -338,6 +338,39 @@ REAL_SEED_CUSTOMERS = [
             }
         ],
     },
+    {
+        "full_name": "Raizy Krieger",
+        "phone": "732-732-2743",
+        "notes": "Customer notified that repair is complete and ready for pickup.",
+        "jobs": [
+            {
+                "ticket_number": "TR-00012",
+                "legacy_ticket_number": "TR-REAL-20260617-01",
+                "device": "Canon SX740",
+                "issue_category": "Display issue",
+                "issue_description": "Display issue.",
+                "condition_summary": "Display cable replacement completed. Customer notified for pickup.",
+                "estimated_price": 75.0,
+                "final_price": 75.0,
+                "payment_status": "unpaid",
+                "status": "Ready for Pickup",
+                "intake_date": "2026-06-17T12:00:00+00:00",
+                "created_at": "2026-06-17T12:00:00+00:00",
+                "updated_at": "2026-06-17T12:40:00+00:00",
+                "status_history": [
+                    (None, "New Intake", "Mattis", "Real Tech Restore import: initial intake.", "2026-06-17T12:00:00+00:00"),
+                    ("New Intake", "In Repair", "Mattis", "Display cable replacement started.", "2026-06-17T12:20:00+00:00"),
+                    ("In Repair", "Ready for Pickup", "Mattis", "Repair complete and customer notified for pickup.", "2026-06-17T12:40:00+00:00"),
+                ],
+                "notes": [
+                    ("front_desk", "Customer reported a display issue on a Canon SX740.", "Mattis", "2026-06-17T12:03:00+00:00"),
+                    ("technician", "Performed display cable replacement.", "Mattis", "2026-06-17T12:28:00+00:00"),
+                    ("pricing", "Final charge is $75. Payment remains unpaid.", "Mattis", "2026-06-17T12:30:00+00:00"),
+                    ("customer_contact", "Customer notified that the device is ready for pickup.", "Mattis", "2026-06-17T12:40:00+00:00"),
+                ],
+            }
+        ],
+    },
 ]
 
 

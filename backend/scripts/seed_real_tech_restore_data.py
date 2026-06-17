@@ -754,8 +754,8 @@ def _validate_import(connection: sqlite3.Connection) -> None:
     ticket_count = _count_table(connection, "repair_tickets")
     hours_count = _count_table(connection, "technician_hours")
 
-    if ticket_count != 11:
-        raise RuntimeError(f"Expected 11 real tickets after import, found {ticket_count}")
+    if ticket_count != 12:
+        raise RuntimeError(f"Expected 12 real tickets after import, found {ticket_count}")
     if hours_count != 0:
         raise RuntimeError(f"Expected 0 real hour entries after import, found {hours_count}")
 
@@ -887,6 +887,29 @@ def _validate_import(connection: sqlite3.Connection) -> None:
         raise RuntimeError("Dorfman open/new validation failed")
     if dorpman["payment_status"] != "unpaid" or dorpman["final_price"] is not None:
         raise RuntimeError("Dorfman charge TBD validation failed")
+
+    raizy = connection.execute(
+        """
+        SELECT c.primary_phone, rt.device_model_text_override, rt.issue_category, rt.condition_summary,
+               rt.final_price, rt.payment_status, rt.status
+        FROM repair_tickets rt
+        JOIN customers c ON c.id = rt.customer_id
+        WHERE c.full_name = 'Raizy Krieger'
+        LIMIT 1
+        """
+    ).fetchone()
+    if raizy is None:
+        raise RuntimeError("Raizy Krieger ticket validation failed")
+    if raizy["primary_phone"] != "732-732-2743":
+        raise RuntimeError("Raizy Krieger phone mismatch")
+    if "Canon SX740" not in str(raizy["device_model_text_override"]):
+        raise RuntimeError("Raizy Krieger device mismatch")
+    if raizy["issue_category"] != "Display issue":
+        raise RuntimeError("Raizy Krieger issue mismatch")
+    if "Display cable replacement" not in str(raizy["condition_summary"]):
+        raise RuntimeError("Raizy Krieger repair summary mismatch")
+    if float(raizy["final_price"]) != 75.0 or raizy["payment_status"] != "unpaid" or raizy["status"] != "Ready for Pickup":
+        raise RuntimeError("Raizy Krieger payment/status validation failed")
 
     walk_in = connection.execute(
         """

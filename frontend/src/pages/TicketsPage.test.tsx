@@ -148,6 +148,22 @@ describe('TicketsPage', () => {
                 final_price: 20,
                 updated_at: new Date().toISOString(),
             },
+            {
+                id: 18,
+                ticket_number: 'TR-00018',
+                customer_id: 17,
+                customer_name: 'Raizy Krieger',
+                customer_phone: '732-732-2743',
+                device_label: 'Canon SX740',
+                issue_category: 'Display issue',
+                status: 'Ready for Pickup',
+                payment_status: 'unpaid',
+                intake_date: new Date().toISOString(),
+                completed_at: null,
+                estimated_price: 75,
+                final_price: 75,
+                updated_at: new Date().toISOString(),
+            },
         ]);
 
         render(
@@ -160,7 +176,7 @@ describe('TicketsPage', () => {
 
         const unpaidTile = await screen.findByText('Unpaid');
         expect(unpaidTile.parentElement).not.toBeNull();
-        await screen.findByText('TR-00016');
+        await screen.findByText('TR-00018');
         expect(unpaidTile.parentElement as HTMLElement).toHaveTextContent('2');
 
         const unpaidRow = (await screen.findByText('TR-00011')).closest('tr');
@@ -187,6 +203,13 @@ describe('TicketsPage', () => {
         expect(unknownRow).not.toBeNull();
         expect(within(unknownRow as HTMLElement).getByText('Unknown')).toBeInTheDocument();
         expect(within(unknownRow as HTMLElement).getByText('Canon SX740')).toBeInTheDocument();
+
+        const raizyRow = (await screen.findByText('TR-00018')).closest('tr');
+        expect(raizyRow).not.toBeNull();
+        expect(within(raizyRow as HTMLElement).getByText('Raizy Krieger')).toBeInTheDocument();
+        expect(within(raizyRow as HTMLElement).getByText('Display issue')).toBeInTheDocument();
+        expect(within(raizyRow as HTMLElement).getByText('Ready for Pickup')).toBeInTheDocument();
+        expect(within(raizyRow as HTMLElement).getByText('Unpaid $75.00')).toBeInTheDocument();
     });
 
     it('shows the zaks ticket as unpaid $20', async () => {
