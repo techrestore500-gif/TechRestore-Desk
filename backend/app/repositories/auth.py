@@ -458,3 +458,25 @@ class AuthRepository:
             if cursor.rowcount == 0:
                 return None
         return AuthRepository.get_user_by_id(user_id)
+
+    @staticmethod
+    def delete_user(user_id: int) -> dict | None:
+        AuthRepository.ensure_user_table()
+        # Get user before deletion for return value
+        user_before = AuthRepository.get_user_by_id(user_id)
+        if user_before is None:
+            return None
+        
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM users
+                WHERE id = ?
+                """,
+                (user_id,),
+            )
+            connection.commit()
+            if cursor.rowcount == 0:
+                return None
+        
+        return user_before

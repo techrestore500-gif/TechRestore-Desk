@@ -110,6 +110,21 @@ def patch_user_role(
     return AuthUserResponse.model_validate({k: v for k, v in updated.items() if k != "password_hash"})
 
 
+@router.delete("/users/{user_id}", response_model=AuthMessageResponse)
+def delete_user(
+    user_id: int,
+    _: dict = Depends(require_role("owner")),
+) -> AuthMessageResponse:
+    try:
+        deleted = AuthService.delete_user(user_id=user_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return AuthMessageResponse(message=f"User {deleted['email']} has been successfully deleted.")
+
+
 @router.get("/me", response_model=AuthUserResponse)
 def get_me(user: dict = Depends(get_current_user)) -> AuthUserResponse:
     return AuthUserResponse.model_validate({k: v for k, v in user.items() if k != "password_hash"})

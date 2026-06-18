@@ -73,7 +73,7 @@ def twilio_live_accept(
     if call_sid:
         request = find_live_call_request_for_call_sid(call_sid)
 
-    if request and request.get("admin_phone_number"):
+    if request and request.get("admin_phone_number") and request.get("status") in {"pending", "accepted"}:
         settings = TwilioService.get_settings()
         caller_id = TwilioService._first_non_empty(
             settings.get("phone_number"),
@@ -91,7 +91,7 @@ def twilio_live_accept(
         xml = (
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             "<Response>"
-            "<Say voice=\"Polly.Joanna\">We could not connect a live technician. Please leave a detailed message after the tone.</Say>"
+            "<Say voice=\"Polly.Joanna\">No technician is available right now. Please leave a message after the tone. We will return your call as soon as possible.</Say>"
             f"{TwilioService.build_voicemail_twiml(from_number=None, to_number=None, skip_response=True)}"
             "</Response>"
         )

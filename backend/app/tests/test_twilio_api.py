@@ -193,9 +193,9 @@ class TestTwilioWebhooks:
         finally:
             monkeypatch.undo()
         assert response.status_code == 200
-        assert "Please hold while we try reaching a technician." in response.text
-        assert "No one is available right now. Please leave a message after the tone." in response.text
-        assert "<Pause length=\"25\"/>" in response.text
+        assert "Please hold while we connect you. You will hear ringing while we wait for a technician." in response.text
+        assert "No technician is available right now. Please leave a message after the tone. We will return your call as soon as possible." in response.text
+        assert "<Play loop=\"8\">https://api.twilio.com/cowbell.mp3</Play>" in response.text
         assert "<Record" in response.text
 
     def test_admin_sms_reply_only_consumes_pending_live_request(self, client, monkeypatch):
@@ -306,6 +306,9 @@ class TestTwilioWebhooks:
         assert request["status"] == "accepted"
 
     def test_admin_sms_reply_declines_pending_live_call_request(self, client, monkeypatch):
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_TEST")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "token")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://example.ngrok.app")
         monkeypatch.setenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", "+15555550199")
 
         database.create_live_call_request(
@@ -317,13 +320,31 @@ class TestTwilioWebhooks:
             }
         )
 
+        redirect_calls: list[dict] = []
+
+        def fake_redirect_active_call(account_sid: str, auth_token: str, call_sid: str | None, callback_url: str):
+            redirect_calls.append(
+                {
+                    "account_sid": account_sid,
+                    "auth_token": auth_token,
+                    "call_sid": call_sid,
+                    "callback_url": callback_url,
+                }
+            )
+            return {"sid": "CA_LIVE_002"}
+
+        monkeypatch.setattr(TwilioService, "_redirect_active_call", staticmethod(fake_redirect_active_call))
+
         reply = TwilioService.handle_admin_live_sms_reply(
             from_number="+15555550199",
             message_body="decline",
         )
 
         assert reply is not None
-        assert "declined" in reply.lower()
+        assert reply == "Live technician request declined. Caller sent to voicemail."
+        assert len(redirect_calls) == 1
+        assert redirect_calls[0]["call_sid"] == "CA_LIVE_002"
+        assert "/api/twilio/live-accept" in redirect_calls[0]["callback_url"]
 
         request = database.find_live_call_request_for_call_sid("CA_LIVE_002")
         assert request is not None

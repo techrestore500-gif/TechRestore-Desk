@@ -557,3 +557,28 @@ class AuthService:
                 new_value={"password_changed": True},
             )
         )
+
+    @staticmethod
+    def delete_user(user_id: int) -> dict | None:
+        existing = AuthRepository.get_user_by_id(user_id)
+        if existing is None:
+            raise ValueError("User not found")
+        
+        deleted = AuthRepository.delete_user(user_id=user_id)
+        if deleted is not None:
+            AuditService.log_event(
+                admin_action(
+                    entity_type="user",
+                    entity_id=user_id,
+                    action="admin_user_deleted",
+                    old_value={
+                        "name": deleted["name"],
+                        "email": deleted["email"],
+                        "username": deleted["username"],
+                        "role": deleted["role"],
+                        "status": deleted["status"],
+                    },
+                    new_value=None,
+                )
+            )
+        return deleted

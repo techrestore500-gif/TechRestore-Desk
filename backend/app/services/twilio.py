@@ -37,6 +37,7 @@ DEFAULT_VOICEMAIL_GREETING = (
 DEFAULT_VOICEMAIL_TTS_VOICE = "Polly.Joanna"
 NEW_VOICEMAIL_ALERT_TO_ENV = "TWILIO_NEW_VOICEMAIL_ALERT_TO"
 LIVE_CALL_REQUEST_TIMEOUT_SECONDS = 25
+LIVE_CALL_RINGBACK_TONE_URL = "https://api.twilio.com/cowbell.mp3"
 CALL_CONTEXT_TTL_SECONDS = 6 * 60 * 60
 MAX_CALL_CONTEXT_ENTRIES = 500
 
@@ -326,9 +327,9 @@ class TwilioService:
         return (
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             "<Response>"
-            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Please hold while we try reaching a technician.</Say>"
-            f"<Pause length=\"{LIVE_CALL_REQUEST_TIMEOUT_SECONDS}\"/>"
-            "<Say voice=\"Polly.Joanna\">No one is available right now. Please leave a message after the tone.</Say>"
+            f"<Say voice=\"{DEFAULT_VOICEMAIL_TTS_VOICE}\">Please hold while we connect you. You will hear ringing while we wait for a technician.</Say>"
+            f"<Play loop=\"8\">{escape(LIVE_CALL_RINGBACK_TONE_URL)}</Play>"
+            "<Say voice=\"Polly.Joanna\">No technician is available right now. Please leave a message after the tone. We will return your call as soon as possible.</Say>"
             "<Record"
             " maxLength=\"120\""
             " timeout=\"5\""
@@ -384,7 +385,15 @@ class TwilioService:
 
         if message == "DECLINE":
             update_live_call_request_status(int(request["id"]), "declined")
-            return "Live technician request declined. Caller will be routed to voicemail."
+            account_sid, auth_token = TwilioService._get_credentials()
+            callback_base = TwilioService.get_settings().get("public_webhook_base_url")
+            if account_sid and auth_token and callback_base:
+                callback_url = f"{callback_base.rstrip('/')}/api/twilio/live-accept?call_sid={escape(request['call_sid'] or '')}"
+                try:
+                    TwilioService._redirect_active_call(account_sid, auth_token, request["call_sid"], callback_url)
+                except ValueError:
+                    pass
+            return "Live technician request declined. Caller sent to voicemail."
 
         account_sid, auth_token = TwilioService._get_credentials()
         if not account_sid or not auth_token:
