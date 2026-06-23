@@ -159,6 +159,8 @@ class TicketStatusChange(BaseModel):
     changed_by: str | None = None
     note: str | None = None
     final_price: float | None = None
+    payment_status: Literal["unpaid", "partial", "paid"] | None = None
+    final_price: float | None = None
 
 
 class TicketNoteCreate(BaseModel):

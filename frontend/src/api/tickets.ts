@@ -492,12 +492,13 @@ export async function addTicketNote(ticketId: number, noteType: string, body: st
     });
 }
 
-export async function updateTicketStatus(ticketId: number, newStatus: string, changedBy: string, note: string, finalPrice?: number): Promise<TicketHistoryItem> {
+export async function updateTicketStatus(ticketId: number, newStatus: string, changedBy: string, note: string, finalPrice?: number, paymentStatus?: string): Promise<TicketHistoryItem> {
     return postJson<TicketHistoryItem>(`/api/tickets/${ticketId}/status`, {
         new_status: newStatus,
         changed_by: changedBy || null,
         note: note || null,
         ...(finalPrice !== undefined ? { final_price: finalPrice } : {}),
+        ...(paymentStatus !== undefined ? { payment_status: paymentStatus } : {}),
     });
 }
 

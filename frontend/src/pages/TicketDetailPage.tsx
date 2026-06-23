@@ -42,6 +42,9 @@ export default function TicketDetailPage() {
     const [updatingStatus, setUpdatingStatus] = useState<null | string>(null);
     const [error, setError] = useState<string | null>(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const [editingFinalPrice, setEditingFinalPrice] = useState(false);
+    const [newFinalPrice, setNewFinalPrice] = useState("");
+    const [newPaymentStatus, setNewPaymentStatus] = useState<"unpaid" | "partial" | "paid">("unpaid");
     const statusMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
     const { data: ticket, error: ticketLoadError } = useAsyncData<TicketDetail>(() => fetchTicket(ticketId), [ticketId, refreshKey]);
@@ -89,7 +92,7 @@ export default function TicketDetailPage() {
         return [...fromHistory, ...fromNotes].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     }, [ticket]);
 
-    async function moveToStatus(target: (typeof QUICK_REPAIR_STATUSES)[number]) {
+    async function moveToStatus(target: (typeof QUICK_REPAIR_STATUSES)[number], priceToSubmit?: number, paymentStatusToSubmit?: string) {
         if (!ticket) {
             return;
         }
@@ -107,15 +110,19 @@ export default function TicketDetailPage() {
             for (let index = 0; index < path.length; index += 1) {
                 const next = path[index];
                 const note = index === path.length - 1 ? statusNote : "";
-                await updateTicketStatus(ticket.id, next, statusBy, note, undefined);
+                await updateTicketStatus(ticket.id, next, statusBy, note, priceToSubmit, paymentStatusToSubmit);
             }
 
             setStatusNote("");
+            setEditingFinalPrice(false);
+            setNewFinalPrice("");
+            setNewPaymentStatus("unpaid");
             setRefreshKey((current) => current + 1);
         } catch (requestError) {
             const message = requestError instanceof Error ? requestError.message : "";
             if (/final price/i.test(message)) {
                 setError("Set a final price before moving this ticket to pickup or closeout.");
+                setEditingFinalPrice(true);
             } else if (/loaner/i.test(message)) {
                 setError("Close out any active loaner before moving this ticket to pickup or closeout.");
             } else {
@@ -178,7 +185,16 @@ export default function TicketDetailPage() {
                         <button
                             key={status}
                             type="button"
-                            onClick={() => void moveToStatus(status)}
+                            onClick={() => {
+                                // If moving to a final status and we don't have a final price, prompt for it
+                                if (["Picked Up / Closed", "Completed", "Canceled"].includes(status) && ticket.final_price === null) {
+                                    setEditingFinalPrice(true);
+                                    setNewFinalPrice("");
+                                    setError("Please set a final price before completing this ticket.");
+                                } else {
+                                    void moveToStatus(status, ticket.final_price || undefined);
+                                }
+                            }}
                             disabled={updatingStatus !== null}
                             style={status === "Completed" ? t.primaryBtn : t.secondaryBtn}
                         >
@@ -208,7 +224,15 @@ export default function TicketDetailPage() {
                                     <button
                                         key={status}
                                         type="button"
-                                        onClick={() => void moveToStatus(status)}
+                                        onClick={() => {
+                                            if (["Picked Up / Closed", "Completed", "Canceled"].includes(status) && ticket.final_price === null) {
+                                                setEditingFinalPrice(true);
+                                                setNewFinalPrice("");
+                                                setError("Please set a final price before completing this ticket.");
+                                            } else {
+                                                void moveToStatus(status, ticket.final_price || undefined);
+                                            }
+                                        }}
                                         disabled={updatingStatus !== null}
                                         style={overflowMenuItemStyle}
                                     >
@@ -260,7 +284,75 @@ export default function TicketDetailPage() {
                     <div style={{ ...t.subCard, marginBottom: "10px" }}>
                         <strong>Estimate vs Final</strong>
                         <div style={t.meta}>Estimated: {ticket.estimated_price != null ? `$${ticket.estimated_price.toFixed(2)}` : "-"}</div>
-                        <div style={t.meta}>Final: {ticket.final_price != null ? `$${ticket.final_price.toFixed(2)}` : "-"}</div>
+                        <div style={{ ...t.meta, marginBottom: "8px" }}>
+                            Final: {ticket.final_price != null ? `$${ticket.final_price.toFixed(2)}` : "-"}
+                        </div>
+                        {!editingFinalPrice ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditingFinalPrice(true);
+                                    setNewFinalPrice(ticket.final_price?.toString() || "");
+                                    setNewPaymentStatus(ticket.payment_status as "unpaid" | "partial" | "paid" || "unpaid");
+                                }}
+                                style={{ ...t.secondaryBtn, padding: "6px 10px", fontSize: "0.9rem", alignSelf: "start" }}
+                            >
+                                Set Final Price
+                            </button>
+                        ) : (
+                            <div style={{ display: "grid", gap: "8px" }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                    <input
+                                        type="number"
+                                        value={newFinalPrice}
+                                        onChange={(e) => setNewFinalPrice(e.target.value)}
+                                        placeholder="Enter final price"
+                                        step="0.01"
+                                        min="0"
+                                        style={{ ...t.input, padding: "6px 10px" }}
+                                        autoFocus
+                                    />
+                                    <select
+                                        value={newPaymentStatus}
+                                        onChange={(e) => setNewPaymentStatus(e.target.value as "unpaid" | "partial" | "paid")}
+                                        style={{ ...t.input, padding: "6px 10px" }}
+                                    >
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="paid">Paid (Card)</option>
+                                    </select>
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "8px", justifySelf: "start" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (newFinalPrice) {
+                                                const price = parseFloat(newFinalPrice);
+                                                if (!isNaN(price)) {
+                                                    void moveToStatus("Completed", price, newPaymentStatus);
+                                                }
+                                            }
+                                        }}
+                                        disabled={updatingStatus !== null || !newFinalPrice}
+                                        style={{ ...t.primaryBtn, padding: "6px 12px", fontSize: "0.9rem" }}
+                                    >
+                                        {updatingStatus ? "Saving..." : "Save & Complete"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingFinalPrice(false);
+                                            setNewFinalPrice("");
+                                            setNewPaymentStatus("unpaid");
+                                            setError(null);
+                                        }}
+                                        style={{ ...t.secondaryBtn, padding: "6px 12px", fontSize: "0.9rem" }}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <Link to={`/tickets/${ticket.id}/invoice`} style={invoiceLinkStyle}>Open Invoice</Link>
                 </div>
