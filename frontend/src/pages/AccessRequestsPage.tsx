@@ -16,6 +16,7 @@ export default function AccessRequestsPage() {
     const [inviteRole, setInviteRole] = useState<AuthRole>("front_desk");
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "expired">("all");
+    const [manualInviteLink, setManualInviteLink] = useState<string | null>(null);
 
     const { data: invites = [], error } = useAsyncData<AuthInvite[]>(() => fetchInvites(), [refreshKey]);
 
@@ -42,9 +43,15 @@ export default function AccessRequestsPage() {
         setCreatingInvite(true);
         setActionError(null);
         setActionMessage(null);
+        setManualInviteLink(null);
         try {
             const invite = await createInvite(inviteEmail, inviteRole, inviteName || undefined);
-            setActionMessage(`Invite sent to ${invite.email}.`);
+            if (invite.invite_link) {
+                setActionMessage(`Email delivery failed, but invite was created for ${invite.email}. Share this link manually.`);
+                setManualInviteLink(invite.invite_link);
+            } else {
+                setActionMessage(`Invite sent to ${invite.email}.`);
+            }
             setInviteEmail("");
             setInviteName("");
             setInviteRole("front_desk");
@@ -156,6 +163,11 @@ export default function AccessRequestsPage() {
             {actionMessage ? (
                 <div style={{ ...t.subCard, borderColor: "#34d399", background: "#ecfdf5", color: "#065f46" }}>
                     {actionMessage}
+                    {manualInviteLink ? (
+                        <div style={{ marginTop: "8px", wordBreak: "break-all" }}>
+                            <strong>Invite link:</strong> <a href={manualInviteLink} target="_blank" rel="noreferrer">{manualInviteLink}</a>
+                        </div>
+                    ) : null}
                 </div>
             ) : null}
 

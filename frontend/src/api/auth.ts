@@ -47,6 +47,7 @@ export type AuthInvite = {
     accepted_at: string | null;
     accepted_user_id: number | null;
     revoked_at: string | null;
+    invite_link?: string | null;
 };
 
 export type AuthDecisionResponse = {

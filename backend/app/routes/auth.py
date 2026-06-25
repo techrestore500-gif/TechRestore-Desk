@@ -166,16 +166,42 @@ def post_invite(
     requester: dict = Depends(require_role("owner", "admin")),
 ) -> AuthInviteResponse:
     try:
-        invite, _ = AuthService.create_invite(
+        invite, token = AuthService.create_invite(
             email=payload.email,
             name=payload.name,
             role=payload.role,
             created_by=int(requester["id"]),
         )
     except ValueError as error:
+        if str(error) == "Failed to deliver invite email":
+            try:
+                invite, token = AuthService.create_invite(
+                    email=payload.email,
+                    name=payload.name,
+                    role=payload.role,
+                    created_by=int(requester["id"]),
+                    send_email=False,
+                )
+            except ValueError as fallback_error:
+                raise HTTPException(status_code=400, detail=str(fallback_error)) from fallback_error
+            invite_link = f"{_desk_base_url()}/invite/{token}"
+            return AuthInviteResponse.model_validate(
+                {
+                    **invite,
+                    "invite_link": invite_link,
+                }
+            )
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     return AuthInviteResponse.model_validate(invite)
+
+
+def _desk_base_url() -> str:
+    return (
+        os.getenv("FRONTEND_BASE_URL", "").strip()
+        or os.getenv("PUBLIC_BASE_URL", "").strip()
+        or "https://desk.techrestoredesk.com"
+    ).rstrip("/")
 
 
 @router.post("/invites/{invite_id}/revoke", response_model=AuthInviteResponse)
