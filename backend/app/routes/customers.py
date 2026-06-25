@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/customers", tags=["customers"])
 @router.get("", response_model=list[CustomerResponse])
 def get_customers(
     search: str | None = Query(default=None),
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[CustomerResponse]:
     customers = CustomerService.list_customers(search)
     return [CustomerResponse.model_validate(item) for item in customers]
@@ -20,7 +20,7 @@ def get_customers(
 @router.post("", response_model=CustomerResponse, status_code=201)
 def post_customer(
     payload: CustomerCreate,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician")),
 ) -> CustomerResponse:
     return CustomerResponse.model_validate(CustomerService.create_customer(payload.model_dump()))
 
@@ -28,7 +28,7 @@ def post_customer(
 @router.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer_by_id(
     customer_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> CustomerResponse:
     customer = CustomerService.get_customer(customer_id)
     if customer is None:
@@ -40,7 +40,7 @@ def get_customer_by_id(
 def patch_customer(
     customer_id: int,
     payload: CustomerUpdate,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician")),
 ) -> CustomerResponse:
     updates = payload.model_dump(exclude_unset=True)
     customer = CustomerService.update_customer(customer_id, updates)
@@ -52,7 +52,7 @@ def patch_customer(
 @router.get("/{customer_id}/tickets", response_model=list[TicketSummaryResponse])
 def get_customer_ticket_list(
     customer_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[TicketSummaryResponse]:
     if CustomerService.get_customer(customer_id) is None:
         raise HTTPException(status_code=404, detail="Customer not found")

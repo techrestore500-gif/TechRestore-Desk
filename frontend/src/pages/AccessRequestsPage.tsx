@@ -4,7 +4,7 @@ import { createInvite, fetchInvites, resendInvite, revokeInvite, type AuthInvite
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
-const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "admin", "owner"];
+const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "manager", "admin", "owner"];
 
 export default function AccessRequestsPage() {
     const [refreshKey, setRefreshKey] = useState(0);

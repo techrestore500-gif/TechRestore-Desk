@@ -10,7 +10,7 @@ function friendlyAuthError(status: number, fallback: string): string {
     return fallback;
 }
 
-export type AuthRole = 'owner' | 'admin' | 'technician' | 'front_desk' | 'viewer';
+export type AuthRole = 'owner' | 'admin' | 'manager' | 'technician' | 'front_desk' | 'viewer';
 export type AuthStatus = 'pending' | 'active' | 'denied' | 'disabled';
 export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 

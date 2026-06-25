@@ -16,7 +16,7 @@ from app.services.emailer import EmailDeliveryError, EmailService
 from app.utils.jwt import create_access_token
 from app.utils.passwords import hash_password, verify_password
 
-ALLOWED_ROLES = {"owner", "admin", "technician", "front_desk", "viewer"}
+ALLOWED_ROLES = {"owner", "admin", "manager", "technician", "front_desk", "viewer"}
 ALLOWED_STATUSES = {"pending", "active", "denied", "disabled"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 INVITE_TOKEN_BYTES = 32
@@ -108,7 +108,7 @@ def _bootstrap_admin_invite_details() -> tuple[str, str, str]:
         raise ValueError("ADMIN_EMAIL is not configured")
 
     admin_email = _validate_email(admin_email_raw)
-    if admin_role not in {"owner", "admin"}:
+    if admin_role not in {"owner", "admin", "manager"}:
         admin_role = "owner"
 
     return admin_email, admin_name, admin_role

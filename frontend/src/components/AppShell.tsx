@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
     { to: "/", label: "Dashboard", group: "Core" },
     { to: "/intake", label: "New Repair", group: "Core", hiddenFor: ["viewer"] },
     { to: "/tickets", label: "Tickets", group: "Core" },
-    { to: "/voicemail", label: "Voicemail", group: "Core", hiddenFor: ["viewer"] },
+    { to: "/voicemail", label: "Voicemail", group: "Core", hiddenFor: ["viewer", "technician"] },
     { to: "/inventory", label: "Inventory", group: "Operations", hiddenFor: ["viewer"] },
     { to: "/pricing", label: "Pricing", group: "Operations" },
     { to: "/operations", label: "Shop Tools", group: "Operations", hiddenFor: ["viewer"] },
@@ -36,11 +36,11 @@ const navItems: NavItem[] = [
         to: "/market-updates-admin",
         label: "Market SMS Admin",
         group: "Administration",
-        visibleFor: ["owner", "admin"],
+        visibleFor: ["owner", "admin", "manager"],
         marketHostOnly: true,
     },
     { to: "/invite-create", label: "Create Invite", group: "Administration", visibleFor: ["owner", "admin"] },
-    { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin"] },
+    { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin", "manager"] },
     { to: "/users-invites", label: "Team Access", group: "Administration", visibleFor: ["owner"] },
 ];
 

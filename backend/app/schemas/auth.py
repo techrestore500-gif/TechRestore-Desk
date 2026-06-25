@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-RoleName = Literal["owner", "admin", "technician", "front_desk", "viewer"]
+RoleName = Literal["owner", "admin", "manager", "technician", "front_desk", "viewer"]
 UserStatus = Literal["pending", "active", "denied", "disabled"]
 InviteStatus = Literal["pending", "accepted", "revoked", "expired"]
 

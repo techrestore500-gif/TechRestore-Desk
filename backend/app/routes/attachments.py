@@ -25,7 +25,7 @@ async def post_ticket_attachment(
     ticket_id: int,
     attachment_type: str = Query(...),
     file: UploadFile = File(...),
-    user: dict = Depends(require_role("admin", "front_desk", "technician")),
+    user: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> AttachmentResponse:
     try:
         content = await file.read()
@@ -46,7 +46,7 @@ async def post_ticket_attachment(
 @router.get("/tickets/{ticket_id}/attachments", response_model=list[AttachmentResponse])
 def get_ticket_attachments(
     ticket_id: int,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> list[AttachmentResponse]:
     try:
         rows = AttachmentService.list_attachments(entity_type="ticket", entity_id=ticket_id)
@@ -58,7 +58,7 @@ def get_ticket_attachments(
 @router.post("/attachments/{attachment_id}/signed-url", response_model=AttachmentSignedUrlResponse)
 def post_attachment_signed_url(
     attachment_id: int,
-    user: dict = Depends(require_role("admin", "front_desk", "technician")),
+    user: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> AttachmentSignedUrlResponse:
     try:
         signed = AttachmentService.generate_signed_download(attachment_id=attachment_id, requested_by=user)
@@ -98,7 +98,7 @@ def get_attachment_download(
 @router.delete("/attachments/{attachment_id}", response_model=AttachmentResponse)
 def delete_attachment(
     attachment_id: int,
-    user: dict = Depends(require_role("admin", "front_desk")),
+    user: dict = Depends(require_role("admin", "manager", "front_desk")),
 ) -> AttachmentResponse:
     try:
         deleted = AttachmentService.delete_attachment(attachment_id=attachment_id, deleted_by=user)
@@ -110,7 +110,7 @@ def delete_attachment(
 @router.post("/attachments/cleanup-orphans", response_model=AttachmentCleanupResponse)
 def post_attachment_cleanup_orphans(
     prefix: str = Query(default=""),
-    _: dict = Depends(require_role("admin")),
+    _: dict = Depends(require_role("admin", "manager")),
 ) -> AttachmentCleanupResponse:
     report = AttachmentService.cleanup_orphans(prefix=prefix)
     return AttachmentCleanupResponse.model_validate(report)

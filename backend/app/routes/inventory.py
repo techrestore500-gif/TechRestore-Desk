@@ -45,7 +45,7 @@ def get_part_by_id(part_id: int) -> PartResponse:
 @router.post("/parts", response_model=PartResponse, status_code=201)
 def post_part(
     payload: PartCreate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> PartResponse:
     try:
         part = InventoryService.create_part(payload.model_dump())
@@ -58,7 +58,7 @@ def post_part(
 def patch_part(
     part_id: int,
     payload: PartUpdate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> PartResponse:
     try:
         part = InventoryService.update_part(part_id, payload.model_dump(exclude_unset=True))
@@ -72,7 +72,7 @@ def patch_part(
 @router.delete("/parts/{part_id}", status_code=204)
 def remove_part(
     part_id: int,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> Response:
     if not InventoryService.delete_part(part_id):
         raise HTTPException(status_code=404, detail="Part not found")
@@ -82,7 +82,7 @@ def remove_part(
 @router.post("/parts/usage", response_model=PartUsageResponse, status_code=201)
 def post_part_usage(
     payload: PartUsageCreate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> PartUsageResponse:
     try:
         usage = InventoryService.log_part_usage(
@@ -127,7 +127,7 @@ def get_donor_by_id(donor_id: int) -> DonorResponse:
 @router.post("/donors", response_model=DonorResponse, status_code=201)
 def post_donor(
     payload: DonorCreate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> DonorResponse:
     try:
         donor = InventoryService.create_donor(payload.model_dump())
@@ -140,7 +140,7 @@ def post_donor(
 def patch_donor(
     donor_id: int,
     payload: DonorUpdate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> DonorResponse:
     try:
         donor = InventoryService.update_donor(donor_id, payload.model_dump(exclude_unset=True))
@@ -155,7 +155,7 @@ def patch_donor(
 def post_harvest_part(
     donor_id: int,
     payload: PartHarvestRequest,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> DonorResponse:
     try:
         donor = InventoryService.harvest_part_from_donor(donor_id, payload.part_id)
@@ -189,7 +189,7 @@ def get_inventory_purchase_by_id(purchase_id: int) -> InventoryPurchaseResponse:
 @router.post("/purchases", response_model=InventoryPurchaseResponse, status_code=201)
 def post_inventory_purchase(
     payload: InventoryPurchaseCreate,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> InventoryPurchaseResponse:
     try:
         purchase = InventoryService.create_purchase(payload.model_dump())
@@ -202,7 +202,7 @@ def post_inventory_purchase(
 def post_part_stock_adjustment(
     part_id: int,
     payload: PartStockAdjustmentRequest,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> PartResponse:
     try:
         part = InventoryService.adjust_part_stock(
@@ -236,7 +236,7 @@ def get_inventory_movements(
 @router.post("/reconciliation", response_model=InventoryReconciliationResponse, status_code=201)
 def post_inventory_reconciliation(
     payload: InventoryReconciliationRequest,
-    _: dict = Depends(require_role("admin", "technician", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "technician", "front_desk")),
 ) -> InventoryReconciliationResponse:
     try:
         record = InventoryService.reconcile_stock(

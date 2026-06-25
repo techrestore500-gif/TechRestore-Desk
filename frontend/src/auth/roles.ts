@@ -5,6 +5,7 @@ export const ROLE_LEVEL: Record<AuthRole, number> = {
     technician: 20,
     front_desk: 30,
     admin: 40,
+    manager: 45,
     owner: 50,
 };
 
@@ -16,11 +17,11 @@ export function hasRole(user: AuthUser | null, allowed: AuthRole[]): boolean {
 }
 
 export function canViewPricing(user: AuthUser | null): boolean {
-    return hasRole(user, ["owner", "admin", "front_desk", "technician", "viewer"]);
+    return hasRole(user, ["owner", "admin", "manager", "front_desk", "technician", "viewer"]);
 }
 
 export function canEditPricing(user: AuthUser | null): boolean {
-    return hasRole(user, ["owner", "admin"]);
+    return hasRole(user, ["owner", "admin", "manager"]);
 }
 
 export function canManageInvites(user: AuthUser | null): boolean {
@@ -28,11 +29,11 @@ export function canManageInvites(user: AuthUser | null): boolean {
 }
 
 export function canAccessSettings(user: AuthUser | null): boolean {
-    return hasRole(user, ["owner", "admin"]);
+    return hasRole(user, ["owner", "admin", "manager"]);
 }
 
 export function canEditTickets(user: AuthUser | null): boolean {
-    return hasRole(user, ["owner", "admin", "front_desk", "technician"]);
+    return hasRole(user, ["owner", "admin", "manager", "front_desk", "technician"]);
 }
 
 export function roleLabel(role: AuthRole | null | undefined): string {
@@ -41,6 +42,9 @@ export function roleLabel(role: AuthRole | null | undefined): string {
     }
     if (role === "front_desk") {
         return "Front Desk";
+    }
+    if (role === "manager") {
+        return "Manager";
     }
     return role.charAt(0).toUpperCase() + role.slice(1);
 }

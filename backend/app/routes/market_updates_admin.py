@@ -31,12 +31,12 @@ class InviteDraftRequest(BaseModel):
 
 
 @router.get("/allowlist")
-def get_allowlist(_: dict = Depends(require_role("admin"))) -> list[dict]:
+def get_allowlist(_: dict = Depends(require_role("admin", "manager"))) -> list[dict]:
     return list_allowlist()
 
 
 @router.post("/allowlist")
-def post_allowlist(payload: AllowlistUpsertRequest, _: dict = Depends(require_role("admin"))) -> dict:
+def post_allowlist(payload: AllowlistUpsertRequest, _: dict = Depends(require_role("admin", "manager"))) -> dict:
     try:
         return upsert_allowlist_number(payload.phone_number, label=payload.label, enabled=payload.enabled)
     except ValueError as error:
@@ -44,18 +44,18 @@ def post_allowlist(payload: AllowlistUpsertRequest, _: dict = Depends(require_ro
 
 
 @router.delete("/allowlist/{phone_number}")
-def delete_allowlist(phone_number: str, _: dict = Depends(require_role("admin"))) -> dict:
+def delete_allowlist(phone_number: str, _: dict = Depends(require_role("admin", "manager"))) -> dict:
     removed = disable_allowlist_number(phone_number)
     return {"removed": removed}
 
 
 @router.get("/invite-requests")
-def get_invite_requests(status: str = "pending", _: dict = Depends(require_role("admin"))) -> list[dict]:
+def get_invite_requests(status: str = "pending", _: dict = Depends(require_role("admin", "manager"))) -> list[dict]:
     return list_invite_requests(status=status)
 
 
 @router.post("/invite-requests")
-def post_invite_request(payload: InviteDraftRequest, _: dict = Depends(require_role("admin"))) -> dict:
+def post_invite_request(payload: InviteDraftRequest, _: dict = Depends(require_role("admin", "manager"))) -> dict:
     try:
         return create_or_update_invite_request(
             payload.phone_number,
@@ -67,7 +67,7 @@ def post_invite_request(payload: InviteDraftRequest, _: dict = Depends(require_r
 
 
 @router.post("/invite-requests/{request_id}/approve")
-def post_approve_request(request_id: int, _: dict = Depends(require_role("admin"))) -> dict:
+def post_approve_request(request_id: int, _: dict = Depends(require_role("admin", "manager"))) -> dict:
     approved = approve_invite_request(request_id)
     if approved is None:
         raise HTTPException(status_code=404, detail="Invite request not found")
@@ -75,7 +75,7 @@ def post_approve_request(request_id: int, _: dict = Depends(require_role("admin"
 
 
 @router.post("/invite-requests/{request_id}/deny")
-def post_deny_request(request_id: int, _: dict = Depends(require_role("admin"))) -> dict:
+def post_deny_request(request_id: int, _: dict = Depends(require_role("admin", "manager"))) -> dict:
     denied = deny_invite_request(request_id)
     if denied is None:
         raise HTTPException(status_code=404, detail="Invite request not found")
@@ -83,5 +83,5 @@ def post_deny_request(request_id: int, _: dict = Depends(require_role("admin")))
 
 
 @router.get("/feedback")
-def get_feedback(limit: int = 200, _: dict = Depends(require_role("admin"))) -> list[dict]:
+def get_feedback(limit: int = 200, _: dict = Depends(require_role("admin", "manager"))) -> list[dict]:
     return list_feedback_entries(limit=limit)

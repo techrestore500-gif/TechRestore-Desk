@@ -43,7 +43,7 @@ def get_pricing_rules() -> dict:
 @router.patch("/rules")
 def patch_pricing_rules(
     payload: PricingDefaultsUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> dict:
     try:
         return {"defaults": PricingService.update_rules(payload.model_dump(exclude_none=True))}
@@ -70,7 +70,7 @@ def get_pricing_brands(include_inactive: bool = True) -> list[PricingBrandRespon
 @router.post("/catalog/brands", response_model=PricingBrandResponse, status_code=201)
 def post_pricing_brand(
     payload: PricingBrandCreate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingBrandResponse:
     try:
         return PricingBrandResponse.model_validate(database.create_pricing_brand(payload.model_dump()))
@@ -82,7 +82,7 @@ def post_pricing_brand(
 def patch_pricing_brand(
     brand_id: int,
     payload: PricingBrandUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingBrandResponse:
     try:
         updated = database.update_pricing_brand(brand_id, payload.model_dump(exclude_none=True))
@@ -101,7 +101,7 @@ def get_pricing_models(brand_id: int | None = None, include_inactive: bool = Tru
 @router.post("/catalog/models", response_model=PricingModelResponse, status_code=201)
 def post_pricing_model(
     payload: PricingModelCreate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingModelResponse:
     try:
         return PricingModelResponse.model_validate(database.create_pricing_model(payload.model_dump()))
@@ -113,7 +113,7 @@ def post_pricing_model(
 def patch_pricing_model(
     model_id: int,
     payload: PricingModelUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingModelResponse:
     try:
         updated = database.update_pricing_model(model_id, payload.model_dump(exclude_none=True))
@@ -132,7 +132,7 @@ def get_pricing_issue_types(include_inactive: bool = True) -> list[PricingIssueT
 @router.post("/catalog/issue-types", response_model=PricingIssueTypeResponse, status_code=201)
 def post_pricing_issue_type(
     payload: PricingIssueTypeCreate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingIssueTypeResponse:
     try:
         return PricingIssueTypeResponse.model_validate(database.create_pricing_issue_type(payload.model_dump()))
@@ -144,7 +144,7 @@ def post_pricing_issue_type(
 def patch_pricing_issue_type(
     issue_type_id: int,
     payload: PricingIssueTypeUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingIssueTypeResponse:
     try:
         updated = database.update_pricing_issue_type(issue_type_id, payload.model_dump(exclude_none=True))
@@ -163,7 +163,7 @@ def get_pricing_repair_types(include_inactive: bool = True) -> list[PricingRepai
 @router.post("/catalog/repair-types", response_model=PricingRepairTypeResponse, status_code=201)
 def post_pricing_repair_type(
     payload: PricingRepairTypeCreate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingRepairTypeResponse:
     try:
         return PricingRepairTypeResponse.model_validate(database.create_pricing_repair_type(payload.model_dump()))
@@ -175,7 +175,7 @@ def post_pricing_repair_type(
 def patch_pricing_repair_type(
     repair_type_id: int,
     payload: PricingRepairTypeUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingRepairTypeResponse:
     try:
         updated = database.update_pricing_repair_type(repair_type_id, payload.model_dump(exclude_none=True))
@@ -210,7 +210,7 @@ def get_pricing_rules_catalog(
 @router.post("/catalog/rules", response_model=PricingRuleResponse, status_code=201)
 def post_pricing_rule(
     payload: PricingRuleCreate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingRuleResponse:
     try:
         return PricingRuleResponse.model_validate(database.create_pricing_rule(payload.model_dump()))
@@ -222,7 +222,7 @@ def post_pricing_rule(
 def patch_pricing_rule(
     rule_id: int,
     payload: PricingRuleUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> PricingRuleResponse:
     try:
         updated = database.update_pricing_rule(rule_id, payload.model_dump(exclude_none=True))
@@ -236,7 +236,7 @@ def patch_pricing_rule(
 @router.delete("/catalog/rules/{rule_id}", status_code=204)
 def delete_pricing_rule(
     rule_id: int,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> None:
     deleted = database.delete_pricing_rule(rule_id)
     if not deleted:

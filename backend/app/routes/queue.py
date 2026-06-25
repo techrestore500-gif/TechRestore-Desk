@@ -79,7 +79,7 @@ async def get_queue() -> dict:
 @router.post("/assign", response_model=QueueAssignmentResponse)
 async def assign_ticket_in_queue(
     payload: QueueAssignmentRequest,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> QueueAssignmentResponse:
     result = QueueService.assign_ticket(
         ticket_id=payload.ticket_id,

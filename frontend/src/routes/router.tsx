@@ -46,9 +46,9 @@ function MarketAdminRouteElement() {
 
     return (
         <RequireRole
-            allowedRoles={["owner", "admin"]}
+            allowedRoles={["owner", "admin", "manager"]}
             deniedTitle="Market Updates Admin access is restricted"
-            deniedDescription="Only owner/admin roles can manage market SMS controls."
+            deniedDescription="Only owner/admin/manager roles can manage market SMS controls."
         >
             <MarketUpdatesAdminPage />
         </RequireRole>
@@ -120,7 +120,7 @@ export const router = createBrowserRouter([
                 path: "pricing",
                 element: (
                     <RequireRole
-                        allowedRoles={["owner", "admin", "front_desk", "technician", "viewer"]}
+                        allowedRoles={["owner", "admin", "manager", "front_desk", "technician", "viewer"]}
                         deniedTitle="Pricing access is restricted"
                         deniedDescription="You do not have permission to view pricing."
                     >
@@ -132,9 +132,9 @@ export const router = createBrowserRouter([
                 path: "settings",
                 element: (
                     <RequireRole
-                        allowedRoles={["owner", "admin"]}
+                        allowedRoles={["owner", "admin", "manager"]}
                         deniedTitle="Settings access is restricted"
-                        deniedDescription="Only owner/admin roles can open settings."
+                        deniedDescription="Only owner/admin/manager roles can open settings."
                     >
                         <SettingsPage />
                     </RequireRole>
@@ -170,7 +170,15 @@ export const router = createBrowserRouter([
             },
             {
                 path: "voicemail",
-                element: <VoicemailPage />,
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner", "admin", "manager", "front_desk"]}
+                        deniedTitle="Voicemail access is restricted"
+                        deniedDescription="Only owner/admin/manager/front desk roles can access voicemail."
+                    >
+                        <VoicemailPage />
+                    </RequireRole>
+                ),
             },
             {
                 path: "market-updates-admin",

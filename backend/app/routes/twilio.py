@@ -16,24 +16,24 @@ router = APIRouter(prefix="/api", tags=["twilio"])
 
 
 @router.get("/settings/twilio", response_model=TwilioSettingsResponse)
-def get_twilio_settings(_: dict = Depends(require_role("admin"))) -> TwilioSettingsResponse:
+def get_twilio_settings(_: dict = Depends(require_role("admin", "manager"))) -> TwilioSettingsResponse:
     return TwilioSettingsResponse.model_validate(TwilioService.get_settings())
 
 
 @router.put("/settings/twilio", response_model=TwilioSettingsResponse)
-def put_twilio_settings(payload: TwilioSettingsUpdate, _: dict = Depends(require_role("admin"))) -> TwilioSettingsResponse:
+def put_twilio_settings(payload: TwilioSettingsUpdate, _: dict = Depends(require_role("admin", "manager"))) -> TwilioSettingsResponse:
     return TwilioSettingsResponse.model_validate(TwilioService.update_settings(payload.model_dump(exclude_unset=True)))
 
 
 @router.delete("/settings/twilio", response_model=TwilioSettingsResponse)
-def delete_twilio_settings(_: dict = Depends(require_role("admin"))) -> TwilioSettingsResponse:
+def delete_twilio_settings(_: dict = Depends(require_role("admin", "manager"))) -> TwilioSettingsResponse:
     return TwilioSettingsResponse.model_validate(TwilioService.clear_settings())
 
 
 @router.post("/twilio/outbound-calls", response_model=TwilioOutboundCallResponse)
 def post_twilio_outbound_call(
     payload: TwilioOutboundCallRequest,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> TwilioOutboundCallResponse:
     try:
         record = TwilioService.place_outbound_call(payload.model_dump(exclude_unset=True))
@@ -43,12 +43,12 @@ def post_twilio_outbound_call(
 
 
 @router.get("/settings/twilio/setup-status", response_model=TwilioSetupStatusResponse)
-def get_twilio_setup_status(_: dict = Depends(require_role("admin"))) -> TwilioSetupStatusResponse:
+def get_twilio_setup_status(_: dict = Depends(require_role("admin", "manager"))) -> TwilioSetupStatusResponse:
     return TwilioSetupStatusResponse.model_validate(TwilioService.get_setup_status())
 
 
 @router.get("/voicemails", response_model=list[VoicemailRecordResponse])
-def get_voicemail_inbox(_: dict = Depends(require_role("admin", "front_desk", "technician"))) -> list[VoicemailRecordResponse]:
+def get_voicemail_inbox(_: dict = Depends(require_role("admin", "manager", "front_desk"))) -> list[VoicemailRecordResponse]:
     return [VoicemailRecordResponse.model_validate(item) for item in TwilioService.list_voicemails()]
 
 
@@ -56,7 +56,7 @@ def get_voicemail_inbox(_: dict = Depends(require_role("admin", "front_desk", "t
 def patch_voicemail(
     voicemail_id: int,
     payload: VoicemailRecordUpdate,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk")),
 ) -> VoicemailRecordResponse:
     record = TwilioService.update_voicemail(voicemail_id, payload.model_dump(exclude_unset=True))
     if record is None:
@@ -67,7 +67,7 @@ def patch_voicemail(
 @router.delete("/voicemails/{voicemail_id}")
 def delete_voicemail(
     voicemail_id: int,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk")),
 ) -> dict:
     deleted = TwilioService.delete_voicemail(voicemail_id)
     if not deleted:
@@ -76,7 +76,7 @@ def delete_voicemail(
 
 
 @router.get("/voicemails/{voicemail_id}/audio")
-def get_voicemail_audio(voicemail_id: int, _: dict = Depends(require_role("admin", "front_desk", "technician"))) -> Response:
+def get_voicemail_audio(voicemail_id: int, _: dict = Depends(require_role("admin", "manager", "front_desk"))) -> Response:
     try:
         payload = TwilioService.fetch_recording_audio(voicemail_id)
     except TwilioAudioFetchError as error:

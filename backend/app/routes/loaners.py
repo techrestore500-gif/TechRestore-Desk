@@ -21,7 +21,7 @@ def get_loaners(status: str | None = Query(default=None)) -> list[LoanerPhoneRes
 @router.post("", response_model=LoanerPhoneResponse, status_code=201)
 def post_loaner(
     payload: LoanerPhoneCreate,
-    _: dict = Depends(require_role("admin", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk")),
 ) -> LoanerPhoneResponse:
     try:
         loaner = LoanerService.create_loaner(payload.model_dump())
@@ -40,7 +40,7 @@ def get_loaner_by_id(loaner_id: int) -> LoanerPhoneResponse:
 def patch_loaner(
     loaner_id: int,
     payload: LoanerPhoneUpdate,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> LoanerPhoneResponse:
     loaner = LoanerService.update_loaner(loaner_id, payload.model_dump(exclude_unset=True))
     if loaner is None:
@@ -51,7 +51,7 @@ def patch_loaner(
 def post_loaner_checkout(
     loaner_id: int,
     payload: LoanerCheckoutCreate,
-    _: dict = Depends(require_role("admin", "front_desk")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk")),
 ) -> LoanerCheckoutResponse:
     try:
         checkout = LoanerService.checkout_loaner(loaner_id, payload.model_dump())
@@ -65,7 +65,7 @@ def post_loaner_checkout(
 def post_loaner_return(
     loaner_id: int,
     payload: LoanerReturnRequest,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> LoanerCheckoutResponse:
     try:
         checkout = LoanerService.return_loaner(loaner_id, payload.model_dump())

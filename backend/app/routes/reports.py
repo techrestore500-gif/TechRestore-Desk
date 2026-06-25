@@ -13,7 +13,7 @@ def get_report_summary(
     end_date: str | None = None,
     technician: str | None = None,
     repair_category: str | None = None,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> ReportSummaryResponse:
     return ReportsService.get_summary(
         start_date=start_date,

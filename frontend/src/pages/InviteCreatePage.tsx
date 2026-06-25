@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { createInvite, type AuthRole } from "../api/auth";
 import * as t from "../styles/theme";
 
-const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "admin", "owner"];
+const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "manager", "admin", "owner"];
 
 export default function InviteCreatePage() {
     const [inviteEmail, setInviteEmail] = useState("");

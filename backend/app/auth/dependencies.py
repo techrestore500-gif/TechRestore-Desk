@@ -11,7 +11,7 @@ from app.core.request_context import set_actor
 from app.services.auth import AuthService
 from app.utils.jwt import decode_access_token
 
-RoleName = Literal["owner", "admin", "technician", "front_desk", "viewer"]
+RoleName = Literal["owner", "admin", "manager", "technician", "front_desk", "viewer"]
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -115,6 +115,8 @@ def require_role(*roles: RoleName):
     def _dep(user: dict = Depends(get_current_user)) -> dict:
         current_role = user.get("role")
         if current_role == "owner" and "admin" in roles:
+            return user
+        if current_role == "owner" and "manager" in roles:
             return user
         if current_role not in roles:
             raise HTTPException(status_code=403, detail="Forbidden")

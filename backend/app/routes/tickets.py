@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 def get_ticket_list(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[TicketSummaryResponse]:
     tickets = TicketService.list_tickets(status=status, search=search)
     return [TicketSummaryResponse.model_validate(item) for item in tickets]
@@ -39,7 +39,7 @@ def get_ticket_list_paged(
     page_size: int = Query(default=50, ge=1, le=500),
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> TicketSummaryListResponse:
     result = TicketService.list_tickets_paginated(
         page=page,
@@ -53,7 +53,7 @@ def get_ticket_list_paged(
 @router.post("", response_model=TicketDetailResponse, status_code=201)
 def post_ticket(
     payload: TicketCreate,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician")),
 ) -> TicketDetailResponse:
     try:
         ticket = TicketService.create_ticket(payload.model_dump())
@@ -65,7 +65,7 @@ def post_ticket(
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)
 def get_ticket_by_id(
     ticket_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> TicketDetailResponse:
     ticket = TicketService.get_ticket(ticket_id)
     if ticket is None:
@@ -76,7 +76,7 @@ def get_ticket_by_id(
 @router.get("/{ticket_id}/loaner-agreement", response_model=LoanerAgreementResponse)
 def get_ticket_loaner_agreement(
     ticket_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> LoanerAgreementResponse:
     agreement = TicketService.get_ticket_loaner_agreement(ticket_id)
     if agreement is None:
@@ -88,7 +88,7 @@ def get_ticket_loaner_agreement(
 def patch_ticket(
     ticket_id: int,
     payload: TicketUpdate,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> TicketDetailResponse:
     updates = payload.model_dump(exclude_unset=True)
     try:
@@ -104,7 +104,7 @@ def patch_ticket(
 def post_ticket_status(
     ticket_id: int,
     payload: TicketStatusChange,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> TicketStatusHistoryResponse:
     try:
         history_item = TicketService.update_ticket_status(ticket_id, payload.model_dump())
@@ -118,7 +118,7 @@ def post_ticket_status(
 @router.get("/{ticket_id}/history", response_model=list[TicketStatusHistoryResponse])
 def get_ticket_status_history(
     ticket_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[TicketStatusHistoryResponse]:
     try:
         items = TicketService.get_ticket_history(ticket_id)
@@ -131,7 +131,7 @@ def get_ticket_status_history(
 def post_ticket_note(
     ticket_id: int,
     payload: TicketNoteCreate,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> TicketNoteResponse:
     try:
         note = TicketService.add_ticket_note(ticket_id, payload.model_dump())
@@ -143,7 +143,7 @@ def post_ticket_note(
 @router.get("/{ticket_id}/notes", response_model=list[TicketNoteResponse])
 def get_ticket_note_list(
     ticket_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[TicketNoteResponse]:
     try:
         items = TicketService.get_ticket_notes(ticket_id)
@@ -155,7 +155,7 @@ def get_ticket_note_list(
 def post_ticket_close(
     ticket_id: int,
     payload: TicketCloseRequest,
-    _: dict = Depends(require_role("admin", "front_desk", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "front_desk", "technician")),
 ) -> TicketCloseResponse:
     try:
         result = TicketService.close_ticket(ticket_id, payload.model_dump(exclude_unset=True))
@@ -170,7 +170,7 @@ def post_ticket_close(
 def post_repair_action(
     ticket_id: int,
     payload: RepairActionCreate,
-    _: dict = Depends(require_role("admin", "technician")),
+    _: dict = Depends(require_role("admin", "manager", "technician")),
 ) -> RepairActionResponse:
     try:
         item = TicketService.add_repair_action(ticket_id, payload.model_dump())
@@ -182,7 +182,7 @@ def post_repair_action(
 @router.get("/{ticket_id}/repair-actions", response_model=list[RepairActionResponse])
 def get_repair_action_list(
     ticket_id: int,
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> list[RepairActionResponse]:
     try:
         items = TicketService.get_repair_actions(ticket_id)

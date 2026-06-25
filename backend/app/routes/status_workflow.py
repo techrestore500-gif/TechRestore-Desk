@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/status-workflow", tags=["status-workflow"])
 
 @router.get("", response_model=StatusWorkflowRulesResponse)
 def get_status_workflow_rules(
-    _: dict = Depends(require_role("owner", "admin", "front_desk", "technician", "viewer")),
+    _: dict = Depends(require_role("owner", "admin", "manager", "front_desk", "technician", "viewer")),
 ) -> StatusWorkflowRulesResponse:
     return StatusWorkflowRulesResponse.model_validate(StatusWorkflowService.get_rules())
 
@@ -18,7 +18,7 @@ def get_status_workflow_rules(
 @router.patch("", response_model=StatusWorkflowRulesResponse)
 def patch_status_workflow_rules(
     payload: StatusWorkflowRulesUpdate,
-    _: dict = Depends(require_role("owner", "admin")),
+    _: dict = Depends(require_role("owner", "admin", "manager")),
 ) -> StatusWorkflowRulesResponse:
     try:
         rules = StatusWorkflowService.update_rules(payload.model_dump(exclude_none=True))
