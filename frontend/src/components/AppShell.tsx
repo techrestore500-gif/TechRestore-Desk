@@ -39,6 +39,7 @@ const navItems: NavItem[] = [
         visibleFor: ["owner", "admin"],
         marketHostOnly: true,
     },
+    { to: "/invite-create", label: "Create Invite", group: "Administration", visibleFor: ["owner", "admin"] },
     { to: "/settings", label: "Settings", group: "Administration", visibleFor: ["owner", "admin"] },
     { to: "/users-invites", label: "Team Access", group: "Administration", visibleFor: ["owner"] },
 ];

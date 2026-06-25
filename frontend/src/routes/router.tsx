@@ -8,6 +8,7 @@ import DashboardPage from "../pages/DashboardPage";
 import CustomerDetailPage from "../pages/CustomerDetailPage";
 import IntakePrintPage from "../pages/IntakePrintPage";
 import IntakePage from "../pages/IntakePage";
+import InviteCreatePage from "../pages/InviteCreatePage";
 import InvoicePrintPage from "../pages/InvoicePrintPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import LoginStatePage from "../pages/LoginStatePage";
@@ -142,6 +143,18 @@ export const router = createBrowserRouter([
             {
                 path: "account",
                 element: <AccountPage />,
+            },
+            {
+                path: "invite-create",
+                element: (
+                    <RequireRole
+                        allowedRoles={["owner", "admin"]}
+                        deniedTitle="Invite access is restricted"
+                        deniedDescription="Only owner/admin roles can create staff invites."
+                    >
+                        <InviteCreatePage />
+                    </RequireRole>
+                ),
             },
             {
                 path: "users-invites",

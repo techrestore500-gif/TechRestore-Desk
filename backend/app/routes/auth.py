@@ -155,7 +155,7 @@ def post_change_password(
 
 
 @router.get("/invites", response_model=list[AuthInviteResponse])
-def get_invites(_: dict = Depends(require_role("owner"))) -> list[AuthInviteResponse]:
+def get_invites(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthInviteResponse]:
     invites = AuthService.list_invites()
     return [AuthInviteResponse.model_validate(item) for item in invites]
 
@@ -163,7 +163,7 @@ def get_invites(_: dict = Depends(require_role("owner"))) -> list[AuthInviteResp
 @router.post("/invites", response_model=AuthInviteResponse, status_code=201)
 def post_invite(
     payload: AuthInviteCreateRequest,
-    requester: dict = Depends(require_role("owner")),
+    requester: dict = Depends(require_role("owner", "admin")),
 ) -> AuthInviteResponse:
     try:
         invite, _ = AuthService.create_invite(
@@ -179,7 +179,7 @@ def post_invite(
 
 
 @router.post("/invites/{invite_id}/revoke", response_model=AuthInviteResponse)
-def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner"))) -> AuthInviteResponse:
+def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
     updated = AuthService.revoke_invite(invite_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="Invite not found or already finalized")
@@ -187,7 +187,7 @@ def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner")))
 
 
 @router.post("/invites/{invite_id}/resend", response_model=AuthInviteResponse)
-def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner"))) -> AuthInviteResponse:
+def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
     try:
         updated = AuthService.resend_invite(invite_id=invite_id, requested_by=int(requester["id"]))
     except ValueError as error:
