@@ -121,6 +121,54 @@ DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES = [
     "application/pdf",
 ]
 
+DEVELOPMENT_DEFAULT_SECRET = "dev-insecure-secret-change-me"
+MINIMUM_SECRET_LENGTH = 32
+OBVIOUS_SECRET_PLACEHOLDERS = {
+    "changeme",
+    "change-me",
+    "replace-me",
+    "placeholder",
+    "your-secret",
+    "your_jwt_secret",
+    "secret",
+    "password",
+    "test",
+    "example",
+    DEVELOPMENT_DEFAULT_SECRET,
+}
+
+
+def _is_obvious_secret_placeholder(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in OBVIOUS_SECRET_PLACEHOLDERS:
+        return True
+    if "change" in normalized and "secret" in normalized:
+        return True
+    if "placeholder" in normalized:
+        return True
+    if normalized.startswith("dev-") and "secret" in normalized:
+        return True
+    return False
+
+
+def _validate_production_secret(value: str, *, env_name: str) -> None:
+    if value == DEVELOPMENT_DEFAULT_SECRET:
+        raise ValueError(f"{env_name} must be set in production/staging")
+    if len(value) < MINIMUM_SECRET_LENGTH:
+        raise ValueError(f"{env_name} must be at least {MINIMUM_SECRET_LENGTH} characters in production/staging")
+    if _is_obvious_secret_placeholder(value):
+        raise ValueError(f"{env_name} must not use an obvious placeholder value in production/staging")
+
+
+def _resolve_jwt_secret() -> str:
+    # Explicit precedence: dedicated JWT secret first, then legacy alias.
+    return _first_non_empty("TECH_RESTORE_JWT_SECRET", "SECRET_KEY") or DEVELOPMENT_DEFAULT_SECRET
+
+
+def _resolve_signed_url_secret(jwt_secret: str) -> str:
+    # Explicit precedence: dedicated signed-url secret, then JWT/legacy aliases.
+    return _first_non_empty("TECH_RESTORE_SIGNED_URL_SECRET", "TECH_RESTORE_JWT_SECRET", "SECRET_KEY") or jwt_secret
+
 
 def get_settings() -> Settings:
     app_env = _first_non_empty("TECH_RESTORE_APP_ENV", "APP_ENV") or (
@@ -143,6 +191,9 @@ def get_settings() -> Settings:
         _first_non_empty("PUBLIC_API_BASE_URL", "PUBLIC_WEBHOOK_BASE_URL", "PUBLIC_BASE_URL")
     )
     cors_origins = _merge_unique([*cors_origins, frontend_origin or "", inferred_frontend_origin or ""])
+
+    jwt_secret = _resolve_jwt_secret()
+    signed_url_secret = _resolve_signed_url_secret(jwt_secret)
 
     settings = Settings(
         app_env=app_env,
@@ -170,9 +221,8 @@ def get_settings() -> Settings:
             os.getenv("TECH_RESTORE_ATTACHMENTS_ALLOWED_MIME_TYPES"),
             DEFAULT_ALLOWED_ATTACHMENT_MIME_TYPES,
         ),
-        jwt_secret=_first_non_empty("TECH_RESTORE_JWT_SECRET", "SECRET_KEY") or "dev-insecure-secret-change-me",
-        signed_url_secret=_first_non_empty("TECH_RESTORE_SIGNED_URL_SECRET", "SECRET_KEY", "TECH_RESTORE_JWT_SECRET")
-        or "dev-insecure-secret-change-me",
+        jwt_secret=jwt_secret,
+        signed_url_secret=signed_url_secret,
     )
 
     validate_settings(settings)
@@ -199,10 +249,8 @@ def validate_settings(settings: Settings) -> None:
             raise ValueError(f"Missing required S3 attachment settings: {joined}")
 
     if settings.app_env.lower() in {"production", "staging"}:
-        if settings.jwt_secret == "dev-insecure-secret-change-me":
-            raise ValueError("TECH_RESTORE_JWT_SECRET must be set in production/staging")
-        if settings.signed_url_secret == "dev-insecure-secret-change-me":
-            raise ValueError("TECH_RESTORE_SIGNED_URL_SECRET must be set in production/staging")
+        _validate_production_secret(settings.jwt_secret, env_name="TECH_RESTORE_JWT_SECRET")
+        _validate_production_secret(settings.signed_url_secret, env_name="TECH_RESTORE_SIGNED_URL_SECRET")
         if settings.attachments_provider == "local":
             attachments_root = settings.attachments_local_root.resolve()
             persistent_root = PERSISTENT_DATA_ROOT.resolve()

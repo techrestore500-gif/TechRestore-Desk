@@ -37,12 +37,17 @@ services:
         value: https://desk.techrestoredesk.com
       - key: DATABASE_URL
         sync: false
+      - key: TECH_RESTORE_JWT_SECRET
+        sync: false
+      - key: TECH_RESTORE_SIGNED_URL_SECRET
+        sync: false
       - key: TECH_RESTORE_DATA_ROOT
         value: /var/data
       - key: TECH_RESTORE_BACKUPS_DIR
         value: /var/data/backups
       - key: TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT
         value: /var/data/attachments
+      # Legacy compatibility alias (discouraged once TECH_RESTORE_JWT_SECRET is configured)
       - key: SECRET_KEY
         sync: false
       - key: FEEDBACK_PORTAL_INGEST_URL

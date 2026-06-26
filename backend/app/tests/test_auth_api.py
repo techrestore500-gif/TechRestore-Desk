@@ -248,6 +248,42 @@ class TestAuthApi:
         assert sent[0]["recipient_email"] == "pending@example.com"
         assert sent[0]["invite_link"].startswith("https://desk.example.com/invite/")
 
+    def test_invite_token_flow_remains_valid_after_jwt_secret_rotation(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+        monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "jwt-secret-before-rotation-minimum-length-32+")
+        monkeypatch.setenv("FRONTEND_BASE_URL", "https://desk.example.com")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        sent = self._capture_invite_emails(monkeypatch)
+
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        owner_token = self._login(client, "owner@example.com")["access_token"]
+
+        invite_response = client.post(
+            "/api/auth/invites",
+            json={"name": "Rotated Invitee", "email": "rotated.invitee@example.com", "role": "technician"},
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+        assert invite_response.status_code == 201
+        assert sent
+
+        invite_token = self._token_from_link(sent[-1]["invite_link"])
+        monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "jwt-secret-after-rotation-minimum-length-32++")
+
+        resolve_response = client.get(f"/api/auth/invites/{invite_token}")
+        assert resolve_response.status_code == 200
+
+        accept_response = client.post(
+            f"/api/auth/invites/{invite_token}/accept",
+            json={"password": "rotated-pass-1234"},
+        )
+        assert accept_response.status_code == 200
+
+        login_response = client.post(
+            "/api/auth/login",
+            json={"email": "rotated.invitee@example.com", "password": "rotated-pass-1234"},
+        )
+        assert login_response.status_code == 200
+
     def test_non_admin_cannot_create_invites(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         self._capture_invite_emails(monkeypatch)

@@ -44,9 +44,13 @@ Required:
 - ADMIN_INVITE_BOOTSTRAP_AUTOSEND
 - ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
-- SECRET_KEY
+- TECH_RESTORE_JWT_SECRET
+- TECH_RESTORE_SIGNED_URL_SECRET
 - FRONTEND_BASE_URL
 - CORS_ALLOWED_ORIGINS
+
+Legacy compatibility (supported but not preferred):
+- SECRET_KEY (used only when TECH_RESTORE_JWT_SECRET is unset)
 
 Recommended exact Render SQLite value:
 - `DATABASE_URL=sqlite:////var/data/tech_restore_desk.sqlite`
@@ -103,7 +107,8 @@ Backend required (core app):
 - ADMIN_INVITE_BOOTSTRAP_AUTOSEND
 - ADMIN_INVITE_BOOTSTRAP_KEY
 - DATABASE_URL
-- SECRET_KEY
+- TECH_RESTORE_JWT_SECRET
+- TECH_RESTORE_SIGNED_URL_SECRET
 - FRONTEND_BASE_URL
 - CORS_ALLOWED_ORIGINS
 
@@ -131,6 +136,15 @@ Frontend conditionally required:
 - Bootstrap invite creation is enabled by `ADMIN_INVITE_BOOTSTRAP=true` when no users/admins exist.
 - Startup email delivery is controlled separately by `ADMIN_INVITE_BOOTSTRAP_AUTOSEND` (recommended `false` in production to avoid invite spam on redeploys).
 - Emergency bootstrap resend endpoint exists at `POST /api/auth/bootstrap/resend` and requires `X-Bootstrap-Key` matching `ADMIN_INVITE_BOOTSTRAP_KEY`.
+
+## JWT Secret Policy
+
+- Production and staging reject weak or placeholder secrets at startup.
+- `TECH_RESTORE_JWT_SECRET` and `TECH_RESTORE_SIGNED_URL_SECRET` must both be set to non-placeholder values with minimum length requirements.
+- Secret precedence is:
+	- JWT: `TECH_RESTORE_JWT_SECRET` -> `SECRET_KEY` (legacy) -> development default
+	- Signed URL: `TECH_RESTORE_SIGNED_URL_SECRET` -> `TECH_RESTORE_JWT_SECRET` -> `SECRET_KEY` (legacy)
+- Rotating `TECH_RESTORE_JWT_SECRET` invalidates existing bearer sessions immediately; all users must log in again after rotation.
 
 ## SMTP Configuration (Render)
 

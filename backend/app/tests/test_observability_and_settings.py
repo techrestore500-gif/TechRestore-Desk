@@ -122,11 +122,31 @@ def test_secret_key_alias_is_supported(monkeypatch):
     monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
     monkeypatch.delenv("TECH_RESTORE_JWT_SECRET", raising=False)
     monkeypatch.delenv("TECH_RESTORE_SIGNED_URL_SECRET", raising=False)
-    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key-legacy-alias-minimum-length-32+")
 
     settings = get_settings()
-    assert settings.jwt_secret == "prod-secret-key"
-    assert settings.signed_url_secret == "prod-secret-key"
+    assert settings.jwt_secret == "prod-secret-key-legacy-alias-minimum-length-32+"
+    assert settings.signed_url_secret == "prod-secret-key-legacy-alias-minimum-length-32+"
+
+
+def test_jwt_secret_precedence_over_secret_key(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "legacy-secret-key-minimum-length-stage1-32+")
+    monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "dedicated-jwt-secret-minimum-length-stage1-32+")
+
+    settings = get_settings()
+    assert settings.jwt_secret == "dedicated-jwt-secret-minimum-length-stage1-32+"
+
+
+def test_signed_url_secret_precedence_over_jwt_and_secret_key(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "legacy-secret-key-minimum-length-stage1-32+")
+    monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "dedicated-jwt-secret-minimum-length-stage1-32+")
+    monkeypatch.setenv("TECH_RESTORE_SIGNED_URL_SECRET", "dedicated-signed-url-secret-minimum-length-32+")
+
+    settings = get_settings()
+    assert settings.jwt_secret == "dedicated-jwt-secret-minimum-length-stage1-32+"
+    assert settings.signed_url_secret == "dedicated-signed-url-secret-minimum-length-32+"
 
 
 def test_runtime_diagnostics_flags_non_persistent_sqlite_path(client: TestClient, monkeypatch):

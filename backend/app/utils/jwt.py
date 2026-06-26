@@ -1,7 +1,8 @@
-import os
 from datetime import UTC, datetime, timedelta
 
 import jwt
+
+from app.core.settings import get_settings
 
 
 JWT_ALGORITHM = "HS256"
@@ -9,8 +10,7 @@ DEFAULT_EXP_MINUTES = 60
 
 
 def _jwt_secret() -> str:
-    # Migration-safe default: explicit env var is recommended for non-dev environments.
-    return os.getenv("TECH_RESTORE_JWT_SECRET", "dev-insecure-secret-change-me")
+    return get_settings().jwt_secret
 
 
 def create_access_token(subject: str, role: str, user_id: int, expires_minutes: int = DEFAULT_EXP_MINUTES) -> tuple[str, datetime]:
