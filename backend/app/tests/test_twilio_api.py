@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 import base64
 import hashlib
 
+from twilio.request_validator import RequestValidator
+
 import app.database as database
 from app.main import app
 from app.core.settings import get_settings
@@ -45,6 +47,10 @@ def client(tmp_path, monkeypatch):
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("PUBLIC_WEBHOOK_BASE_URL", raising=False)
     monkeypatch.delenv("TWILIO_NEW_VOICEMAIL_ALERT_TO", raising=False)
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "development")
+    monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "twilio-test-jwt-secret-minimum-length-stage2+")
+    monkeypatch.setenv("TECH_RESTORE_SIGNED_URL_SECRET", "twilio-test-signed-secret-minimum-length-stage2+")
+    monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "1")
 
     database.initialize_database()
 
@@ -128,6 +134,193 @@ class TestTwilioSettings:
 
 
 class TestTwilioWebhooks:
+    @staticmethod
+    def _twilio_signature(url: str, form_data: dict[str, str], auth_token: str) -> str:
+        validator = RequestValidator(auth_token)
+        return validator.compute_signature(url, form_data)
+
+    @staticmethod
+    def _signed_post(client: TestClient, *, url_path: str, public_base: str, auth_token: str, data: dict[str, str]):
+        full_url = f"{public_base.rstrip('/')}{url_path}"
+        signature = TestTwilioWebhooks._twilio_signature(full_url, data, auth_token)
+        return client.post(url_path, data=data, headers={"X-Twilio-Signature": signature})
+
+    def test_voice_webhook_requires_valid_signature(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        body = {"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_001"}
+        response = self._signed_post(
+            client,
+            url_path="/api/twilio/voice",
+            public_base="https://api.example.com",
+            auth_token="signature-token-stage2",
+            data=body,
+        )
+        assert response.status_code == 200
+
+    def test_market_sms_webhook_requires_valid_signature(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        body = {"From": "+15555550199", "Body": "HELP", "MessageSid": "SM_SIG_001"}
+        response = self._signed_post(
+            client,
+            url_path="/api/market-updates/sms",
+            public_base="https://api.example.com",
+            auth_token="signature-token-stage2",
+            data=body,
+        )
+        assert response.status_code == 200
+
+    def test_recording_callback_requires_valid_signature(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        body = {
+            "From": "+15555550999",
+            "To": "+15555550100",
+            "CallSid": "CA_SIG_REC_001",
+            "RecordingSid": "RE_SIG_REC_001",
+            "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC999/Recordings/RE_SIG_REC_001",
+            "RecordingDuration": "20",
+        }
+        response = self._signed_post(
+            client,
+            url_path="/api/twilio/recording",
+            public_base="https://api.example.com",
+            auth_token="signature-token-stage2",
+            data=body,
+        )
+        assert response.status_code == 200
+
+    def test_missing_signature_is_rejected_and_has_no_side_effect(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        before = client.get("/api/voicemails")
+        assert before.status_code == 200
+        before_count = len(before.json())
+
+        response = client.post(
+            "/api/twilio/recording",
+            data={
+                "From": "+15555550999",
+                "To": "+15555550100",
+                "CallSid": "CA_SIG_REC_002",
+                "RecordingSid": "RE_SIG_REC_002",
+                "RecordingUrl": "https://api.twilio.com/2010-04-01/Accounts/AC999/Recordings/RE_SIG_REC_002",
+                "RecordingDuration": "20",
+            },
+        )
+        assert response.status_code == 403
+
+        after = client.get("/api/voicemails")
+        assert after.status_code == 200
+        assert len(after.json()) == before_count
+
+    def test_forged_signature_is_rejected(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        response = client.post(
+            "/api/twilio/voice",
+            data={"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_003"},
+            headers={"X-Twilio-Signature": "forged-signature"},
+        )
+        assert response.status_code == 403
+
+    def test_signature_with_wrong_signed_url_is_rejected(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        body = {"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_004"}
+        wrong_signature = self._twilio_signature(
+            "https://api.other-example.com/api/twilio/voice",
+            body,
+            "signature-token-stage2",
+        )
+        response = client.post(
+            "/api/twilio/voice",
+            data=body,
+            headers={"X-Twilio-Signature": wrong_signature},
+        )
+        assert response.status_code == 403
+
+    def test_modified_form_fields_after_signing_are_rejected(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        original = {"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_005"}
+        signature = self._twilio_signature(
+            "https://api.example.com/api/twilio/voice",
+            original,
+            "signature-token-stage2",
+        )
+        tampered = dict(original)
+        tampered["CallSid"] = "CA_SIG_005_TAMPERED"
+
+        response = client.post(
+            "/api/twilio/voice",
+            data=tampered,
+            headers={"X-Twilio-Signature": signature},
+        )
+        assert response.status_code == 403
+
+    def test_proxy_public_url_reconstruction_uses_configured_public_base(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "0")
+        monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://api.example.com")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        body = {"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_006"}
+        signature = self._twilio_signature(
+            "https://api.example.com/api/twilio/voice",
+            body,
+            "signature-token-stage2",
+        )
+
+        response = client.post(
+            "/api/twilio/voice",
+            data=body,
+            headers={
+                "X-Twilio-Signature": signature,
+                "X-Forwarded-Proto": "http",
+                "X-Forwarded-Host": "attacker.example",
+            },
+        )
+        assert response.status_code == 200
+
+    def test_development_bypass_can_be_enabled_explicitly(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_APP_ENV", "development")
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "1")
+        monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
+
+        response = client.post(
+            "/api/twilio/voice",
+            data={"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_BYPASS"},
+        )
+        assert response.status_code == 200
+
+    def test_production_bypass_is_rejected(self, client, monkeypatch):
+        monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+        monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "prod-jwt-secret-minimum-length-stage2-checkpoint+")
+        monkeypatch.setenv("TECH_RESTORE_SIGNED_URL_SECRET", "prod-signed-secret-minimum-length-stage2-check+")
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "1")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN", "signature-token-stage2")
+
+        response = client.post(
+            "/api/twilio/voice",
+            data={"From": "+15555550155", "To": "+15555550100", "CallSid": "CA_SIG_BYPASS_PROD"},
+            headers={"X-Twilio-Signature": "anything"},
+        )
+        assert response.status_code == 403
     def test_voice_webhook_returns_twiml(self, client):
         response = client.post(
             "/api/twilio/voice",

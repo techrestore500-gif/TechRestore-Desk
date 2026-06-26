@@ -73,6 +73,7 @@ def client_auth(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, market_updates_
 
     monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "1")
     monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
+    monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "1")
 
     database.initialize_database()
 

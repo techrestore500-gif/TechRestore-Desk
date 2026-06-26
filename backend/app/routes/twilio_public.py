@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Form, Query, Response
+from fastapi import APIRouter, Depends, Form, Query, Response
 from xml.sax.saxutils import escape
 
+from app.auth.twilio_signatures import verify_twilio_webhook_signature
 from app.database import find_live_call_request_for_call_sid
 from app.models import VoicemailRecordResponse
 from app.services.twilio import TwilioService
@@ -10,6 +11,7 @@ router = APIRouter(prefix="/api", tags=["twilio-public"])
 
 @router.post("/twilio/voice")
 def post_twilio_voice(
+    _: None = Depends(verify_twilio_webhook_signature),
     From: str | None = Form(default=None),
     To: str | None = Form(default=None),
     CallSid: str | None = Form(default=None),
@@ -21,6 +23,7 @@ def post_twilio_voice(
 
 @router.post("/twilio/voice/menu")
 def post_twilio_voice_menu(
+    _: None = Depends(verify_twilio_webhook_signature),
     Digits: str | None = Form(default=None),
     From: str | None = Form(default=None),
     To: str | None = Form(default=None),
@@ -67,6 +70,7 @@ def post_twilio_voice_menu(
 
 @router.api_route("/twilio/live-accept", methods=["GET", "POST"])
 def twilio_live_accept(
+    _: None = Depends(verify_twilio_webhook_signature),
     call_sid: str | None = None,
 ) -> Response:
     request = None
@@ -101,6 +105,7 @@ def twilio_live_accept(
 
 @router.post("/twilio/recording", response_model=VoicemailRecordResponse)
 def post_twilio_recording(
+    _: None = Depends(verify_twilio_webhook_signature),
     From: str | None = Form(default=None),
     To: str | None = Form(default=None),
     Caller: str | None = Form(default=None),
@@ -131,6 +136,7 @@ def post_twilio_recording(
 
 @router.api_route("/twilio/outbound-call", methods=["GET", "POST"])
 def twilio_outbound_call_prompt(
+    _: None = Depends(verify_twilio_webhook_signature),
     to_number: str | None = Query(default=None),
     contact_name: str | None = Query(default=None),
     voicemail_id: int | None = Query(default=None),

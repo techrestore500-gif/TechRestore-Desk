@@ -122,6 +122,7 @@ Backend optional:
 - ADMIN_INVITE_ROLE
 - SMTP_TIMEOUT_SECONDS
 - REPAIR_DESK_PASSWORD
+- TECH_RESTORE_TWILIO_SIGNATURE_BYPASS (development/testing only; blocked in production/staging)
 
 Frontend required:
 - VITE_AUTH_ENABLED
@@ -136,6 +137,13 @@ Frontend conditionally required:
 - Bootstrap invite creation is enabled by `ADMIN_INVITE_BOOTSTRAP=true` when no users/admins exist.
 - Startup email delivery is controlled separately by `ADMIN_INVITE_BOOTSTRAP_AUTOSEND` (recommended `false` in production to avoid invite spam on redeploys).
 - Emergency bootstrap resend endpoint exists at `POST /api/auth/bootstrap/resend` and requires `X-Bootstrap-Key` matching `ADMIN_INVITE_BOOTSTRAP_KEY`.
+
+## Twilio Webhook Signature Policy
+
+- Public Twilio-facing webhook endpoints require `X-Twilio-Signature` verification using Twilio RequestValidator.
+- Validation uses the configured public API base URL when present to ensure proxy-safe URL matching.
+- Missing or invalid signatures are rejected with HTTP 403 before business logic or database writes.
+- `TECH_RESTORE_TWILIO_SIGNATURE_BYPASS=1` is allowed only in development/testing and is rejected in production/staging.
 
 ## JWT Secret Policy
 

@@ -12,11 +12,6 @@ PUBLIC_API_PATHS = {
     "/api/health",
     "/api/auth/login",
     "/api/auth/bootstrap/resend",
-    "/api/twilio/voice",
-    "/api/twilio/voice/menu",
-    "/api/twilio/live-accept",
-    "/api/twilio/recording",
-    "/api/market-updates/sms",
 }
 
 
@@ -32,8 +27,16 @@ class AuthGateMiddleware(BaseHTTPMiddleware):
         is_public_invite_route = path.startswith("/api/auth/invites/") and (
             path.endswith("/accept") or path.count("/") == 4
         )
+        is_public_twilio_route = path in {
+            "/api/twilio/voice",
+            "/api/twilio/voice/menu",
+            "/api/twilio/live-accept",
+            "/api/twilio/recording",
+            "/api/twilio/outbound-call",
+            "/api/market-updates/sms",
+        }
 
-        if not path.startswith("/api") or path in PUBLIC_API_PATHS or is_public_invite_route:
+        if not path.startswith("/api") or path in PUBLIC_API_PATHS or is_public_invite_route or is_public_twilio_route:
             return await call_next(request)
 
         authorization = request.headers.get("authorization", "")

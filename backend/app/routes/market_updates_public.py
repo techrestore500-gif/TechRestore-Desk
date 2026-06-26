@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, Response
+from fastapi import APIRouter, Depends, Form, Response
 from xml.sax.saxutils import escape
 
+from app.auth.twilio_signatures import verify_twilio_webhook_signature
 from app.services.twilio import TwilioService
 from market_updates.keyword_handlers import handle_inbound_market_sms
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/api", tags=["market-updates-public"])
 
 @router.post("/market-updates/sms")
 def post_market_updates_sms(
+    _: None = Depends(verify_twilio_webhook_signature),
     From: str | None = Form(default=None),
     Body: str | None = Form(default=None),
     MessageSid: str | None = Form(default=None),

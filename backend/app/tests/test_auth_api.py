@@ -109,6 +109,7 @@ class TestAuthApi:
     def test_shared_password_mode_protects_private_routes_but_allows_twilio_webhooks(self, client, monkeypatch):
         monkeypatch.setenv("REPAIR_DESK_AUTH_ENABLED", "true")
         monkeypatch.setenv("REPAIR_DESK_PASSWORD", "unit-test-shared-password")
+        monkeypatch.setenv("TECH_RESTORE_TWILIO_SIGNATURE_BYPASS", "1")
 
         private_response = client.get("/api/settings/twilio")
         assert private_response.status_code == 401
