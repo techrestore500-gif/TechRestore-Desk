@@ -1,13 +1,14 @@
 import { FormEvent, useState } from "react";
 
-import { createInvite, fetchInvites, resendInvite, revokeInvite, type AuthInvite, type AuthRole } from "../api/auth";
+import { createInvite, fetchInvites, fetchUsers, resendInvite, revokeInvite, type AuthInvite, type AuthRole, type AuthUser } from "../api/auth";
 import { useAsyncData } from "../hooks/useAsyncData";
 import * as t from "../styles/theme";
 
 const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "manager", "admin", "owner"];
 
 export default function AccessRequestsPage() {
-    const [refreshKey, setRefreshKey] = useState(0);
+    const [invitesRefreshKey, setInvitesRefreshKey] = useState(0);
+    const [usersRefreshKey, setUsersRefreshKey] = useState(0);
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
     const [busyInviteId, setBusyInviteId] = useState<number | null>(null);
@@ -15,23 +16,15 @@ export default function AccessRequestsPage() {
     const [inviteName, setInviteName] = useState("");
     const [inviteRole, setInviteRole] = useState<AuthRole>("front_desk");
     const [creatingInvite, setCreatingInvite] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "expired">("all");
+    const [statusFilter, setStatusFilter] = useState<"current_users" | "pending_invites" | "invite_history">("current_users");
     const [manualInviteLink, setManualInviteLink] = useState<string | null>(null);
 
-    const { data: invites = [], error } = useAsyncData<AuthInvite[]>(() => fetchInvites(), [refreshKey]);
+    const { data: invites = [], error: inviteError } = useAsyncData<AuthInvite[]>(() => fetchInvites(), [invitesRefreshKey]);
+    const { data: users = [], error: usersError } = useAsyncData<AuthUser[]>(() => fetchUsers(), [usersRefreshKey]);
 
-    const filteredInvites = invites.filter((invite) => {
-        if (statusFilter === "all") {
-            return true;
-        }
-        if (statusFilter === "active") {
-            return invite.status === "accepted";
-        }
-        if (statusFilter === "pending") {
-            return invite.status === "pending";
-        }
-        return invite.status === "expired";
-    });
+    const currentUsers = users.filter((user) => user.status === "active" && user.is_active);
+    const pendingInvites = invites.filter((invite) => invite.status === "pending");
+    const inviteHistory = invites.filter((invite) => invite.status !== "pending");
 
     async function handleCreateInvite(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -55,7 +48,7 @@ export default function AccessRequestsPage() {
             setInviteEmail("");
             setInviteName("");
             setInviteRole("front_desk");
-            setRefreshKey((current) => current + 1);
+            setInvitesRefreshKey((current) => current + 1);
         } catch (requestError) {
             setActionError(requestError instanceof Error ? requestError.message : "Could not create invite");
         } finally {
@@ -73,7 +66,7 @@ export default function AccessRequestsPage() {
         try {
             await revokeInvite(invite.id);
             setActionMessage(`Revoked invite for ${invite.email}.`);
-            setRefreshKey((current) => current + 1);
+            setInvitesRefreshKey((current) => current + 1);
         } catch (requestError) {
             setActionError(requestError instanceof Error ? requestError.message : "Could not revoke invite");
         } finally {
@@ -88,13 +81,16 @@ export default function AccessRequestsPage() {
         try {
             await resendInvite(invite.id);
             setActionMessage(`Invite re-sent to ${invite.email}.`);
-            setRefreshKey((current) => current + 1);
+            setInvitesRefreshKey((current) => current + 1);
         } catch (requestError) {
             setActionError(requestError instanceof Error ? requestError.message : "Could not resend invite");
         } finally {
             setBusyInviteId(null);
         }
     }
+
+    const inviteRecords = statusFilter === "pending_invites" ? pendingInvites : inviteHistory;
+    const listIsUsers = statusFilter === "current_users";
 
     return (
         <section style={t.pageWrap}>
@@ -104,10 +100,9 @@ export default function AccessRequestsPage() {
             </div>
 
             <div style={{ ...t.formActionsRow, gap: "8px" }}>
-                <button type="button" style={statusFilter === "all" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("all")}>All</button>
-                <button type="button" style={statusFilter === "active" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("active")}>Active users</button>
-                <button type="button" style={statusFilter === "pending" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("pending")}>Pending invites</button>
-                <button type="button" style={statusFilter === "expired" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("expired")}>Expired invites</button>
+                <button type="button" style={statusFilter === "current_users" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("current_users")}>Current users</button>
+                <button type="button" style={statusFilter === "pending_invites" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("pending_invites")}>Pending invites</button>
+                <button type="button" style={statusFilter === "invite_history" ? t.primaryBtn : t.miniBtn} onClick={() => setStatusFilter("invite_history")}>Invite history</button>
             </div>
 
             <form style={{ ...t.panel, display: "grid", gap: "10px" }} onSubmit={handleCreateInvite}>
@@ -158,7 +153,8 @@ export default function AccessRequestsPage() {
                 </div>
             </form>
 
-            {error ? <div style={t.errorBanner}>{error}</div> : null}
+            {inviteError ? <div style={t.errorBanner}>{inviteError}</div> : null}
+            {usersError ? <div style={t.errorBanner}>{usersError}</div> : null}
             {actionError ? <div style={t.errorBanner}>{actionError}</div> : null}
             {actionMessage ? (
                 <div style={{ ...t.subCard, borderColor: "#34d399", background: "#ecfdf5", color: "#065f46" }}>
@@ -171,11 +167,27 @@ export default function AccessRequestsPage() {
                 </div>
             ) : null}
 
-            {filteredInvites.length === 0 ? (
+            {listIsUsers && currentUsers.length === 0 ? (
+                <div style={t.panel}>No records for this filter.</div>
+            ) : listIsUsers ? (
+                <div style={{ ...t.panel, display: "grid", gap: "10px" }}>
+                    {currentUsers.map((user) => (
+                        <article key={user.id} style={{ ...t.subCard, display: "grid", gap: "8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                                <strong>{user.name || user.email}</strong>
+                                <span style={t.meta}>{new Date(user.created_at).toLocaleString()}</span>
+                            </div>
+                            <div style={t.meta}>{user.email}</div>
+                            <div style={t.meta}>Role: {user.role ?? "unassigned"}</div>
+                            <div style={t.meta}>Status: {user.status}</div>
+                        </article>
+                    ))}
+                </div>
+            ) : inviteRecords.length === 0 ? (
                 <div style={t.panel}>No records for this filter.</div>
             ) : (
                 <div style={{ ...t.panel, display: "grid", gap: "10px" }}>
-                    {filteredInvites.map((invite) => (
+                    {inviteRecords.map((invite) => (
                         <article key={invite.id} style={{ ...t.subCard, display: "grid", gap: "8px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
                                 <strong>{invite.name || invite.email}</strong>

@@ -12,13 +12,14 @@ vi.mock("../auth/AuthProvider", () => ({
 
 vi.mock("../api/auth", () => ({
     createInvite: vi.fn(),
+    fetchUsers: vi.fn(),
     fetchInvites: vi.fn(),
     resendInvite: vi.fn(),
     revokeInvite: vi.fn(),
 }));
 
 import { useAuth } from "../auth/AuthProvider";
-import { fetchInvites } from "../api/auth";
+import { fetchInvites, fetchUsers } from "../api/auth";
 
 function makeUser(role: "owner" | "admin" | "manager" | "technician" | "front_desk" | "viewer") {
     return {
@@ -73,6 +74,7 @@ describe("Invite and Team Access permissions", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.mocked(fetchInvites).mockResolvedValue([]);
+        vi.mocked(fetchUsers).mockResolvedValue([]);
     });
 
     it("owner can access full Team Access management", async () => {
@@ -81,7 +83,7 @@ describe("Invite and Team Access permissions", () => {
         renderRoutes("/users-invites");
 
         expect(await screen.findByText("Team Access")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Active users" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Current users" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Pending invites" })).toBeInTheDocument();
     });
 
@@ -102,7 +104,7 @@ describe("Invite and Team Access permissions", () => {
 
         expect(await screen.findByText("Team access is owner-only")).toBeInTheDocument();
         expect(screen.queryByText("Team Access")).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Active users" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Current users" })).not.toBeInTheDocument();
     });
 
     it("non-owner and non-admin roles cannot access invite management", async () => {

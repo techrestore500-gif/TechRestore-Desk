@@ -105,6 +105,15 @@ export async function fetchInvites(): Promise<AuthInvite[]> {
     return response.json() as Promise<AuthInvite[]>;
 }
 
+export async function fetchUsers(): Promise<AuthUser[]> {
+    const response = await apiFetch('/api/auth/users');
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail ?? friendlyAuthError(response.status, 'Could not load team users right now.'));
+    }
+    return response.json() as Promise<AuthUser[]>;
+}
+
 export async function createInvite(email: string, role: AuthRole, name?: string): Promise<AuthInvite> {
     const response = await apiFetch('/api/auth/invites', {
         method: 'POST',

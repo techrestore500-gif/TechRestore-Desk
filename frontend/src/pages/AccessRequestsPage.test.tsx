@@ -4,17 +4,43 @@ import { describe, expect, it, vi } from "vitest";
 import AccessRequestsPage from "./AccessRequestsPage";
 
 vi.mock("../api/auth", () => ({
+    fetchUsers: vi.fn(),
     fetchInvites: vi.fn(),
     createInvite: vi.fn(),
     resendInvite: vi.fn(),
     revokeInvite: vi.fn(),
 }));
 
-import { createInvite, fetchInvites, resendInvite, revokeInvite } from "../api/auth";
+import { createInvite, fetchInvites, fetchUsers, resendInvite, revokeInvite } from "../api/auth";
 
 describe("AccessRequestsPage", () => {
+    it("shows current users from users endpoint", async () => {
+        vi.mocked(fetchUsers).mockResolvedValue([
+            {
+                id: 21,
+                name: "Current User",
+                email: "current@example.com",
+                username: "current",
+                role: "technician",
+                status: "active",
+                is_active: true,
+                approved_at: new Date().toISOString(),
+                approved_by: 1,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            },
+        ]);
+        vi.mocked(fetchInvites).mockResolvedValue([]);
+
+        render(<AccessRequestsPage />);
+
+        expect(await screen.findByText("current@example.com")).toBeInTheDocument();
+        expect(screen.queryByText("No records for this filter.")).not.toBeInTheDocument();
+    });
+
     it("shows pending invites and allows revocation", async () => {
         vi.spyOn(window, "confirm").mockReturnValue(true);
+        vi.mocked(fetchUsers).mockResolvedValue([]);
         vi.mocked(fetchInvites).mockResolvedValue([
             {
                 id: 10,
@@ -46,6 +72,7 @@ describe("AccessRequestsPage", () => {
 
         render(<AccessRequestsPage />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Pending invites" }));
         expect(await screen.findByText("pending@example.com")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
 
@@ -55,6 +82,7 @@ describe("AccessRequestsPage", () => {
     });
 
     it("re-sends pending invites", async () => {
+        vi.mocked(fetchUsers).mockResolvedValue([]);
         vi.mocked(fetchInvites).mockResolvedValue([
             {
                 id: 12,
@@ -86,6 +114,7 @@ describe("AccessRequestsPage", () => {
 
         render(<AccessRequestsPage />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Pending invites" }));
         expect(await screen.findByText("pending@example.com")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "Resend" }));
 
@@ -95,6 +124,7 @@ describe("AccessRequestsPage", () => {
     });
 
     it("creates invite from form", async () => {
+        vi.mocked(fetchUsers).mockResolvedValue([]);
         vi.mocked(fetchInvites).mockResolvedValue([]);
         vi.mocked(createInvite).mockResolvedValue({
             id: 11,
