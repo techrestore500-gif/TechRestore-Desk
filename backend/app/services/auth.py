@@ -10,6 +10,13 @@ import hashlib
 logger = logging.getLogger(__name__)
 
 from app.repositories.auth import AuthRepository
+from app.auth.policy import (
+    can_change_role,
+    can_invite_role,
+    can_manage_invite,
+    can_manage_user,
+    filter_visible_invites,
+)
 from app.events.audit_events import admin_action
 from app.services.audit import AuditService
 from app.services.emailer import EmailDeliveryError, EmailService
@@ -167,6 +174,12 @@ def _generate_unique_username(name: str, email: str) -> str:
 
 class AuthService:
     @staticmethod
+    def create_user_as_actor(*, actor: dict, name: str, email: str, username: str, password: str, role: str) -> dict:
+        if not can_manage_user(actor):
+            raise PermissionError("Only owner may create users")
+        return AuthService.create_user(name=name, email=email, username=username, password=password, role=role)
+
+    @staticmethod
     def create_user(name: str, email: str, username: str, password: str, role: str) -> dict:
         if role not in ALLOWED_ROLES:
             raise ValueError("Invalid role")
@@ -306,6 +319,18 @@ class AuthService:
         return _to_public_invite(invite), token
 
     @staticmethod
+    def create_invite_as_actor(*, actor: dict, email: str, role: str, name: str | None = None, send_email: bool = True) -> tuple[dict, str]:
+        if not can_invite_role(actor.get("role"), role):
+            raise PermissionError("You are not allowed to invite this role")
+        return AuthService.create_invite(
+            email=email,
+            role=role,
+            created_by=int(actor["id"]),
+            name=name,
+            send_email=send_email,
+        )
+
+    @staticmethod
     def resend_invite(*, invite_id: int, requested_by: int) -> dict:
         invite = AuthRepository.get_invite_by_id(invite_id)
         if invite is None:
@@ -338,9 +363,23 @@ class AuthService:
         return replacement
 
     @staticmethod
+    def resend_invite_as_actor(*, actor: dict, invite_id: int) -> dict:
+        invite = AuthRepository.get_invite_by_id(invite_id)
+        if invite is None:
+            raise ValueError("Invite not found")
+        if not can_manage_invite(actor, invite):
+            raise PermissionError("You are not allowed to resend this invite")
+        return AuthService.resend_invite(invite_id=invite_id, requested_by=int(actor["id"]))
+
+    @staticmethod
     def list_invites() -> list[dict]:
         invites = AuthRepository.list_invites()
         return [_to_public_invite(item) for item in invites]
+
+    @staticmethod
+    def list_invites_for_actor(*, actor: dict) -> list[dict]:
+        invites = AuthService.list_invites()
+        return filter_visible_invites(actor, invites)
 
     @staticmethod
     def revoke_invite(invite_id: int) -> dict | None:
@@ -357,6 +396,15 @@ class AuthService:
             )
             return _to_public_invite(updated)
         return None
+
+    @staticmethod
+    def revoke_invite_as_actor(*, actor: dict, invite_id: int) -> dict | None:
+        invite = AuthRepository.get_invite_by_id(invite_id)
+        if invite is None:
+            return None
+        if not can_manage_invite(actor, invite):
+            raise PermissionError("You are not allowed to revoke this invite")
+        return AuthService.revoke_invite(invite_id)
 
     @staticmethod
     def resolve_invite(token: str) -> dict:
@@ -531,6 +579,15 @@ class AuthService:
         return updated
 
     @staticmethod
+    def update_user_role_as_actor(*, actor: dict, user_id: int, role: str) -> dict | None:
+        existing = AuthRepository.get_user_by_id(user_id)
+        if existing is None:
+            return None
+        if not can_change_role(actor, existing, role):
+            raise PermissionError("Only owner may change user roles")
+        return AuthService.update_user_role(user_id=user_id, role=role)
+
+    @staticmethod
     def change_password(*, user_id: int, current_password: str, new_password: str, confirm_password: str) -> None:
         user = AuthRepository.get_user_by_id(user_id)
         if user is None:
@@ -582,3 +639,12 @@ class AuthService:
                 )
             )
         return deleted
+
+    @staticmethod
+    def delete_user_as_actor(*, actor: dict, user_id: int) -> dict | None:
+        existing = AuthRepository.get_user_by_id(user_id)
+        if existing is None:
+            return None
+        if not can_manage_user(actor, existing):
+            raise PermissionError("Only owner may delete users")
+        return AuthService.delete_user(user_id=user_id)

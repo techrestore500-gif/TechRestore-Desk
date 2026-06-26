@@ -986,7 +986,7 @@ class TestPricing:
 
 
 class TestAuthAndPermissions:
-    def test_owner_only_invites_enforced(self, client_auth):
+    def test_invite_role_matrix_enforced(self, client_auth):
         owner_headers, _ = _create_and_login(client_auth, "owner", "owner_inv")
         admin_headers, _ = _create_and_login(client_auth, "admin", "admin_inv")
 
@@ -1002,7 +1002,43 @@ class TestAuthAndPermissions:
             json={"email": "tech.b@example.com", "role": "technician", "name": "Tech B"},
             headers=admin_headers,
         )
-        assert admin_create.status_code == 403
+        assert admin_create.status_code == 201
+
+        admin_manager_forbidden = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "mgr.b@example.com", "role": "manager", "name": "Mgr B"},
+            headers=admin_headers,
+        )
+        assert admin_manager_forbidden.status_code == 403
+
+        admin_owner_forbidden = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "owner.b@example.com", "role": "owner", "name": "Owner B"},
+            headers=admin_headers,
+        )
+        assert admin_owner_forbidden.status_code == 403
+
+    def test_admin_cannot_manage_owner_level_invites(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_protected")
+        admin_headers, _ = _create_and_login(client_auth, "admin", "admin_protected")
+
+        owner_invite = client_auth.post(
+            "/api/auth/invites",
+            json={"email": "protected.owner@example.com", "role": "owner", "name": "Protected Owner"},
+            headers=owner_headers,
+        )
+        assert owner_invite.status_code == 201
+        owner_invite_id = owner_invite.json()["id"]
+
+        visible_to_admin = client_auth.get("/api/auth/invites", headers=admin_headers)
+        assert visible_to_admin.status_code == 200
+        assert all(invite["role"] in {"viewer", "front_desk", "technician"} for invite in visible_to_admin.json())
+
+        admin_revoke = client_auth.post(f"/api/auth/invites/{owner_invite_id}/revoke", headers=admin_headers)
+        assert admin_revoke.status_code == 403
+
+        admin_resend = client_auth.post(f"/api/auth/invites/{owner_invite_id}/resend", headers=admin_headers)
+        assert admin_resend.status_code == 403
 
     def test_invite_accept_cannot_be_reused(self, client_auth):
         owner_headers, _ = _create_and_login(client_auth, "owner", "owner_reuse")
@@ -1119,3 +1155,143 @@ class TestAuthAndPermissions:
             json={"email": user["email"], "password": "new-pass-123"},
         )
         assert new_login.status_code == 200
+
+
+class TestStartupSeedingSafety:
+    def test_demo_seed_flag_disabled_by_default(self, monkeypatch):
+        monkeypatch.delenv("TECH_RESTORE_ENABLE_DEMO_SEED", raising=False)
+        assert database._should_seed_demo_operational_records() is False
+
+    def test_initialize_blocks_demo_seed_in_production_without_operational_changes(self, client, monkeypatch):
+        customer_resp = client.post(
+            "/api/customers",
+            json={"full_name": "Prod Guard Customer", "primary_phone": "555-7878"},
+        )
+        customer_id = customer_resp.json()["id"]
+
+        ticket_resp = client.post(
+            "/api/tickets",
+            json={"customer_id": customer_id, "issue_category": "Prod Guard Repair"},
+        )
+        ticket_id = ticket_resp.json()["id"]
+
+        with database.get_connection() as connection:
+            ticket_before = connection.execute(
+                "SELECT status, payment_status FROM repair_tickets WHERE id = ?",
+                (ticket_id,),
+            ).fetchone()
+
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("TECH_RESTORE_ENABLE_DEMO_SEED", "1")
+
+        with pytest.raises(RuntimeError):
+            database.initialize_database()
+
+        with database.get_connection() as connection:
+            ticket_after = connection.execute(
+                "SELECT status, payment_status FROM repair_tickets WHERE id = ?",
+                (ticket_id,),
+            ).fetchone()
+
+        assert ticket_before is not None
+        assert ticket_after is not None
+        assert ticket_after["status"] == ticket_before["status"]
+        assert ticket_after["payment_status"] == ticket_before["payment_status"]
+
+    def test_initialize_does_not_call_manual_real_import(self, monkeypatch):
+        monkeypatch.delenv("TECH_RESTORE_ENABLE_DEMO_SEED", raising=False)
+
+        def _fail_if_called(*_args, **_kwargs):
+            raise AssertionError("manual real import should never be called by startup")
+
+        monkeypatch.setattr(database, "import_real_customer_job_records", _fail_if_called)
+        database.initialize_database()
+
+    def test_safe_system_defaults_remain_idempotent_across_restarts(self):
+        database.initialize_database()
+        with database.get_connection() as connection:
+            before_supported_models = connection.execute("SELECT COUNT(*) AS total FROM supported_device_models").fetchone()["total"]
+            before_categories = connection.execute("SELECT COUNT(*) AS total FROM repair_categories").fetchone()["total"]
+            before_templates = connection.execute("SELECT COUNT(*) AS total FROM notification_templates").fetchone()["total"]
+
+        database.initialize_database()
+
+        with database.get_connection() as connection:
+            after_supported_models = connection.execute("SELECT COUNT(*) AS total FROM supported_device_models").fetchone()["total"]
+            after_categories = connection.execute("SELECT COUNT(*) AS total FROM repair_categories").fetchone()["total"]
+            after_templates = connection.execute("SELECT COUNT(*) AS total FROM notification_templates").fetchone()["total"]
+
+        assert after_supported_models == before_supported_models
+        assert after_categories == before_categories
+        assert after_templates == before_templates
+
+    def test_initialize_database_does_not_overwrite_existing_ticket_data(self, client):
+        customer_resp = client.post(
+            "/api/customers",
+            json={"full_name": "Restart Safety Customer", "primary_phone": "555-7070"},
+        )
+        customer_id = customer_resp.json()["id"]
+
+        ticket_resp = client.post(
+            "/api/tickets",
+            json={"customer_id": customer_id, "issue_category": "Restart Safety Repair"},
+        )
+        assert ticket_resp.status_code == 201
+        ticket_id = ticket_resp.json()["id"]
+
+        with database.get_connection() as connection:
+            connection.execute(
+                """
+                UPDATE repair_tickets
+                SET status = 'Needs Diagnosis', final_price = 215.0, payment_status = 'partial', assigned_technician = 'Manual Tech'
+                WHERE id = ?
+                """,
+                (ticket_id,),
+            )
+            connection.execute(
+                """
+                INSERT INTO ticket_notes (ticket_id, note_type, body, created_by, created_at)
+                VALUES (?, 'front_desk', 'Manual note before restart', 'Manual User', datetime('now'))
+                """,
+                (ticket_id,),
+            )
+            connection.execute(
+                """
+                INSERT INTO ticket_status_history (ticket_id, old_status, new_status, changed_by, note, created_at)
+                VALUES (?, 'New Intake', 'Needs Diagnosis', 'Manual User', 'Manual transition before restart', datetime('now'))
+                """,
+                (ticket_id,),
+            )
+            notes_before = connection.execute(
+                "SELECT COUNT(*) AS total FROM ticket_notes WHERE ticket_id = ?",
+                (ticket_id,),
+            ).fetchone()["total"]
+            history_before = connection.execute(
+                "SELECT COUNT(*) AS total FROM ticket_status_history WHERE ticket_id = ?",
+                (ticket_id,),
+            ).fetchone()["total"]
+            connection.commit()
+
+        database.initialize_database()
+
+        with database.get_connection() as connection:
+            ticket_after = connection.execute(
+                "SELECT status, final_price, payment_status, assigned_technician FROM repair_tickets WHERE id = ?",
+                (ticket_id,),
+            ).fetchone()
+            notes_after = connection.execute(
+                "SELECT COUNT(*) AS total FROM ticket_notes WHERE ticket_id = ?",
+                (ticket_id,),
+            ).fetchone()["total"]
+            history_after = connection.execute(
+                "SELECT COUNT(*) AS total FROM ticket_status_history WHERE ticket_id = ?",
+                (ticket_id,),
+            ).fetchone()["total"]
+
+        assert ticket_after is not None
+        assert ticket_after["status"] == "Needs Diagnosis"
+        assert ticket_after["final_price"] == 215.0
+        assert ticket_after["payment_status"] == "partial"
+        assert ticket_after["assigned_technician"] == "Manual Tech"
+        assert notes_after == notes_before
+        assert history_after == history_before

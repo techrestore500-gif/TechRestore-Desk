@@ -1,14 +1,16 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 
 import { createInvite, type AuthRole } from "../api/auth";
+import { useAuth } from "../auth/AuthProvider";
+import { invitableRoles } from "../auth/roles";
 import * as t from "../styles/theme";
 
-const INVITE_ROLES: AuthRole[] = ["viewer", "front_desk", "technician", "manager", "admin", "owner"];
-
 export default function InviteCreatePage() {
+    const { user } = useAuth();
+    const availableRoles = useMemo(() => invitableRoles(user), [user]);
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteName, setInviteName] = useState("");
-    const [inviteRole, setInviteRole] = useState<AuthRole>("front_desk");
+    const [inviteRole, setInviteRole] = useState<AuthRole>("viewer");
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -19,6 +21,10 @@ export default function InviteCreatePage() {
 
         if (!inviteEmail.trim()) {
             setActionError("Invite email is required.");
+            return;
+        }
+        if (!availableRoles.includes(inviteRole)) {
+            setActionError("You are not allowed to invite the selected role.");
             return;
         }
 
@@ -37,7 +43,7 @@ export default function InviteCreatePage() {
             }
             setInviteEmail("");
             setInviteName("");
-            setInviteRole("front_desk");
+            setInviteRole(availableRoles[0] ?? "viewer");
         } catch (requestError) {
             setActionError(requestError instanceof Error ? requestError.message : "Could not create invite");
         } finally {
@@ -84,19 +90,23 @@ export default function InviteCreatePage() {
                         value={inviteRole}
                         onChange={(event) => setInviteRole(event.target.value as AuthRole)}
                         style={t.input}
-                        disabled={creatingInvite}
+                        disabled={creatingInvite || availableRoles.length === 0}
                     >
-                        {INVITE_ROLES.map((role) => (
+                        {availableRoles.map((role) => (
                             <option key={role} value={role}>{role}</option>
                         ))}
                     </select>
                 </div>
                 <div style={t.formActionsRow}>
-                    <button type="submit" style={t.primaryBtn} disabled={creatingInvite}>
+                    <button type="submit" style={t.primaryBtn} disabled={creatingInvite || availableRoles.length === 0}>
                         {creatingInvite ? "Sending invite..." : "Send invite"}
                     </button>
                 </div>
             </form>
+
+            {availableRoles.length === 0 ? (
+                <div style={t.errorBanner}>Your role cannot create invitations.</div>
+            ) : null}
 
             {actionError ? <div style={t.errorBanner}>{actionError}</div> : null}
             {actionMessage ? (

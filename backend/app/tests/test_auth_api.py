@@ -637,13 +637,13 @@ class TestAuthApi:
         """Accepting an owner invite must produce a user with status=active, is_active=True, role=owner."""
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
         sent = self._capture_invite_emails(monkeypatch)
-        self._create_user(name="Admin", email="admin@example.com", username="admin1", role="admin")
-        admin_token = self._login(client, "admin@example.com")["access_token"]
+        self._create_user(name="Owner", email="owner@example.com", username="owner1", role="owner")
+        owner_token = self._login(client, "owner@example.com")["access_token"]
 
         invite_response = client.post(
             "/api/auth/invites",
             json={"name": "New Owner", "email": "newowner@example.com", "role": "owner"},
-            headers={"Authorization": f"Bearer {admin_token}"},
+            headers={"Authorization": f"Bearer {owner_token}"},
         )
         assert invite_response.status_code == 201
         token = self._token_from_link(sent[-1]["invite_link"])

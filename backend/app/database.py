@@ -209,6 +209,35 @@ def _table_has_column(connection: sqlite3.Connection, table_name: str, column_na
     return any(row["name"] == column_name for row in rows)
 
 
+def _is_truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _runtime_environment() -> str:
+    env = (os.getenv("TECH_RESTORE_APP_ENV") or os.getenv("APP_ENV") or "").strip().lower()
+    if env:
+        return env
+    if _is_truthy(os.getenv("RENDER")):
+        return "production"
+    return "development"
+
+
+def _should_seed_demo_operational_records() -> bool:
+    return _is_truthy(os.getenv("TECH_RESTORE_ENABLE_DEMO_SEED"))
+
+
+def seed_system_defaults(connection: sqlite3.Connection) -> None:
+    seed_supported_device_models(connection)
+    seed_repair_categories(connection)
+    seed_pricing_defaults(connection)
+    seed_pricing_catalog(connection)
+    seed_status_workflow_rules(connection)
+    seed_loaner_agreement_defaults(connection)
+    seed_notification_templates(connection)
+
+
 def initialize_database() -> None:
     with get_connection() as connection:
         connection.execute(
@@ -897,14 +926,11 @@ def initialize_database() -> None:
             )
             """
         )
-        seed_supported_device_models(connection)
-        seed_repair_categories(connection)
-        seed_pricing_defaults(connection)
-        seed_pricing_catalog(connection)
-        seed_status_workflow_rules(connection)
-        seed_loaner_agreement_defaults(connection)
-        seed_notification_templates(connection)
-        seed_operational_records(connection)
+        seed_system_defaults(connection)
+        if _should_seed_demo_operational_records():
+            if _runtime_environment() in {"production", "staging"}:
+                raise RuntimeError("TECH_RESTORE_ENABLE_DEMO_SEED is forbidden in production/staging environments")
+            seed_demo_operational_records(connection)
         connection.commit()
 
 
@@ -2902,7 +2928,7 @@ def get_decrypted_twilio_auth_token() -> str | None:
     return _decrypt_twilio_value(record["auth_token_ciphertext"])
 
 
-def seed_operational_records(connection: sqlite3.Connection) -> None:
+def seed_demo_operational_records(connection: sqlite3.Connection) -> None:
     timestamp = utc_now()
 
     def customer_id_by_name(full_name: str, phone: str | None = None) -> int | None:
@@ -3185,10 +3211,10 @@ def seed_operational_records(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def seed_operational_records(connection: sqlite3.Connection) -> None:
+def import_real_customer_job_records(connection: sqlite3.Connection, *, replace_existing: bool = False) -> dict[str, int]:
     from app.real_seed_data import sync_real_customer_job_data
 
-    sync_real_customer_job_data(connection, replace_existing=False)
+    return sync_real_customer_job_data(connection, replace_existing=replace_existing)
 
 
 def get_notification_templates() -> dict:

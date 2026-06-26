@@ -77,10 +77,19 @@ def post_bootstrap_resend(x_bootstrap_key: str | None = Header(default=None, ali
 @router.post("/users", response_model=AuthUserResponse, status_code=201)
 def post_user(
     payload: AuthCreateUserRequest,
-    _: dict = Depends(require_role("owner")),
+    requester: dict = Depends(require_role("owner")),
 ) -> AuthUserResponse:
     try:
-        user = AuthService.create_user(payload.name, payload.email, payload.username, payload.password, payload.role)
+        user = AuthService.create_user_as_actor(
+            actor=requester,
+            name=payload.name,
+            email=payload.email,
+            username=payload.username,
+            password=payload.password,
+            role=payload.role,
+        )
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -98,10 +107,12 @@ def get_users(_: dict = Depends(require_role("owner"))) -> list[AuthUserResponse
 def patch_user_role(
     user_id: int,
     payload: AuthUpdateUserRoleRequest,
-    _: dict = Depends(require_role("owner")),
+    requester: dict = Depends(require_role("owner")),
 ) -> AuthUserResponse:
     try:
-        updated = AuthService.update_user_role(user_id=user_id, role=payload.role)
+        updated = AuthService.update_user_role_as_actor(actor=requester, user_id=user_id, role=payload.role)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -113,10 +124,12 @@ def patch_user_role(
 @router.delete("/users/{user_id}", response_model=AuthMessageResponse)
 def delete_user(
     user_id: int,
-    _: dict = Depends(require_role("owner")),
+    requester: dict = Depends(require_role("owner")),
 ) -> AuthMessageResponse:
     try:
-        deleted = AuthService.delete_user(user_id=user_id)
+        deleted = AuthService.delete_user_as_actor(actor=requester, user_id=user_id)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -155,8 +168,8 @@ def post_change_password(
 
 
 @router.get("/invites", response_model=list[AuthInviteResponse])
-def get_invites(_: dict = Depends(require_role("owner", "admin"))) -> list[AuthInviteResponse]:
-    invites = AuthService.list_invites()
+def get_invites(requester: dict = Depends(require_role("owner", "admin"))) -> list[AuthInviteResponse]:
+    invites = AuthService.list_invites_for_actor(actor=requester)
     return [AuthInviteResponse.model_validate(item) for item in invites]
 
 
@@ -166,22 +179,26 @@ def post_invite(
     requester: dict = Depends(require_role("owner", "admin")),
 ) -> AuthInviteResponse:
     try:
-        invite, token = AuthService.create_invite(
+        invite, token = AuthService.create_invite_as_actor(
+            actor=requester,
             email=payload.email,
             name=payload.name,
             role=payload.role,
-            created_by=int(requester["id"]),
         )
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except ValueError as error:
         if str(error) == "Failed to deliver invite email":
             try:
-                invite, token = AuthService.create_invite(
+                invite, token = AuthService.create_invite_as_actor(
+                    actor=requester,
                     email=payload.email,
                     name=payload.name,
                     role=payload.role,
-                    created_by=int(requester["id"]),
                     send_email=False,
                 )
+            except PermissionError as fallback_error:
+                raise HTTPException(status_code=403, detail=str(fallback_error)) from fallback_error
             except ValueError as fallback_error:
                 raise HTTPException(status_code=400, detail=str(fallback_error)) from fallback_error
             invite_link = f"{_desk_base_url()}/invite/{token}"
@@ -205,8 +222,11 @@ def _desk_base_url() -> str:
 
 
 @router.post("/invites/{invite_id}/revoke", response_model=AuthInviteResponse)
-def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
-    updated = AuthService.revoke_invite(invite_id)
+def post_revoke_invite(invite_id: int, requester: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
+    try:
+        updated = AuthService.revoke_invite_as_actor(actor=requester, invite_id=invite_id)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     if updated is None:
         raise HTTPException(status_code=404, detail="Invite not found or already finalized")
     return AuthInviteResponse.model_validate(updated)
@@ -215,7 +235,9 @@ def post_revoke_invite(invite_id: int, _: dict = Depends(require_role("owner", "
 @router.post("/invites/{invite_id}/resend", response_model=AuthInviteResponse)
 def post_resend_invite(invite_id: int, requester: dict = Depends(require_role("owner", "admin"))) -> AuthInviteResponse:
     try:
-        updated = AuthService.resend_invite(invite_id=invite_id, requested_by=int(requester["id"]))
+        updated = AuthService.resend_invite_as_actor(actor=requester, invite_id=invite_id)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return AuthInviteResponse.model_validate(updated)

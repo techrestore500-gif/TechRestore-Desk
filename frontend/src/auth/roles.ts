@@ -28,6 +28,19 @@ export function canManageInvites(user: AuthUser | null): boolean {
     return hasRole(user, ["owner"]);
 }
 
+export function invitableRoles(user: AuthUser | null): AuthRole[] {
+    if (!user?.role) {
+        return [];
+    }
+    if (user.role === "owner") {
+        return ["viewer", "front_desk", "technician", "manager", "admin", "owner"];
+    }
+    if (user.role === "admin") {
+        return ["viewer", "front_desk", "technician"];
+    }
+    return [];
+}
+
 export function canAccessSettings(user: AuthUser | null): boolean {
     return hasRole(user, ["owner", "admin", "manager"]);
 }

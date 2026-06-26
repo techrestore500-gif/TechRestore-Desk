@@ -130,13 +130,13 @@ class TestAuditApi:
         after = _count_activity("ticket_status_changed")
         assert after == before
 
-    def test_admin_user_create_action_is_audited(self, client, monkeypatch):
+    def test_owner_user_create_action_is_audited(self, client, monkeypatch):
         monkeypatch.setenv("TECH_RESTORE_AUTH_BYPASS", "0")
-        AuthService.create_user(name="Super Admin", email="superadmin@example.com", username="superadmin", password="pass12345", role="admin")
+        AuthService.create_user(name="Owner", email="owner@example.com", username="owner1", password="pass12345", role="owner")
 
         login_resp = client.post(
             "/api/auth/login",
-            json={"email": "superadmin@example.com", "password": "pass12345"},
+            json={"email": "owner@example.com", "password": "pass12345"},
         )
         token = login_resp.json()["access_token"]
 
