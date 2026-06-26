@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from app.database import APP_ROOT
+from app.database import APP_ROOT, PERSISTENT_DATA_ROOT
 
 
 def _to_bool(value: str | None, default: bool = False) -> bool:
@@ -127,7 +127,7 @@ def get_settings() -> Settings:
         "production" if (os.getenv("RENDER") or "").strip().lower() == "true" else "development"
     )
     local_root = os.getenv("TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT")
-    default_local_root = APP_ROOT / "data" / "attachments"
+    default_local_root = PERSISTENT_DATA_ROOT / "attachments"
 
     cors_origins = _to_list(
         _first_non_empty("TECH_RESTORE_CORS_ORIGINS", "CORS_ALLOWED_ORIGINS"),
@@ -203,6 +203,15 @@ def validate_settings(settings: Settings) -> None:
             raise ValueError("TECH_RESTORE_JWT_SECRET must be set in production/staging")
         if settings.signed_url_secret == "dev-insecure-secret-change-me":
             raise ValueError("TECH_RESTORE_SIGNED_URL_SECRET must be set in production/staging")
+        if settings.attachments_provider == "local":
+            attachments_root = settings.attachments_local_root.resolve()
+            persistent_root = PERSISTENT_DATA_ROOT.resolve()
+            persistent_prefix = persistent_root.as_posix().lower().rstrip("/") + "/"
+            attachments_path = attachments_root.as_posix().lower()
+            if not attachments_path.startswith(persistent_prefix):
+                raise ValueError(
+                    "TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT must be under TECH_RESTORE_DATA_ROOT in production/staging"
+                )
 
     if not settings.attachments_allowed_mime_types:
         raise ValueError("TECH_RESTORE_ATTACHMENTS_ALLOWED_MIME_TYPES cannot be empty")

@@ -2,6 +2,7 @@
 from app.database import (
     create_database_backup,
     export_database_snapshot,
+    get_backup_file_path,
     get_loaner_agreement_defaults,
     get_notification_templates,
     list_system_activity,
@@ -14,8 +15,8 @@ class SystemRepository:
     """Handles backup and export operations."""
 
     @staticmethod
-    def create_backup() -> dict:
-        return create_database_backup()
+    def create_backup(*, requested_by_user_id: int | None = None) -> dict:
+        return create_database_backup(requested_by_user_id=requested_by_user_id)
 
     @staticmethod
     def export_snapshot() -> tuple[str, bytes]:
@@ -24,6 +25,10 @@ class SystemRepository:
     @staticmethod
     def list_history() -> list[dict]:
         return list_system_activity()
+
+    @staticmethod
+    def get_backup_file_path(file_name: str):
+        return get_backup_file_path(file_name)
 
     @staticmethod
     def get_loaner_agreement_defaults() -> dict:

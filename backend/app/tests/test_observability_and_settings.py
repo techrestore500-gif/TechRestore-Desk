@@ -140,10 +140,12 @@ def test_runtime_diagnostics_flags_non_persistent_sqlite_path(client: TestClient
     assert payload["database_url_configured"] is True
     assert payload["sqlite_under_var_data"] is False
     assert payload["persistence_status"] == "ephemeral_or_unknown"
-    assert "/var/data" in payload["warning"]
+    assert "persistent storage" in payload["warning"]
+    assert payload["database_path"].startswith("local:/")
 
 
 def test_runtime_diagnostics_flags_var_data_sqlite_path_as_persistent(client: TestClient, monkeypatch):
+    monkeypatch.setattr(database, "PERSISTENT_DATA_ROOT", Path("/var/data"))
     monkeypatch.setattr(database, "DB_PATH", Path("/var/data/tech_restore_desk.sqlite"))
     monkeypatch.setenv("DATABASE_URL", "sqlite:////var/data/tech_restore_desk.sqlite")
 
@@ -151,7 +153,76 @@ def test_runtime_diagnostics_flags_var_data_sqlite_path_as_persistent(client: Te
     assert response.status_code == 200
     payload = response.json()
     assert payload["database_type"] == "sqlite"
-    assert payload["database_path"] == "/var/data/tech_restore_desk.sqlite"
+    assert payload["database_path"] == "persistent:/tech_restore_desk.sqlite"
     assert payload["sqlite_under_var_data"] is True
     assert payload["persistence_status"] == "persistent_disk"
     assert payload["warning"] is None
+
+
+def test_runtime_diagnostics_reports_local_attachment_persistence(client: TestClient, monkeypatch):
+    monkeypatch.setattr(database, "PERSISTENT_DATA_ROOT", Path("/var/data"))
+    monkeypatch.setattr(database, "DB_PATH", Path("/var/data/tech_restore_desk.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////var/data/tech_restore_desk.sqlite")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "local")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT", "/var/data/attachments")
+
+    response = client.get("/api/system/runtime-diagnostics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["attachments_path"] == "persistent:/attachments"
+    assert payload["attachments_persistent"] is True
+
+
+def test_runtime_diagnostics_reports_s3_attachment_mode(client: TestClient, monkeypatch):
+    monkeypatch.setattr(database, "DB_PATH", Path("/var/data/tech_restore_desk.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////var/data/tech_restore_desk.sqlite")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "s3")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_BUCKET", "tech-restore-private")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_REGION", "auto")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_ACCESS_KEY_ID", "x")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_SECRET_ACCESS_KEY", "y")
+
+    response = client.get("/api/system/runtime-diagnostics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["attachments_path"] == "s3"
+    assert payload["attachments_persistent"] is None
+
+
+def test_production_requires_existing_persistent_data_root(monkeypatch, tmp_path):
+    missing_root = tmp_path / "missing-persistent-root"
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setattr(database, "PERSISTENT_DATA_ROOT", missing_root)
+    monkeypatch.setattr(database, "DB_PATH", missing_root / "tech_restore_desk.sqlite")
+    monkeypatch.setattr(database, "BACKUPS_DIR", missing_root / "backups")
+
+    with pytest.raises(RuntimeError):
+        database.initialize_database()
+
+
+def test_production_unwritable_persistent_root_fails_startup(monkeypatch, tmp_path):
+    root = tmp_path / "persistent-root"
+    root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setattr(database, "PERSISTENT_DATA_ROOT", root)
+    monkeypatch.setattr(database, "DB_PATH", root / "tech_restore_desk.sqlite")
+    monkeypatch.setattr(database, "BACKUPS_DIR", root / "backups")
+
+    def _raise_unwritable(_path):
+        raise PermissionError("not writable")
+
+    monkeypatch.setattr(database, "_assert_directory_writable", _raise_unwritable)
+
+    with pytest.raises(PermissionError):
+        database.initialize_database()
+
+
+def test_production_local_attachments_cannot_use_non_persistent_path(monkeypatch):
+    monkeypatch.setenv("TECH_RESTORE_APP_ENV", "production")
+    monkeypatch.setenv("TECH_RESTORE_JWT_SECRET", "prod-secret-key")
+    monkeypatch.setenv("TECH_RESTORE_SIGNED_URL_SECRET", "prod-signed-secret")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_PROVIDER", "local")
+    monkeypatch.setenv("TECH_RESTORE_ATTACHMENTS_LOCAL_ROOT", "C:/tmp/nonpersistent-attachments")
+
+    with pytest.raises(ValueError):
+        get_settings()

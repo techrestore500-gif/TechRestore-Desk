@@ -791,6 +791,8 @@ class BackupResponse(BaseModel):
     backup_path: str
     created_at: str
     file_size_bytes: int
+    integrity_check: str | None = None
+    retention_removed: int = 0
 
 
 class SystemActivityResponse(BaseModel):
@@ -799,6 +801,7 @@ class SystemActivityResponse(BaseModel):
     created_at: str
     file_size_bytes: int
     file_path: str | None = None
+    details: dict = Field(default_factory=dict)
 
 
 class LoanerAgreementDefaultsResponse(BaseModel):
@@ -970,6 +973,15 @@ class RuntimeDiagnosticsResponse(BaseModel):
     environment: str | None = None
     api_base_url: str | None = None
     twilio_configured: bool | None = None
+    backups_path: str | None = None
+    backups_persistent: bool | None = None
+    attachments_path: str | None = None
+    attachments_persistent: bool | None = None
+    last_backup_at: str | None = None
+    last_backup_integrity: str | None = None
+    available_disk_bytes: int | None = None
+    expected_render_disk_mounted: bool | None = None
+    expected_render_disk_writable: bool | None = None
 
 
 # ============================================================================

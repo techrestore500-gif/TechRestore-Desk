@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Body, Depends, Query
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
 from app.auth.dependencies import require_role
 from app.models import (
@@ -20,8 +20,26 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 
 @router.post("/backup", response_model=BackupResponse)
-def create_backup(_: dict = Depends(require_role("admin", "manager"))) -> BackupResponse:
-    return SystemService.create_backup()
+def create_backup(requester: dict = Depends(require_role("admin", "manager"))) -> BackupResponse:
+    return SystemService.create_backup(requested_by=requester)
+
+
+@router.get("/backup/{file_name}")
+def download_backup(file_name: str, requester: dict = Depends(require_role("owner"))) -> FileResponse:
+    try:
+        backup_path = SystemService.get_backup_file_path(file_name)
+    except FileNotFoundError as error:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Backup file not found") from error
+    except ValueError as error:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    SystemService.audit_backup_download(file_name=file_name, requested_by=requester)
+
+    return FileResponse(path=backup_path, filename=file_name, media_type="application/octet-stream")
 
 
 @router.get("/history", response_model=list[SystemActivityResponse])

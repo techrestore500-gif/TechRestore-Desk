@@ -1,15 +1,17 @@
 ﻿from __future__ import annotations
 
 import base64
+from contextlib import closing
 import hashlib
 import json
 import logging
 import os
-import shutil
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
+import time
+from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -19,10 +21,41 @@ from app.seed import REPAIR_CATEGORIES, SUPPORTED_DEVICE_MODELS
 
 
 APP_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = APP_ROOT / "data"
-BACKUPS_DIR = APP_ROOT / "backups"
+
+
+def _is_truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _runtime_environment() -> str:
+    env = (os.getenv("TECH_RESTORE_APP_ENV") or os.getenv("APP_ENV") or "").strip().lower()
+    if env:
+        return env
+    if _is_truthy(os.getenv("RENDER")):
+        return "production"
+    return "development"
+
+
+def _resolve_persistent_data_root() -> Path:
+    configured = (os.getenv("TECH_RESTORE_DATA_ROOT") or os.getenv("TECH_RESTORE_PERSISTENT_DATA_ROOT") or "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    if _runtime_environment() in {"production", "staging"}:
+        return Path("/var/data")
+    return (APP_ROOT / "data").resolve()
+
+
+PERSISTENT_DATA_ROOT = _resolve_persistent_data_root()
+DATA_DIR = PERSISTENT_DATA_ROOT
+BACKUPS_DIR = (
+    Path(os.getenv("TECH_RESTORE_BACKUPS_DIR")).expanduser().resolve()
+    if (os.getenv("TECH_RESTORE_BACKUPS_DIR") or "").strip()
+    else (PERSISTENT_DATA_ROOT / "backups")
+)
 SYSTEM_ACTIVITY_LOG_PATH = DATA_DIR / "system_activity_log.json"
-LEGACY_DB_PATH = DATA_DIR / "repairdesk.sqlite"
+LEGACY_DB_PATH = (APP_ROOT / "data" / "repairdesk.sqlite").resolve()
 
 
 def _resolve_db_path_from_env() -> Path | None:
@@ -40,7 +73,7 @@ def _resolve_db_path_from_env() -> Path | None:
     return Path(database_url).expanduser().resolve()
 
 
-DEFAULT_DB_PATH = DATA_DIR / "tech_restore_desk.sqlite"
+DEFAULT_DB_PATH = (PERSISTENT_DATA_ROOT / "tech_restore_desk.sqlite").resolve()
 ENV_DB_PATH = _resolve_db_path_from_env()
 DB_PATH = ENV_DB_PATH or (DEFAULT_DB_PATH if DEFAULT_DB_PATH.exists() or not LEGACY_DB_PATH.exists() else LEGACY_DB_PATH)
 SLOW_QUERY_THRESHOLD_MS = float(os.getenv("TECH_RESTORE_SLOW_QUERY_MS", "120"))
@@ -92,6 +125,7 @@ class InstrumentedConnection(sqlite3.Connection):
 
 
 def get_connection() -> sqlite3.Connection:
+    _ensure_runtime_storage_paths()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, factory=InstrumentedConnection)
@@ -102,27 +136,144 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
-def create_database_backup() -> dict:
+def _is_persistent_storage_path(path: Path) -> bool:
+    normalized = path.resolve().as_posix().lower()
+    persistent_root = PERSISTENT_DATA_ROOT.resolve().as_posix().lower().rstrip("/")
+    return normalized.startswith(f"{persistent_root}/") or normalized == persistent_root or normalized.startswith("/var/data/")
+
+
+def _is_under_path(path: Path, root: Path) -> bool:
+    root_str = root.resolve().as_posix().lower().rstrip("/") + "/"
+    path_str = path.resolve().as_posix().lower()
+    return path_str.startswith(root_str)
+
+
+def _assert_directory_writable(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / f".write-probe-{uuid4().hex}.tmp"
+    try:
+        probe.write_text("ok", encoding="utf-8")
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def _ensure_runtime_storage_paths() -> None:
+    env = _runtime_environment()
+    if env not in {"production", "staging"}:
+        return
+
+    if not PERSISTENT_DATA_ROOT.exists() or not PERSISTENT_DATA_ROOT.is_dir():
+        raise RuntimeError(
+            f"Persistent data root is unavailable: {PERSISTENT_DATA_ROOT}. Refusing startup in production/staging."
+        )
+
+    if not _is_under_path(DB_PATH, PERSISTENT_DATA_ROOT):
+        raise RuntimeError("Database path must be under persistent data root in production/staging")
+    if not _is_under_path(BACKUPS_DIR, PERSISTENT_DATA_ROOT):
+        raise RuntimeError("Backups path must be under persistent data root in production/staging")
+
+    _assert_directory_writable(PERSISTENT_DATA_ROOT)
+    _assert_directory_writable(DB_PATH.parent)
+    _assert_directory_writable(BACKUPS_DIR)
+
+
+def _verify_sqlite_integrity(path: Path) -> tuple[bool, str]:
+    with closing(sqlite3.connect(path)) as connection:
+        row = connection.execute("PRAGMA integrity_check").fetchone()
+    result = str(row[0]) if row else "unknown"
+    return result.lower() == "ok", result
+
+
+def _apply_backup_retention(*, newest_backup: Path) -> int:
+    keep_raw = (os.getenv("TECH_RESTORE_BACKUP_RETENTION_COUNT") or "40").strip()
+    try:
+        keep_count = max(1, int(keep_raw))
+    except ValueError:
+        keep_count = 40
+
+    backups = sorted(BACKUPS_DIR.glob("backup-*.sqlite"), key=lambda item: item.stat().st_mtime, reverse=True)
+    removed = 0
+    for stale in backups[keep_count:]:
+        if stale.resolve() == newest_backup.resolve():
+            continue
+        if _safe_unlink(stale):
+            removed += 1
+        else:
+            logger.warning("Could not delete stale backup during retention", extra={"backup_file": stale.name})
+    return removed
+
+
+def _safe_unlink(path: Path, *, attempts: int = 8, delay_seconds: float = 0.05) -> bool:
+    for index in range(attempts):
+        try:
+            path.unlink(missing_ok=True)
+            return True
+        except PermissionError:
+            if index == attempts - 1:
+                return False
+            time.sleep(delay_seconds)
+    return False
+
+
+def create_database_backup(*, requested_by_user_id: int | None = None) -> dict:
     BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
     created_at = utc_now()
-    timestamp = created_at.replace(":", "-")
-    file_name = f"backup-{timestamp}.sqlite"
-    backup_path = BACKUPS_DIR / file_name
-    shutil.copy2(DB_PATH, backup_path)
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S-%f")
+    file_name = f"backup-{timestamp}-{uuid4().hex[:8]}.sqlite"
+    backup_path = (BACKUPS_DIR / file_name).resolve()
+
+    with closing(sqlite3.connect(DB_PATH)) as source_connection, closing(sqlite3.connect(backup_path)) as destination_connection:
+        source_connection.backup(destination_connection)
+
+    integrity_ok, integrity_result = _verify_sqlite_integrity(backup_path)
+    if not integrity_ok:
+        removed_invalid = _safe_unlink(backup_path)
+        if not removed_invalid:
+            raise RuntimeError(
+                f"Backup failed integrity check and invalid backup could not be removed: {integrity_result}"
+            )
+        raise RuntimeError(f"Backup failed integrity check: {integrity_result}")
+
+    retention_removed = _apply_backup_retention(newest_backup=backup_path)
     file_size_bytes = backup_path.stat().st_size
+
     record_system_activity(
         activity_type="backup",
         file_name=file_name,
         file_size_bytes=file_size_bytes,
-        file_path=str(backup_path),
+        file_path=f"backups/{file_name}",
         created_at=created_at,
+        details={
+            "integrity_check": integrity_result,
+            "retention_removed": retention_removed,
+            "persistent_storage": _is_persistent_storage_path(backup_path),
+            "requested_by_user_id": requested_by_user_id,
+        },
     )
     return {
         "file_name": file_name,
         "backup_path": str(backup_path),
+        "backup_path_public": f"backups/{file_name}",
         "created_at": created_at,
         "file_size_bytes": file_size_bytes,
+        "integrity_check": integrity_result,
+        "retention_removed": retention_removed,
     }
+
+
+def get_backup_file_path(file_name: str) -> Path:
+    if not file_name.endswith(".sqlite"):
+        raise ValueError("Invalid backup file name")
+    if "/" in file_name or "\\" in file_name or ".." in file_name:
+        raise ValueError("Invalid backup file name")
+
+    resolved = (BACKUPS_DIR / file_name).resolve()
+    backups_root = BACKUPS_DIR.resolve().as_posix().lower().rstrip("/") + "/"
+    if not resolved.as_posix().lower().startswith(backups_root):
+        raise ValueError("Invalid backup file name")
+    if not resolved.exists() or not resolved.is_file() or resolved.is_symlink():
+        raise FileNotFoundError(file_name)
+    return resolved
 
 
 def export_database_snapshot() -> tuple[str, bytes]:
@@ -186,6 +337,7 @@ def record_system_activity(
     file_size_bytes: int,
     file_path: str | None,
     created_at: str | None = None,
+    details: dict | None = None,
 ) -> dict:
     activity = {
         "activity_type": activity_type,
@@ -193,6 +345,7 @@ def record_system_activity(
         "file_size_bytes": file_size_bytes,
         "file_path": file_path,
         "created_at": created_at or utc_now(),
+        "details": details or {},
     }
     items = _read_system_activity_log()
     items.insert(0, activity)
@@ -207,21 +360,6 @@ def list_system_activity(limit: int = 10) -> list[dict]:
 def _table_has_column(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
     rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
     return any(row["name"] == column_name for row in rows)
-
-
-def _is_truthy(value: str | None) -> bool:
-    if value is None:
-        return False
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _runtime_environment() -> str:
-    env = (os.getenv("TECH_RESTORE_APP_ENV") or os.getenv("APP_ENV") or "").strip().lower()
-    if env:
-        return env
-    if _is_truthy(os.getenv("RENDER")):
-        return "production"
-    return "development"
 
 
 def _should_seed_demo_operational_records() -> bool:

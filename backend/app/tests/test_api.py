@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -575,6 +576,8 @@ class TestSystem:
         assert backup_resp.status_code == 200
         backup = backup_resp.json()
         assert backup["file_name"].endswith(".sqlite")
+        assert backup["integrity_check"].lower() == "ok"
+        assert backup["backup_path"].startswith("backups/")
 
         export_resp = client.get("/api/system/export")
         assert export_resp.status_code == 200
@@ -585,6 +588,95 @@ class TestSystem:
         history = history_resp.json()
         assert any(item["activity_type"] == "backup" for item in history)
         assert any(item["activity_type"] == "export" for item in history)
+
+    def test_backup_download_is_owner_only(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_backup")
+        admin_headers, _ = _create_and_login(client_auth, "admin", "admin_backup")
+
+        backup_resp = client_auth.post("/api/system/backup", headers=owner_headers)
+        assert backup_resp.status_code == 200
+        file_name = backup_resp.json()["file_name"]
+
+        owner_download = client_auth.get(f"/api/system/backup/{file_name}", headers=owner_headers)
+        assert owner_download.status_code == 200
+        assert owner_download.headers["content-type"] == "application/octet-stream"
+        assert len(owner_download.content) > 0
+
+        admin_download = client_auth.get(f"/api/system/backup/{file_name}", headers=admin_headers)
+        assert admin_download.status_code == 403
+
+    def test_backup_create_and_history_authorization(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_backup_auth")
+        admin_headers, _ = _create_and_login(client_auth, "admin", "admin_backup_auth")
+        viewer_headers, _ = _create_and_login(client_auth, "viewer", "viewer_backup_auth")
+
+        owner_create = client_auth.post("/api/system/backup", headers=owner_headers)
+        assert owner_create.status_code == 200
+
+        admin_create = client_auth.post("/api/system/backup", headers=admin_headers)
+        assert admin_create.status_code == 200
+
+        viewer_create = client_auth.post("/api/system/backup", headers=viewer_headers)
+        assert viewer_create.status_code == 403
+
+        owner_history = client_auth.get("/api/system/history", headers=owner_headers)
+        assert owner_history.status_code == 200
+
+        admin_history = client_auth.get("/api/system/history", headers=admin_headers)
+        assert admin_history.status_code == 200
+
+        viewer_history = client_auth.get("/api/system/history", headers=viewer_headers)
+        assert viewer_history.status_code == 403
+
+    def test_backup_download_rejects_path_traversal_and_missing_file(self, client_auth):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_backup_path")
+
+        traversal_resp = client_auth.get("/api/system/backup/..\\secret.sqlite", headers=owner_headers)
+        assert traversal_resp.status_code == 400
+
+        missing_resp = client_auth.get("/api/system/backup/missing-backup.sqlite", headers=owner_headers)
+        assert missing_resp.status_code == 404
+
+    def test_backup_download_rejects_symlink_escape(self, client_auth, tmp_path):
+        owner_headers, _ = _create_and_login(client_auth, "owner", "owner_backup_symlink")
+
+        outside_target = tmp_path / "outside.sqlite"
+        outside_target.write_bytes(b"not a real sqlite backup")
+        symlink_path = database.BACKUPS_DIR / "backup-symlink.sqlite"
+
+        try:
+            symlink_path.symlink_to(outside_target)
+        except OSError:
+            pytest.skip("Symlink creation not available in this environment")
+
+        try:
+            response = client_auth.get(f"/api/system/backup/{symlink_path.name}", headers=owner_headers)
+            assert response.status_code == 404
+        finally:
+            symlink_path.unlink(missing_ok=True)
+
+    def test_backup_create_and_download_are_audit_logged(self, client_auth):
+        owner_headers, owner_user = _create_and_login(client_auth, "owner", "owner_backup_audit")
+
+        backup_resp = client_auth.post("/api/system/backup", headers=owner_headers)
+        assert backup_resp.status_code == 200
+        file_name = backup_resp.json()["file_name"]
+
+        download_resp = client_auth.get(f"/api/system/backup/{file_name}", headers=owner_headers)
+        assert download_resp.status_code == 200
+
+        with database.get_connection() as connection:
+            backup_create_audit = connection.execute(
+                "SELECT * FROM activity_logs WHERE action = 'admin_backup_created' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            backup_download_audit = connection.execute(
+                "SELECT * FROM activity_logs WHERE action = 'admin_backup_downloaded' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+
+        assert backup_create_audit is not None
+        assert int(backup_create_audit["user_id"]) == int(owner_user["id"])
+        assert backup_download_audit is not None
+        assert int(backup_download_audit["user_id"]) == int(owner_user["id"])
 
     def test_get_and_patch_loaner_agreement_defaults(self, client):
         get_resp = client.get("/api/system/loaner-agreement-defaults")
@@ -1186,6 +1278,9 @@ class TestStartupSeedingSafety:
 
         with pytest.raises(RuntimeError):
             database.initialize_database()
+
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.delenv("TECH_RESTORE_ENABLE_DEMO_SEED", raising=False)
 
         with database.get_connection() as connection:
             ticket_after = connection.execute(

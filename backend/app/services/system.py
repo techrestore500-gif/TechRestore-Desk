@@ -1,8 +1,10 @@
 """Service layer for local backup and export workflows."""
 import os
+import shutil
 from pathlib import Path
 
 import app.database as database
+from app.core.settings import get_settings
 from app.models import (
     AuditLogListResponse,
     AuditLogResponse,
@@ -28,8 +30,44 @@ class SystemService:
     """Business logic for local system maintenance actions."""
 
     @staticmethod
-    def create_backup() -> BackupResponse:
-        return BackupResponse.model_validate(SystemRepository.create_backup())
+    def create_backup(*, requested_by: dict | None = None) -> BackupResponse:
+        requested_by_user_id = requested_by.get("id") if isinstance(requested_by, dict) and isinstance(requested_by.get("id"), int) else None
+        backup = SystemRepository.create_backup(requested_by_user_id=requested_by_user_id)
+        response = BackupResponse.model_validate(
+            {
+                **backup,
+                "backup_path": backup.get("backup_path_public") or backup.get("backup_path"),
+            }
+        )
+        AuditService.log(
+            entity_type="system_backup",
+            entity_id=None,
+            action="admin_backup_created",
+            new_value={
+                "file_name": response.file_name,
+                "created_at": response.created_at,
+                "file_size_bytes": response.file_size_bytes,
+                "integrity_check": response.integrity_check,
+                "requested_by_user_id": requested_by_user_id,
+            },
+            user_id=requested_by_user_id,
+        )
+        return response
+
+    @staticmethod
+    def get_backup_file_path(file_name: str) -> Path:
+        return SystemRepository.get_backup_file_path(file_name)
+
+    @staticmethod
+    def audit_backup_download(*, file_name: str, requested_by: dict | None = None) -> None:
+        requested_by_user_id = requested_by.get("id") if isinstance(requested_by, dict) and isinstance(requested_by.get("id"), int) else None
+        AuditService.log(
+            entity_type="system_backup",
+            entity_id=None,
+            action="admin_backup_downloaded",
+            new_value={"file_name": file_name, "requested_by_user_id": requested_by_user_id},
+            user_id=requested_by_user_id,
+        )
 
     @staticmethod
     def export_snapshot() -> tuple[str, bytes]:
@@ -124,14 +162,35 @@ class SystemService:
 
     @staticmethod
     def get_runtime_diagnostics() -> RuntimeDiagnosticsResponse:
+        def _public_storage_path(raw: Path) -> str:
+            resolved = raw.resolve()
+            if database._is_persistent_storage_path(resolved):
+                persistent_root = Path(database.PERSISTENT_DATA_ROOT).resolve()
+                if database._is_under_path(resolved, persistent_root):
+                    relative = resolved.relative_to(persistent_root).as_posix()
+                elif resolved.as_posix().lower().startswith("/var/data/"):
+                    relative = resolved.relative_to(Path("/var/data")).as_posix()
+                else:
+                    relative = resolved.name
+                return f"persistent:/{relative}"
+
+            persistent_root = Path(database.PERSISTENT_DATA_ROOT).resolve()
+            persistent_prefix = persistent_root.as_posix().lower().rstrip("/") + "/"
+            resolved_str = resolved.as_posix().lower()
+            if resolved_str.startswith(persistent_prefix):
+                relative = resolved.relative_to(persistent_root).as_posix()
+                return f"persistent:/{relative}"
+            return f"local:/{resolved.name}"
+
         database_url = os.getenv("DATABASE_URL", "").strip()
-        database_path = Path(database.DB_PATH).as_posix()
+        database_path_resolved = Path(database.DB_PATH).resolve()
+        database_path = _public_storage_path(database_path_resolved)
         is_sqlite = True
-        sqlite_under_var_data = database_path.startswith("/var/data/") if is_sqlite else None
+        sqlite_under_var_data = database._is_persistent_storage_path(database_path_resolved) if is_sqlite else None
         persistence_status = "persistent_disk" if sqlite_under_var_data else "ephemeral_or_unknown"
         warning = None
         if is_sqlite and not sqlite_under_var_data:
-            warning = "SQLite database path is not under /var/data; Render redeploys may wipe data."
+            warning = "SQLite database path is not under persistent storage; redeploys may wipe data."
 
         backend_commit = os.getenv("RENDER_GIT_COMMIT", "").strip() or None
         frontend_commit = os.getenv("FRONTEND_GIT_COMMIT", "").strip() or backend_commit
@@ -151,6 +210,42 @@ class SystemService:
         except Exception:
             twilio_configured = None
 
+        backups_path_raw = Path(database.BACKUPS_DIR).resolve()
+        backups_path = _public_storage_path(backups_path_raw)
+        backups_persistent = database._is_persistent_storage_path(backups_path_raw)
+
+        settings = get_settings()
+        attachments_path = _public_storage_path(settings.attachments_local_root) if settings.attachments_provider == "local" else "s3"
+        attachments_persistent = None
+        if settings.attachments_provider == "local":
+            attachments_persistent = database._is_persistent_storage_path(settings.attachments_local_root)
+
+        history = SystemRepository.list_history()
+        last_backup = next((item for item in history if item.get("activity_type") == "backup"), None)
+        last_backup_at = last_backup.get("created_at") if last_backup else None
+        last_backup_integrity = None
+        if last_backup:
+            details = last_backup.get("details") or {}
+            if isinstance(details, dict):
+                last_backup_integrity = details.get("integrity_check")
+
+        disk_target = Path(database.PERSISTENT_DATA_ROOT)
+        try:
+            available_disk_bytes = int(shutil.disk_usage(disk_target).free)
+        except Exception:
+            available_disk_bytes = None
+
+        expected_render_disk_mounted = None
+        expected_render_disk_writable = None
+        if (os.getenv("RENDER") or "").strip().lower() == "true":
+            expected_render_disk_mounted = disk_target.exists() and disk_target.is_dir()
+            if expected_render_disk_mounted:
+                try:
+                    database._assert_directory_writable(disk_target)
+                    expected_render_disk_writable = True
+                except Exception:
+                    expected_render_disk_writable = False
+
         return RuntimeDiagnosticsResponse.model_validate(
             {
                 "database_type": "sqlite",
@@ -166,5 +261,14 @@ class SystemService:
                 "environment": environment,
                 "api_base_url": api_base_url,
                 "twilio_configured": twilio_configured,
+                "backups_path": backups_path,
+                "backups_persistent": backups_persistent,
+                "attachments_path": attachments_path,
+                "attachments_persistent": attachments_persistent,
+                "last_backup_at": last_backup_at,
+                "last_backup_integrity": last_backup_integrity,
+                "available_disk_bytes": available_disk_bytes,
+                "expected_render_disk_mounted": expected_render_disk_mounted,
+                "expected_render_disk_writable": expected_render_disk_writable,
             }
         )

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
+from app.services import attachments as attachment_service
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\nIDATx\x9cc`\x00\x00\x00\x02\x00\x01\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
 
@@ -128,3 +129,36 @@ def test_cleanup_orphans_removes_unlinked_files(client: TestClient, tmp_path):
     assert data["deleted_count"] == 1
     assert len(data["deleted_keys"]) == 1
     assert not orphan_path.exists()
+
+
+def test_upload_failure_does_not_create_attachment_metadata(client: TestClient, monkeypatch):
+    ticket_id = _create_ticket(client)
+
+    class FailingProvider:
+        def put_object(self, *, key: str, content: bytes, content_type: str) -> None:
+            raise RuntimeError("disk write failed")
+
+        def get_object(self, *, key: str):
+            raise FileNotFoundError
+
+        def delete_object(self, *, key: str) -> None:
+            return None
+
+        def object_exists(self, *, key: str) -> bool:
+            return False
+
+        def iter_keys(self, *, prefix: str = "") -> list[str]:
+            return []
+
+    monkeypatch.setattr(attachment_service, "build_storage_provider", lambda _settings: FailingProvider())
+
+    before_count = len(database.list_attachments_for_entity("ticket", ticket_id))
+    with pytest.raises(RuntimeError):
+        client.post(
+            f"/api/tickets/{ticket_id}/attachments",
+            params={"attachment_type": "intake_photo"},
+            files={"file": ("intake.png", PNG_BYTES, "image/png")},
+        )
+
+    after_count = len(database.list_attachments_for_entity("ticket", ticket_id))
+    assert after_count == before_count
